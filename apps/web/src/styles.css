@@ -1,0 +1,481 @@
+:root {
+  color: #18212f;
+  background: #f7f8fb;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --border: #d8dee8;
+  --muted: #687386;
+  --surface: #ffffff;
+  --surface-2: #eef2f7;
+  --ink: #18212f;
+  --blue: #2563eb;
+  --green: #11845b;
+  --amber: #b45309;
+  --rose: #be123c;
+  --shadow: 0 12px 40px rgb(17 24 39 / 8%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  align-items: center;
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+}
+
+button svg {
+  flex: 0 0 auto;
+  height: 17px;
+  width: 17px;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.secondary-button,
+.ghost-button {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+.boot-screen,
+.login-screen {
+  align-items: center;
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+  place-items: center;
+}
+
+.boot-screen {
+  color: var(--muted);
+  gap: 10px;
+}
+
+.login-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  max-width: 420px;
+  padding: 28px;
+  width: min(100%, 420px);
+}
+
+.brand-row {
+  align-items: center;
+  display: flex;
+  font-weight: 800;
+  gap: 10px;
+}
+
+.brand-row svg {
+  color: var(--green);
+}
+
+.login-panel h1 {
+  font-size: 26px;
+  line-height: 1.15;
+  margin: 28px 0 20px;
+}
+
+.login-form {
+  display: grid;
+  gap: 14px;
+}
+
+.login-form label {
+  color: var(--muted);
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+}
+
+.login-form input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  min-height: 42px;
+  padding: 0 12px;
+  width: 100%;
+}
+
+.login-form button,
+.login-panel .ghost-button {
+  justify-content: center;
+  width: 100%;
+}
+
+.login-panel .ghost-button {
+  margin-top: 12px;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: #101827;
+  color: #f8fafc;
+  padding: 22px;
+}
+
+.sidebar nav {
+  display: grid;
+  gap: 6px;
+  margin-top: 34px;
+}
+
+.sidebar a {
+  align-items: center;
+  border-radius: 8px;
+  color: #ccd5e1;
+  display: flex;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 10px;
+  text-decoration: none;
+}
+
+.sidebar a.active,
+.sidebar a:hover {
+  background: #1f2b3d;
+  color: #fff;
+}
+
+.sidebar svg {
+  height: 17px;
+  width: 17px;
+}
+
+.workspace {
+  display: grid;
+  gap: 18px;
+  grid-template-rows: auto auto auto 1fr;
+  padding: 22px;
+}
+
+.topbar,
+.timer-band,
+.panel,
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.topbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  min-height: 72px;
+  padding: 14px 18px;
+}
+
+.topbar p,
+.timer-band p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.topbar h1,
+.timer-band h2,
+.panel h2 {
+  margin: 0;
+}
+
+.topbar h1 {
+  font-size: 22px;
+}
+
+.toolbar,
+.timer-actions,
+.panel-heading {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.toolbar > button,
+.segmented-control button {
+  justify-content: center;
+  padding: 0;
+  width: 38px;
+}
+
+.segmented-control {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+}
+
+.segmented-control button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  min-height: 32px;
+}
+
+.segmented-control button.selected {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+.timer-band {
+  align-items: center;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: 18px;
+}
+
+.timer-display {
+  background: #111827;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  min-width: 150px;
+  padding: 12px 14px;
+  text-align: center;
+}
+
+.metrics-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metric-card {
+  display: grid;
+  gap: 12px;
+  min-height: 104px;
+  padding: 16px;
+}
+
+.metric-card span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.metric-card strong {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.work-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+}
+
+.panel {
+  min-height: 260px;
+  padding: 16px;
+}
+
+.panel-heading {
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.panel-heading h2 {
+  font-size: 18px;
+}
+
+.timesheet-table {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.timesheet-row {
+  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 110px;
+  min-height: 48px;
+  padding: 0 12px;
+}
+
+.timesheet-row + .timesheet-row {
+  border-top: 1px solid var(--border);
+}
+
+.timesheet-row span:nth-child(2) {
+  color: var(--blue);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.timesheet-row span:nth-child(3) {
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.calendar-strip {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.day-column {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 40px;
+  min-height: 160px;
+  padding: 12px;
+}
+
+.day-column span {
+  align-self: end;
+  background: #e7f5ef;
+  border: 1px solid #b9e4d0;
+  border-radius: 8px;
+  color: var(--green);
+  font-weight: 800;
+  padding: 8px;
+  text-align: center;
+}
+
+.layout-minimal {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+.layout-minimal .sidebar {
+  padding: 18px 12px;
+}
+
+.layout-minimal .sidebar .brand-row span,
+.layout-minimal .sidebar a {
+  font-size: 0;
+  justify-content: center;
+}
+
+.layout-compact .workspace {
+  gap: 10px;
+  padding: 12px;
+}
+
+.layout-compact .topbar,
+.layout-compact .timer-band,
+.layout-compact .panel,
+.layout-compact .metric-card {
+  border-radius: 6px;
+}
+
+.layout-compact .metric-card {
+  min-height: 78px;
+  padding: 12px;
+}
+
+.layout-compact .metric-card strong {
+  font-size: 25px;
+}
+
+@media (max-width: 980px) {
+  .app-shell,
+  .layout-minimal {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    padding: 14px;
+  }
+
+  .sidebar nav {
+    display: flex;
+    margin-top: 0;
+  }
+
+  .sidebar a {
+    font-size: 0;
+    justify-content: center;
+    width: 40px;
+  }
+
+  .timer-band,
+  .work-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .workspace {
+    padding: 12px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    gap: 12px;
+    flex-direction: column;
+  }
+
+  .toolbar,
+  .timer-actions {
+    width: 100%;
+  }
+
+  .timer-actions button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .metrics-grid,
+  .calendar-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .timesheet-row {
+    gap: 8px;
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .timesheet-row span:nth-child(3) {
+    text-align: left;
+  }
+}
+

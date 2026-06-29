@@ -1,0 +1,23 @@
+.DS_Store
+.env
+.env.local
+
+# Go
+bin/
+coverage.out
+
+# SQLite runtime files
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Docker/local
+.docker-data/

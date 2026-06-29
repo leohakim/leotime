@@ -1,0 +1,4 @@
+leotime.example.com {
+  reverse_proxy leotime:8080
+}
+
