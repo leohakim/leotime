@@ -38,6 +38,7 @@ Create and update use the same body:
 ## Validation
 
 - `name` is required.
+- `email` is optional, but must be valid when present.
 - `defaultCurrency` defaults to `EUR` when empty.
 - `defaultCurrency` must be a 3-letter uppercase currency code after normalization.
 - `defaultHourlyRateMinor` must be non-negative.
@@ -49,12 +50,20 @@ Create and update use the same body:
 
 ## Frontend
 
-The dashboard includes a clients panel that can:
+The dashboard includes a clients workbench with a directory on the left and an editor on the right. It can:
 
 - List active clients.
 - Create clients.
 - Edit clients.
 - Archive clients.
 
-The panel invalidates the clients and overview queries after mutations so counters stay aligned.
+The form validates before submit:
 
+- Required name with at least 2 characters.
+- Optional email format.
+- Required 3-letter currency code.
+- Optional hourly rate with up to 2 decimals.
+
+The UI shows hourly rates as human amounts, for example `75.00`. The API still stores money as minor units, so the frontend sends `7500`.
+
+The panel invalidates the clients and overview queries after mutations so counters stay aligned.

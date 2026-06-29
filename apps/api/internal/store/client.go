@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/mail"
 	"strings"
 )
 
@@ -210,6 +211,9 @@ func normalizeClientInput(input ClientInput) (ClientInput, error) {
 	if !validCurrency(input.DefaultCurrency) {
 		return ClientInput{}, fmt.Errorf("%w: defaultCurrency must be a 3-letter code", ErrInvalidClientInput)
 	}
+	if input.Email != "" && !validEmail(input.Email) {
+		return ClientInput{}, fmt.Errorf("%w: email must be valid", ErrInvalidClientInput)
+	}
 	if input.DefaultHourlyRateMinor < 0 {
 		return ClientInput{}, fmt.Errorf("%w: defaultHourlyRateMinor must be non-negative", ErrInvalidClientInput)
 	}
@@ -227,6 +231,15 @@ func validCurrency(value string) bool {
 		}
 	}
 	return true
+}
+
+func validEmail(value string) bool {
+	address, err := mail.ParseAddress(value)
+	if err != nil || address.Address != value {
+		return false
+	}
+	parts := strings.Split(address.Address, "@")
+	return len(parts) == 2 && strings.Contains(parts[1], ".")
 }
 
 func nullValue(value string) sql.NullString {

@@ -1,8 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  BadgeDollarSign,
   CalendarDays,
   Building2,
   Clock3,
+  CircleAlert,
+  CircleCheck,
   Columns3,
   Download,
   Pencil,
@@ -10,6 +13,7 @@ import {
   Languages,
   LayoutDashboard,
   LogOut,
+  Mail,
   Minimize2,
   PanelLeft,
   Play,
@@ -270,37 +274,48 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
   );
 }
 
-const emptyClientInput: ClientInput = {
+type ClientFormState = Omit<ClientInput, 'defaultHourlyRateMinor'> & {
+  hourlyRate: string;
+};
+
+type ClientFormErrors = Partial<Record<keyof ClientFormState | 'form', string>>;
+
+const emptyClientForm: ClientFormState = {
   name: '',
   email: '',
   taxId: '',
   billingAddress: '',
   defaultCurrency: 'EUR',
-  defaultHourlyRateMinor: 0,
+  hourlyRate: '',
 };
 
 function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: boolean; t: Translator }) {
   const queryClient = useQueryClient();
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
-  const [form, setForm] = useState<ClientInput>(emptyClientInput);
+  const [form, setForm] = useState<ClientFormState>(emptyClientForm);
+  const [errors, setErrors] = useState<ClientFormErrors>({});
 
   const createMutation = useMutation({
     mutationFn: createClient,
     onSuccess: () => {
-      setForm(emptyClientInput);
+      setForm(emptyClientForm);
+      setErrors({});
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
     },
+    onError: () => setErrors((current) => ({ ...current, form: t('clientSaveFailed') })),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ clientId, input }: { clientId: string; input: ClientInput }) => updateClient(clientId, input),
     onSuccess: () => {
       setEditingClientId(null);
-      setForm(emptyClientInput);
+      setForm(emptyClientForm);
+      setErrors({});
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
     },
+    onError: () => setErrors((current) => ({ ...current, form: t('clientSaveFailed') })),
   });
 
   const archiveMutation = useMutation({
@@ -309,130 +324,334 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
     },
+    onError: () => setErrors((current) => ({ ...current, form: t('clientArchiveFailed') })),
   });
 
   function submitClient(event: FormEvent) {
     event.preventDefault();
-    if (editingClientId) {
-      updateMutation.mutate({ clientId: editingClientId, input: form });
+    const validation = validateClientForm(form, t);
+    setErrors(validation);
+    if (hasErrors(validation)) {
       return;
     }
-    createMutation.mutate(form);
+
+    const input = clientFormToInput(form);
+    if (editingClientId) {
+      updateMutation.mutate({ clientId: editingClientId, input });
+      return;
+    }
+    createMutation.mutate(input);
+  }
+
+  function updateField<K extends keyof ClientFormState>(field: K, value: ClientFormState[K]) {
+    const next = { ...form, [field]: value };
+    setForm(next);
+    if (hasErrors(errors)) {
+      setErrors(validateClientForm(next, t));
+    }
   }
 
   function startEditing(client: Client) {
     setEditingClientId(client.id);
+    setErrors({});
     setForm({
       name: client.name,
       email: client.email,
       taxId: client.taxId,
       billingAddress: client.billingAddress,
       defaultCurrency: client.defaultCurrency,
-      defaultHourlyRateMinor: client.defaultHourlyRateMinor,
+      hourlyRate: formatRateInput(client.defaultHourlyRateMinor),
     });
   }
 
   function cancelEditing() {
     setEditingClientId(null);
-    setForm(emptyClientInput);
+    setForm(emptyClientForm);
+    setErrors({});
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <section className="panel clients-panel" id="clients" aria-labelledby="clients-title">
-      <div className="panel-heading">
-        <h2 id="clients-title">{t('clients')}</h2>
-        <Building2 aria-hidden="true" />
+    <section className="clients-section" id="clients" aria-labelledby="clients-title">
+      <div className="clients-heading">
+        <div className="section-title-group">
+          <span className="section-kicker">
+            <Building2 aria-hidden="true" />
+            {t('clients')}
+          </span>
+          <h2 id="clients-title">{t('clientDirectory')}</h2>
+          <p>{t('clientPanelSubtitle')}</p>
+        </div>
+        <button className="secondary-button" type="button" onClick={cancelEditing}>
+          <Plus aria-hidden="true" />
+          {t('newClient')}
+        </button>
       </div>
 
-      <form className="client-form" onSubmit={submitClient}>
-        <label>
-          {t('name')}
-          <input
-            value={form.name}
-            onChange={(event) => setForm({ ...form, name: event.target.value })}
-            placeholder={t('newClient')}
-          />
-        </label>
-        <label>
-          {t('email')}
-          <input
-            value={form.email}
-            onChange={(event) => setForm({ ...form, email: event.target.value })}
-            type="email"
-          />
-        </label>
-        <label>
-          {t('taxId')}
-          <input value={form.taxId} onChange={(event) => setForm({ ...form, taxId: event.target.value })} />
-        </label>
-        <label>
-          {t('defaultCurrency')}
-          <input
-            maxLength={3}
-            value={form.defaultCurrency}
-            onChange={(event) => setForm({ ...form, defaultCurrency: event.target.value.toUpperCase() })}
-          />
-        </label>
-        <label>
-          {t('defaultHourlyRateMinor')}
-          <input
-            min={0}
-            value={form.defaultHourlyRateMinor}
-            onChange={(event) => setForm({ ...form, defaultHourlyRateMinor: Number(event.target.value) })}
-            type="number"
-          />
-        </label>
-        <label className="client-address-field">
-          {t('billingAddress')}
-          <input
-            value={form.billingAddress}
-            onChange={(event) => setForm({ ...form, billingAddress: event.target.value })}
-          />
-        </label>
-        <div className="client-form-actions">
-          <button type="submit" disabled={isSaving}>
-            {editingClientId ? <Save aria-hidden="true" /> : <Plus aria-hidden="true" />}
-            {editingClientId ? t('save') : t('newClient')}
-          </button>
-          {editingClientId ? (
+      <div className="clients-workbench">
+        <div className="client-directory">
+          <div className="directory-toolbar">
+            <div>
+              <span>{t('activeClients')}</span>
+              <strong>{clients.length}</strong>
+            </div>
+            {isLoading ? (
+              <span className="sync-pill">{t('loading')}</span>
+            ) : (
+              <span className="sync-pill">{t('synced')}</span>
+            )}
+          </div>
+
+          <div className="client-list" aria-busy={isLoading}>
+            {clients.length === 0 ? (
+              <div className="empty-state">
+                <Building2 aria-hidden="true" />
+                <p>{t('noClients')}</p>
+              </div>
+            ) : null}
+            {clients.map((client) => (
+              <article className={editingClientId === client.id ? 'client-row selected' : 'client-row'} key={client.id}>
+                <div className="client-row-main">
+                  <div className="client-avatar" aria-hidden="true">
+                    {client.name.slice(0, 1).toUpperCase()}
+                  </div>
+                  <div className="client-row-copy">
+                    <div className="client-row-title">
+                      <strong>{client.name}</strong>
+                      <span className="status-pill">
+                        <CircleCheck aria-hidden="true" />
+                        {t('active')}
+                      </span>
+                    </div>
+                    <span className="client-contact">
+                      <Mail aria-hidden="true" />
+                      {client.email || t('noContact')}
+                    </span>
+                  </div>
+                </div>
+                <div className="client-row-meta">
+                  <span className="rate-pill">
+                    <BadgeDollarSign aria-hidden="true" />
+                    {client.defaultCurrency} {formatMinor(client.defaultHourlyRateMinor)}/h
+                  </span>
+                  {client.taxId ? <span>{client.taxId}</span> : null}
+                </div>
+                <div className="client-row-actions">
+                  <button
+                    className="secondary-button icon-button"
+                    type="button"
+                    onClick={() => startEditing(client)}
+                    title={t('edit')}
+                  >
+                    <Pencil aria-hidden="true" />
+                  </button>
+                  <button
+                    className="secondary-button icon-button danger-button"
+                    type="button"
+                    onClick={() => archiveMutation.mutate(client.id)}
+                    title={t('archive')}
+                  >
+                    <Trash2 aria-hidden="true" />
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <form className="client-editor" noValidate onSubmit={submitClient}>
+          <div className="editor-header">
+            <div>
+              <span>{editingClientId ? t('editingClient') : t('newClient')}</span>
+              <h3>{editingClientId ? t('clientFormEdit') : t('clientFormCreate')}</h3>
+            </div>
+            {editingClientId ? (
+              <button className="ghost-button icon-button" type="button" onClick={cancelEditing} title={t('cancel')}>
+                <X aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+
+          {errors.form ? (
+            <div className="form-alert" role="alert">
+              <CircleAlert aria-hidden="true" />
+              {errors.form}
+            </div>
+          ) : null}
+
+          <div className="client-form-grid">
+            <label className={fieldClass(errors.name)} htmlFor="client-name">
+              <span>
+                {t('name')} <em>{t('required')}</em>
+              </span>
+              <input
+                aria-describedby={errors.name ? 'client-name-error' : undefined}
+                aria-invalid={Boolean(errors.name)}
+                id="client-name"
+                onChange={(event) => updateField('name', event.target.value)}
+                placeholder={t('clientNamePlaceholder')}
+                value={form.name}
+              />
+              <FieldError id="client-name-error" message={errors.name} />
+            </label>
+
+            <label className={fieldClass(errors.email)} htmlFor="client-email">
+              <span>{t('email')}</span>
+              <input
+                aria-describedby={errors.email ? 'client-email-error' : undefined}
+                aria-invalid={Boolean(errors.email)}
+                id="client-email"
+                onChange={(event) => updateField('email', event.target.value)}
+                placeholder={t('clientEmailPlaceholder')}
+                type="email"
+                value={form.email}
+              />
+              <FieldError id="client-email-error" message={errors.email} />
+            </label>
+
+            <label className={fieldClass(errors.defaultCurrency)} htmlFor="client-currency">
+              <span>
+                {t('defaultCurrency')} <em>{t('required')}</em>
+              </span>
+              <input
+                aria-describedby={errors.defaultCurrency ? 'client-currency-error' : undefined}
+                aria-invalid={Boolean(errors.defaultCurrency)}
+                id="client-currency"
+                maxLength={3}
+                onChange={(event) => updateField('defaultCurrency', event.target.value.toUpperCase())}
+                placeholder={t('clientCurrencyPlaceholder')}
+                value={form.defaultCurrency}
+              />
+              <FieldError id="client-currency-error" message={errors.defaultCurrency} />
+            </label>
+
+            <label className={fieldClass(errors.hourlyRate)} htmlFor="client-rate">
+              <span>{t('hourlyRate')}</span>
+              <input
+                aria-describedby={errors.hourlyRate ? 'client-rate-error' : undefined}
+                aria-invalid={Boolean(errors.hourlyRate)}
+                id="client-rate"
+                inputMode="decimal"
+                min="0"
+                onChange={(event) => updateField('hourlyRate', event.target.value)}
+                placeholder={t('clientRatePlaceholder')}
+                type="text"
+                value={form.hourlyRate}
+              />
+              <FieldError id="client-rate-error" message={errors.hourlyRate} />
+            </label>
+
+            <label className={fieldClass(errors.taxId)} htmlFor="client-tax-id">
+              <span>{t('taxId')}</span>
+              <input
+                id="client-tax-id"
+                onChange={(event) => updateField('taxId', event.target.value)}
+                placeholder={t('clientTaxPlaceholder')}
+                value={form.taxId}
+              />
+              <FieldError id="client-tax-id-error" message={errors.taxId} />
+            </label>
+
+            <label className={fieldClass(errors.billingAddress) + ' client-address-field'} htmlFor="client-address">
+              <span>{t('billingAddress')}</span>
+              <input
+                id="client-address"
+                onChange={(event) => updateField('billingAddress', event.target.value)}
+                placeholder={t('clientAddressPlaceholder')}
+                value={form.billingAddress}
+              />
+              <FieldError id="client-address-error" message={errors.billingAddress} />
+            </label>
+          </div>
+
+          <div className="client-form-actions">
+            <button type="submit" disabled={isSaving}>
+              {editingClientId ? <Save aria-hidden="true" /> : <Plus aria-hidden="true" />}
+              {editingClientId ? t('updateClient') : t('createClient')}
+            </button>
             <button className="secondary-button" type="button" onClick={cancelEditing}>
               <X aria-hidden="true" />
-              {t('cancel')}
+              {t('cleanForm')}
             </button>
-          ) : null}
-        </div>
-      </form>
-
-      <div className="client-list" aria-busy={isLoading}>
-        {clients.length === 0 ? <p className="empty-state">{t('noClients')}</p> : null}
-        {clients.map((client) => (
-          <article className="client-row" key={client.id}>
-            <div>
-              <strong>{client.name}</strong>
-              <span>
-                {client.defaultCurrency} {formatMinor(client.defaultHourlyRateMinor)}
-              </span>
-            </div>
-            <div className="client-row-actions">
-              <button className="secondary-button" type="button" onClick={() => startEditing(client)} title={t('edit')}>
-                <Pencil aria-hidden="true" />
-              </button>
-              <button
-                className="secondary-button danger-button"
-                type="button"
-                onClick={() => archiveMutation.mutate(client.id)}
-                title={t('archive')}
-              >
-                <Trash2 aria-hidden="true" />
-              </button>
-            </div>
-          </article>
-        ))}
+          </div>
+        </form>
       </div>
     </section>
   );
+}
+
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) {
+    return null;
+  }
+  return (
+    <span className="field-message" id={id}>
+      {message}
+    </span>
+  );
+}
+
+function fieldClass(error?: string) {
+  return error ? 'form-field has-error' : 'form-field';
+}
+
+function validateClientForm(form: ClientFormState, t: Translator): ClientFormErrors {
+  const errors: ClientFormErrors = {};
+  const name = form.name.trim();
+  const email = form.email.trim();
+  const currency = form.defaultCurrency.trim().toUpperCase();
+  const rate = form.hourlyRate.trim().replace(',', '.');
+
+  if (!name) {
+    errors.name = t('clientNameRequired');
+  } else if (name.length < 2) {
+    errors.name = t('clientNameTooShort');
+  }
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errors.email = t('clientEmailInvalid');
+  }
+
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    errors.defaultCurrency = t('clientCurrencyInvalid');
+  }
+
+  if (rate && (!/^\d+(\.\d{1,2})?$/.test(rate) || Number(rate) < 0)) {
+    errors.hourlyRate = t('clientRateInvalid');
+  }
+
+  return errors;
+}
+
+function hasErrors(errors: ClientFormErrors) {
+  return Object.values(errors).some(Boolean);
+}
+
+function clientFormToInput(form: ClientFormState): ClientInput {
+  return {
+    name: form.name.trim(),
+    email: form.email.trim(),
+    taxId: form.taxId.trim(),
+    billingAddress: form.billingAddress.trim(),
+    defaultCurrency: form.defaultCurrency.trim().toUpperCase() || 'EUR',
+    defaultHourlyRateMinor: rateToMinor(form.hourlyRate),
+  };
+}
+
+function rateToMinor(value: string) {
+  const normalized = value.trim().replace(',', '.');
+  if (!normalized) {
+    return 0;
+  }
+  return Math.round(Number(normalized) * 100);
+}
+
+function formatRateInput(value: number) {
+  if (value === 0) {
+    return '';
+  }
+  return (value / 100).toFixed(2);
 }
 
 function formatMinor(value: number) {

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { App } from './App';
 
@@ -24,6 +24,7 @@ describe('App', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.unstubAllGlobals();
   });
 
@@ -49,10 +50,31 @@ describe('App', () => {
     renderApp();
 
     await screen.findByText('Osoigo SL');
-    fireEvent.change(screen.getByPlaceholderText('Nuevo cliente'), { target: { value: 'Nuevo Cliente' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Nuevo cliente' }));
+    fireEvent.change(screen.getByPlaceholderText('Ej. Cliente ACME'), { target: { value: 'Nuevo Cliente' } });
+    fireEvent.change(screen.getByPlaceholderText('facturacion@cliente.com'), {
+      target: { value: 'facturacion@nuevocliente.com' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('75.00'), { target: { value: '82.50' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cliente' }));
 
     await waitFor(() => expect(screen.getByText('Nuevo Cliente')).toBeInTheDocument());
+  });
+
+  test('validates the client form before submitting', async () => {
+    renderApp();
+
+    await screen.findByText('Osoigo SL');
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cliente' }));
+
+    expect(await screen.findByText('El nombre es obligatorio.')).toBeInTheDocument();
+    expect(clientsMock).toHaveLength(1);
+
+    fireEvent.change(screen.getByPlaceholderText('Ej. Cliente ACME'), { target: { value: 'Cliente Valido' } });
+    fireEvent.change(screen.getByPlaceholderText('facturacion@cliente.com'), { target: { value: 'correo-invalido' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cliente' }));
+
+    expect(await screen.findByText('Escribe un email valido o deja el campo vacio.')).toBeInTheDocument();
+    expect(clientsMock).toHaveLength(1);
   });
 });
 

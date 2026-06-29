@@ -98,10 +98,33 @@ func TestCreateClientValidatesInput(t *testing.T) {
 	}
 
 	st := New(database)
-	if _, err := st.CreateClient(ctx, "usr_missing", ClientInput{Name: "", DefaultCurrency: "EUR"}); !errors.Is(err, ErrInvalidClientInput) {
-		t.Fatalf("expected invalid input, got %v", err)
+	tests := []struct {
+		name  string
+		input ClientInput
+	}{
+		{
+			name:  "missing name",
+			input: ClientInput{Name: "", DefaultCurrency: "EUR"},
+		},
+		{
+			name:  "invalid currency",
+			input: ClientInput{Name: "Client", DefaultCurrency: "EURO"},
+		},
+		{
+			name:  "invalid email",
+			input: ClientInput{Name: "Client", Email: "billing", DefaultCurrency: "EUR"},
+		},
+		{
+			name:  "negative rate",
+			input: ClientInput{Name: "Client", DefaultCurrency: "EUR", DefaultHourlyRateMinor: -1},
+		},
 	}
-	if _, err := st.CreateClient(ctx, "usr_missing", ClientInput{Name: "Client", DefaultCurrency: "EURO"}); !errors.Is(err, ErrInvalidClientInput) {
-		t.Fatalf("expected invalid currency, got %v", err)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := st.CreateClient(ctx, "usr_missing", test.input); !errors.Is(err, ErrInvalidClientInput) {
+				t.Fatalf("expected invalid input, got %v", err)
+			}
+		})
 	}
 }
