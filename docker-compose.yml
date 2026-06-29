@@ -17,6 +17,46 @@ services:
       - leotime-data:/data
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:v3.8.0
+    profiles:
+      - observability
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.3.0
+    profiles:
+      - observability
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    restart: unless-stopped
+
+  k6:
+    image: grafana/k6:latest
+    profiles:
+      - tools
+    volumes:
+      - ./scripts/k6:/scripts:ro
+    entrypoint:
+      - k6
+
 volumes:
   leotime-data:
-
+  prometheus-data:
+  grafana-data:

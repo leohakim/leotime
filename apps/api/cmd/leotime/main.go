@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -17,6 +18,9 @@ import (
 )
 
 func main() {
+	migrateOnly := flag.Bool("migrate-only", false, "apply database migrations and exit")
+	flag.Parse()
+
 	cfg := config.Load()
 	ctx := context.Background()
 
@@ -28,6 +32,10 @@ func main() {
 
 	if err := db.Migrate(ctx, database); err != nil {
 		log.Fatalf("migrate database: %v", err)
+	}
+	if *migrateOnly {
+		log.Println("migrations applied")
+		return
 	}
 
 	st := store.New(database)

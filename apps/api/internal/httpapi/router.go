@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/store"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
@@ -33,6 +34,7 @@ func NewRouter(cfg config.Config, st *store.Store) http.Handler {
 	r.Use(middleware.Recoverer)
 
 	r.Get("/api/health", server.health)
+	r.Handle("/metrics", promhttp.Handler())
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/session", server.session)
