@@ -302,6 +302,100 @@ button:disabled {
   grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
 }
 
+.clients-panel {
+  min-height: 0;
+}
+
+.client-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(5, minmax(110px, 1fr));
+  margin-bottom: 16px;
+}
+
+.client-form label {
+  color: var(--muted);
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.client-form input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  min-height: 38px;
+  padding: 0 10px;
+  width: 100%;
+}
+
+.client-address-field {
+  grid-column: span 2;
+}
+
+.client-form-actions {
+  align-items: end;
+  display: flex;
+  gap: 8px;
+}
+
+.client-list {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.client-row {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 58px;
+  padding: 10px 12px;
+}
+
+.client-row + .client-row {
+  border-top: 1px solid var(--border);
+}
+
+.client-row div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.client-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-row span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.client-row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.client-row-actions button {
+  justify-content: center;
+  padding: 0;
+  width: 36px;
+}
+
+.danger-button {
+  color: var(--rose);
+}
+
+.empty-state {
+  color: var(--muted);
+  margin: 0;
+  padding: 16px;
+}
+
 .panel {
   min-height: 260px;
   padding: 16px;
@@ -437,6 +531,14 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .client-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .client-address-field {
+    grid-column: span 2;
+  }
+
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -464,8 +566,22 @@ button:disabled {
   }
 
   .metrics-grid,
-  .calendar-strip {
+  .calendar-strip,
+  .client-form {
     grid-template-columns: 1fr;
+  }
+
+  .client-address-field {
+    grid-column: auto;
+  }
+
+  .client-form-actions,
+  .client-form-actions button {
+    width: 100%;
+  }
+
+  .client-form-actions button {
+    justify-content: center;
   }
 
   .timesheet-row {
@@ -478,4 +594,3 @@ button:disabled {
     text-align: left;
   }
 }
-

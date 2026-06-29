@@ -24,12 +24,61 @@ export type Overview = {
   openTimers: number;
 };
 
+export type Client = {
+  id: string;
+  name: string;
+  email: string;
+  taxId: string;
+  billingAddress: string;
+  defaultCurrency: string;
+  defaultHourlyRateMinor: number;
+  archivedAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ClientInput = {
+  name: string;
+  email: string;
+  taxId: string;
+  billingAddress: string;
+  defaultCurrency: string;
+  defaultHourlyRateMinor: number;
+};
+
+export type ClientsResponse = {
+  clients: Client[];
+};
+
 export async function fetchSession(): Promise<SessionResponse> {
   return apiGet('/api/v1/session');
 }
 
 export async function fetchOverview(): Promise<Overview> {
   return apiGet('/api/v1/overview');
+}
+
+export async function fetchClients(): Promise<ClientsResponse> {
+  return apiGet('/api/v1/clients');
+}
+
+export async function createClient(input: ClientInput): Promise<Client> {
+  return apiJSON('/api/v1/clients', 'POST', input);
+}
+
+export async function updateClient(clientId: string, input: ClientInput): Promise<Client> {
+  return apiJSON(`/api/v1/clients/${clientId}`, 'PATCH', input);
+}
+
+export async function archiveClient(clientId: string): Promise<void> {
+  const response = await fetch(`/api/v1/clients/${clientId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`request_failed:${response.status}`);
+  }
 }
 
 export async function login(email: string, password: string): Promise<SessionResponse> {
@@ -72,3 +121,19 @@ async function apiGet<T>(path: string): Promise<T> {
   return response.json();
 }
 
+async function apiJSON<T>(path: string, method: 'POST' | 'PATCH', body: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(`request_failed:${response.status}`);
+  }
+
+  return response.json();
+}

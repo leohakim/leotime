@@ -41,6 +41,11 @@ func NewRouter(cfg config.Config, st *store.Store) http.Handler {
 		r.Post("/auth/login", server.login)
 		r.Post("/auth/logout", server.logout)
 		r.Get("/overview", server.requireUser(server.overview))
+		r.Get("/clients", server.requireUser(server.listClients))
+		r.Post("/clients", server.requireUser(server.createClient))
+		r.Get("/clients/{clientID}", server.requireUser(server.getClient))
+		r.Patch("/clients/{clientID}", server.requireUser(server.updateClient))
+		r.Delete("/clients/{clientID}", server.requireUser(server.archiveClient))
 	})
 
 	r.NotFound(server.notFound)

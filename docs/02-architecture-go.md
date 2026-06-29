@@ -72,10 +72,14 @@ The initial routes are:
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/overview`
+- `GET /api/v1/clients`
+- `POST /api/v1/clients`
+- `GET /api/v1/clients/{clientID}`
+- `PATCH /api/v1/clients/{clientID}`
+- `DELETE /api/v1/clients/{clientID}`
 
 More feature routes should be added by domain:
 
-- `/api/v1/clients`
 - `/api/v1/projects`
 - `/api/v1/tasks`
 - `/api/v1/tags`
@@ -83,4 +87,3 @@ More feature routes should be added by domain:
 - `/api/v1/reports`
 - `/api/v1/invoices`
 - `/api/v1/sync`
-

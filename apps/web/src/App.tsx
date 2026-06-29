@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CalendarDays,
+  Building2,
   Clock3,
   Columns3,
   Download,
+  Pencil,
   FileText,
   Languages,
   LayoutDashboard,
@@ -11,15 +13,25 @@ import {
   Minimize2,
   PanelLeft,
   Play,
+  Plus,
+  Save,
   Square,
   Tags,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import {
+  archiveClient,
+  createClient,
+  fetchClients,
   fetchOverview,
   fetchSession,
   login,
   logout,
+  updateClient,
+  type Client,
+  type ClientInput,
   type LayoutMode,
   type Locale,
   type Overview,
@@ -136,6 +148,7 @@ type DashboardProps = {
 function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }: DashboardProps) {
   const queryClient = useQueryClient();
   const overviewQuery = useQuery({ queryKey: ['overview'], queryFn: fetchOverview });
+  const clientsQuery = useQuery({ queryKey: ['clients'], queryFn: fetchClients });
   const overview = overviewQuery.data ?? emptyOverview;
   const logoutMutation = useMutation({
     mutationFn: logout,
@@ -165,6 +178,10 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
           <a href="#reports">
             <FileText aria-hidden="true" />
             {t('reports')}
+          </a>
+          <a href="#clients">
+            <Building2 aria-hidden="true" />
+            {t('clients')}
           </a>
         </nav>
       </aside>
@@ -205,11 +222,13 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
         </section>
 
         <section className="metrics-grid" aria-label="Overview">
-          <Metric label="Clientes" value={overview.clientsTotal} />
+          <Metric label={t('clients')} value={overview.clientsTotal} />
           <Metric label={t('projects')} value={overview.projectsTotal} />
           <Metric label={t('tasks')} value={overview.tasksTotal} />
           <Metric label={t('invoices')} value={overview.invoicesTotal} />
         </section>
+
+        <ClientPanel clients={clientsQuery.data?.clients ?? []} isLoading={clientsQuery.isLoading} t={t} />
 
         <section className="work-grid">
           <div className="panel" id="timesheet">
@@ -249,6 +268,175 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
       </main>
     </div>
   );
+}
+
+const emptyClientInput: ClientInput = {
+  name: '',
+  email: '',
+  taxId: '',
+  billingAddress: '',
+  defaultCurrency: 'EUR',
+  defaultHourlyRateMinor: 0,
+};
+
+function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: boolean; t: Translator }) {
+  const queryClient = useQueryClient();
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [form, setForm] = useState<ClientInput>(emptyClientInput);
+
+  const createMutation = useMutation({
+    mutationFn: createClient,
+    onSuccess: () => {
+      setForm(emptyClientInput);
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ clientId, input }: { clientId: string; input: ClientInput }) => updateClient(clientId, input),
+    onSuccess: () => {
+      setEditingClientId(null);
+      setForm(emptyClientInput);
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: archiveClient,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+  });
+
+  function submitClient(event: FormEvent) {
+    event.preventDefault();
+    if (editingClientId) {
+      updateMutation.mutate({ clientId: editingClientId, input: form });
+      return;
+    }
+    createMutation.mutate(form);
+  }
+
+  function startEditing(client: Client) {
+    setEditingClientId(client.id);
+    setForm({
+      name: client.name,
+      email: client.email,
+      taxId: client.taxId,
+      billingAddress: client.billingAddress,
+      defaultCurrency: client.defaultCurrency,
+      defaultHourlyRateMinor: client.defaultHourlyRateMinor,
+    });
+  }
+
+  function cancelEditing() {
+    setEditingClientId(null);
+    setForm(emptyClientInput);
+  }
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <section className="panel clients-panel" id="clients" aria-labelledby="clients-title">
+      <div className="panel-heading">
+        <h2 id="clients-title">{t('clients')}</h2>
+        <Building2 aria-hidden="true" />
+      </div>
+
+      <form className="client-form" onSubmit={submitClient}>
+        <label>
+          {t('name')}
+          <input
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+            placeholder={t('newClient')}
+          />
+        </label>
+        <label>
+          {t('email')}
+          <input
+            value={form.email}
+            onChange={(event) => setForm({ ...form, email: event.target.value })}
+            type="email"
+          />
+        </label>
+        <label>
+          {t('taxId')}
+          <input value={form.taxId} onChange={(event) => setForm({ ...form, taxId: event.target.value })} />
+        </label>
+        <label>
+          {t('defaultCurrency')}
+          <input
+            maxLength={3}
+            value={form.defaultCurrency}
+            onChange={(event) => setForm({ ...form, defaultCurrency: event.target.value.toUpperCase() })}
+          />
+        </label>
+        <label>
+          {t('defaultHourlyRateMinor')}
+          <input
+            min={0}
+            value={form.defaultHourlyRateMinor}
+            onChange={(event) => setForm({ ...form, defaultHourlyRateMinor: Number(event.target.value) })}
+            type="number"
+          />
+        </label>
+        <label className="client-address-field">
+          {t('billingAddress')}
+          <input
+            value={form.billingAddress}
+            onChange={(event) => setForm({ ...form, billingAddress: event.target.value })}
+          />
+        </label>
+        <div className="client-form-actions">
+          <button type="submit" disabled={isSaving}>
+            {editingClientId ? <Save aria-hidden="true" /> : <Plus aria-hidden="true" />}
+            {editingClientId ? t('save') : t('newClient')}
+          </button>
+          {editingClientId ? (
+            <button className="secondary-button" type="button" onClick={cancelEditing}>
+              <X aria-hidden="true" />
+              {t('cancel')}
+            </button>
+          ) : null}
+        </div>
+      </form>
+
+      <div className="client-list" aria-busy={isLoading}>
+        {clients.length === 0 ? <p className="empty-state">{t('noClients')}</p> : null}
+        {clients.map((client) => (
+          <article className="client-row" key={client.id}>
+            <div>
+              <strong>{client.name}</strong>
+              <span>
+                {client.defaultCurrency} {formatMinor(client.defaultHourlyRateMinor)}
+              </span>
+            </div>
+            <div className="client-row-actions">
+              <button className="secondary-button" type="button" onClick={() => startEditing(client)} title={t('edit')}>
+                <Pencil aria-hidden="true" />
+              </button>
+              <button
+                className="secondary-button danger-button"
+                type="button"
+                onClick={() => archiveMutation.mutate(client.id)}
+                title={t('archive')}
+              >
+                <Trash2 aria-hidden="true" />
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function formatMinor(value: number) {
+  return (value / 100).toFixed(2);
 }
 
 function LayoutSwitcher({
@@ -294,4 +482,3 @@ function Metric({ label, value }: { label: string; value: number }) {
     </article>
   );
 }
-
