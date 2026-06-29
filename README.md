@@ -81,4 +81,6 @@ Change them with `LEOTIME_BOOTSTRAP_EMAIL` and `LEOTIME_BOOTSTRAP_PASSWORD`.
 6. [VPS deployment](docs/06-deploy-vps.md)
 7. [Rust + Axum alternative plan](docs/07-rust-axum-plan.md)
 8. [Development workflow](docs/08-development-workflow.md)
-9. [ADR 0001: Stack decision](docs/adr/0001-stack-go-sqlite-react.md)
+9. [Solidtime import compatibility](docs/09-solidtime-import.md)
+10. [Operations](docs/10-operations.md)
+11. [ADR 0001: Stack decision](docs/adr/0001-stack-go-sqlite-react.md)

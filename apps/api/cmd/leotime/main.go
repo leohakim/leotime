@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -14,10 +16,18 @@ import (
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/db"
 	"github.com/leotime/leotime/apps/api/internal/httpapi"
+	"github.com/leotime/leotime/apps/api/internal/solidtimeimport"
 	"github.com/leotime/leotime/apps/api/internal/store"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "import" {
+		if err := runImportCommand(context.Background(), os.Args[2:]); err != nil {
+			log.Fatalf("import failed: %v", err)
+		}
+		return
+	}
+
 	migrateOnly := flag.Bool("migrate-only", false, "apply database migrations and exit")
 	flag.Parse()
 
@@ -65,4 +75,51 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Printf("graceful shutdown failed: %v", err)
 	}
+}
+
+func runImportCommand(ctx context.Context, args []string) error {
+	if len(args) == 0 || args[0] != "solidtime" {
+		return fmt.Errorf("usage: leotime import solidtime --file <zip> --user-email <email> [--dry-run]")
+	}
+
+	flags := flag.NewFlagSet("leotime import solidtime", flag.ContinueOnError)
+	filePath := flags.String("file", "", "Solidtime ZIP export path")
+	userEmail := flags.String("user-email", "", "leotime user email that will own imported records")
+	dryRun := flags.Bool("dry-run", false, "validate and summarize without writing")
+	if err := flags.Parse(args[1:]); err != nil {
+		return err
+	}
+
+	cfg := config.Load()
+	database, err := db.Open(ctx, cfg.DBPath)
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer database.Close()
+
+	if err := db.Migrate(ctx, database); err != nil {
+		return fmt.Errorf("migrate database: %w", err)
+	}
+
+	st := store.New(database)
+	if err := st.BootstrapAdmin(ctx, cfg.BootstrapEmail, cfg.BootstrapPassword); err != nil {
+		return fmt.Errorf("bootstrap admin: %w", err)
+	}
+
+	importer := solidtimeimport.New(database)
+	summary, err := importer.ImportFile(ctx, solidtimeimport.Options{
+		FilePath:  *filePath,
+		UserEmail: *userEmail,
+		DryRun:    *dryRun,
+	})
+	if err != nil {
+		return err
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(summary); err != nil {
+		return fmt.Errorf("print import summary: %w", err)
+	}
+	return nil
 }
