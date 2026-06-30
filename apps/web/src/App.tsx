@@ -1,16 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   BadgeDollarSign,
+  BarChart3,
   CalendarDays,
   Building2,
+  ChevronDown,
   Clock3,
   CircleAlert,
   CircleCheck,
+  CirclePlay,
+  CircleStop,
   Columns3,
-  Download,
+  DollarSign,
+  EllipsisVertical,
   Pencil,
-  FileText,
   FolderKanban,
+  Import,
   Languages,
   LayoutDashboard,
   LogOut,
@@ -20,9 +25,11 @@ import {
   Play,
   Plus,
   Save,
-  Square,
+  Settings,
+  Tag,
   Tags,
   Trash2,
+  Users,
   X,
 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
@@ -32,7 +39,6 @@ import {
   createClient,
   createProject,
   fetchClients,
-  fetchOverview,
   fetchProjects,
   fetchSession,
   login,
@@ -43,22 +49,11 @@ import {
   type ClientInput,
   type LayoutMode,
   type Locale,
-  type Overview,
   type Project,
   type ProjectInput,
 } from './lib/api';
 import { translate } from './lib/i18n';
 import { usePersistentState } from './lib/persistentState';
-
-const emptyOverview: Overview = {
-  clientsTotal: 0,
-  projectsTotal: 0,
-  tasksTotal: 0,
-  tagsTotal: 0,
-  timeEntriesTotal: 0,
-  invoicesTotal: 0,
-  openTimers: 0,
-};
 
 export function App() {
   const [locale, setLocale] = usePersistentState<Locale>('leotime.locale', 'es');
@@ -158,10 +153,8 @@ type DashboardProps = {
 
 function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }: DashboardProps) {
   const queryClient = useQueryClient();
-  const overviewQuery = useQuery({ queryKey: ['overview'], queryFn: fetchOverview });
   const clientsQuery = useQuery({ queryKey: ['clients'], queryFn: fetchClients });
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: fetchProjects });
-  const overview = overviewQuery.data ?? emptyOverview;
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
@@ -170,48 +163,94 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
   return (
     <div className={`app-shell layout-${layoutMode}`}>
       <aside className="sidebar" aria-label="Primary">
-        <div className="brand-row">
-          <Clock3 aria-hidden="true" />
-          <span>{t('appName')}</span>
+        <div className="org-switcher">
+          <div className="org-avatar" aria-hidden="true">
+            L
+          </div>
+          <span>{t('organizationName')}</span>
+          <ChevronDown aria-hidden="true" />
         </div>
-        <nav>
-          <a className="active" href="#dashboard">
+
+        <div className="sidebar-timer">
+          <div>
+            <span>{t('currentTimer')}</span>
+            <strong>00:40:47</strong>
+          </div>
+          <button className="sidebar-stop-button" type="button" title={t('stop')}>
+            <CircleStop aria-hidden="true" />
+          </button>
+        </div>
+
+        <nav className="sidebar-nav">
+          <a href="#dashboard">
             <LayoutDashboard aria-hidden="true" />
             {t('dashboard')}
           </a>
-          <a href="#timesheet">
+          <a className="active" href="#timesheet">
             <Clock3 aria-hidden="true" />
-            {t('timesheet')}
+            {t('time')}
           </a>
-          <a href="#calendar">
-            <CalendarDays aria-hidden="true" />
-            {t('calendar')}
+          <a className="nav-parent" href="#reports">
+            <BarChart3 aria-hidden="true" />
+            {t('reporting')}
+            <ChevronDown aria-hidden="true" />
           </a>
-          <a href="#reports">
-            <FileText aria-hidden="true" />
-            {t('reports')}
+          <div className="nav-children" aria-label={t('reporting')}>
+            <a href="#overview">{t('overview')}</a>
+            <a href="#detailed">{t('detailed')}</a>
+            <a href="#shared">{t('shared')}</a>
+          </div>
+
+          <span className="nav-section-label">{t('manage')}</span>
+          <a href="#projects">
+            <FolderKanban aria-hidden="true" />
+            {t('projects')}
           </a>
           <a href="#clients">
             <Building2 aria-hidden="true" />
             {t('clients')}
           </a>
-          <a href="#projects">
-            <FolderKanban aria-hidden="true" />
-            {t('projects')}
+          <a href="#members">
+            <Users aria-hidden="true" />
+            {t('members')}
+          </a>
+          <a href="#tags">
+            <Tags aria-hidden="true" />
+            {t('tags')}
+          </a>
+
+          <span className="nav-section-label">{t('admin')}</span>
+          <a href="#import-export">
+            <Import aria-hidden="true" />
+            {t('importExport')}
+          </a>
+          <a href="#settings">
+            <Settings aria-hidden="true" />
+            {t('settings')}
           </a>
         </nav>
+
+        <div className="sidebar-footer">
+          <button type="button" title={t('language')} onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}>
+            <Languages aria-hidden="true" />
+          </button>
+          <a href="#profile">
+            <Settings aria-hidden="true" />
+            {t('profileSettings')}
+          </a>
+          <div className="profile-avatar" aria-hidden="true">
+            {initials(userName)}
+          </div>
+        </div>
       </aside>
 
       <main className="workspace">
-        <header className="topbar">
-          <div>
-            <p>{t('today')}</p>
-            <h1>{userName}</h1>
+        <header className="tracker-topbar" id="dashboard">
+          <div className="tracker-title">
+            <Clock3 aria-hidden="true" />
+            <h1>{t('timeTracker')}</h1>
           </div>
           <div className="toolbar">
-            <button type="button" title={t('language')} onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}>
-              <Languages aria-hidden="true" />
-            </button>
             <LayoutSwitcher layoutMode={layoutMode} setLayoutMode={setLayoutMode} t={t} />
             <button type="button" title={t('logout')} onClick={() => logoutMutation.mutate()}>
               <LogOut aria-hidden="true" />
@@ -219,76 +258,273 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
           </div>
         </header>
 
-        <section className="timer-band" aria-labelledby="timer-title">
-          <div>
-            <p>{t('offlineReady')}</p>
-            <h2 id="timer-title">{t('trackWork')}</h2>
-          </div>
-          <div className="timer-display">00:00:00</div>
-          <div className="timer-actions">
-            <button type="button">
-              <Play aria-hidden="true" />
-              {t('start')}
+        <section className="timer-command-row" aria-label={t('currentTimer')}>
+          <div className="active-timer-card">
+            <div className="timer-description">Cropper de Imagenes en todo el BackOffice [Serializers]</div>
+            <EntityPill color="#ff714b" label="RTVE" />
+            <button className="quiet-icon-button" type="button" title={t('tags')}>
+              <Tag aria-hidden="true" />
             </button>
-            <button className="secondary-button" type="button">
-              <Square aria-hidden="true" />
-              {t('stop')}
+            <button className="quiet-icon-button billable" type="button" title={t('billable')}>
+              <DollarSign aria-hidden="true" />
             </button>
+            <strong className="timer-clock">00:40:47</strong>
           </div>
+          <button className="stop-timer-button" type="button" title={t('stop')}>
+            <CircleStop aria-hidden="true" />
+          </button>
+          <button className="manual-entry-button" type="button">
+            <Plus aria-hidden="true" />
+            {t('manualTimeEntry')}
+          </button>
         </section>
 
-        <section className="metrics-grid" aria-label="Overview">
-          <Metric label={t('clients')} value={overview.clientsTotal} />
-          <Metric label={t('projects')} value={overview.projectsTotal} />
-          <Metric label={t('tasks')} value={overview.tasksTotal} />
-          <Metric label={t('invoices')} value={overview.invoicesTotal} />
-        </section>
+        <TimeEntriesPreview t={t} />
 
-        <ClientPanel clients={clientsQuery.data?.clients ?? []} isLoading={clientsQuery.isLoading} t={t} />
-        <ProjectPanel
-          clients={clientsQuery.data?.clients ?? []}
-          isLoading={projectsQuery.isLoading}
-          projects={projectsQuery.data?.projects ?? []}
-          t={t}
-        />
-
-        <section className="work-grid">
-          <div className="panel" id="timesheet">
-            <div className="panel-heading">
-              <h2>{t('thisWeek')}</h2>
-              <button type="button">
-                <Download aria-hidden="true" />
-                {t('export')}
-              </button>
-            </div>
-            <div className="timesheet-table" role="table" aria-label={t('timesheet')}>
-              {['Cliente A', 'Proyecto API', 'Factura Junio'].map((row, index) => (
-                <div className="timesheet-row" role="row" key={row}>
-                  <span>{row}</span>
-                  <span>{index === 0 ? '08:15' : index === 1 ? '14:40' : '03:30'}</span>
-                  <span>{index === 2 ? 'EUR 280.00' : 'EUR 0.00'}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="panel" id="calendar">
-            <div className="panel-heading">
-              <h2>{t('calendar')}</h2>
-              <Tags aria-hidden="true" />
-            </div>
-            <div className="calendar-strip" aria-label={t('calendar')}>
-              {['Lu', 'Ma', 'Mi', 'Ju', 'Vi'].map((day, index) => (
-                <div className="day-column" key={day}>
-                  <strong>{day}</strong>
-                  <span>{index + 2}h</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        <section className="management-surface" aria-label={t('manage')}>
+          <ClientPanel clients={clientsQuery.data?.clients ?? []} isLoading={clientsQuery.isLoading} t={t} />
+          <ProjectPanel
+            clients={clientsQuery.data?.clients ?? []}
+            isLoading={projectsQuery.isLoading}
+            projects={projectsQuery.data?.projects ?? []}
+            t={t}
+          />
         </section>
       </main>
     </div>
+  );
+}
+
+type TimeEntryPreviewItem = {
+  billable?: boolean;
+  color: string;
+  count?: number;
+  description: string;
+  duration: string;
+  id: string;
+  project: string;
+  selected?: boolean;
+  timeRange: string;
+};
+
+type TimeEntryPreviewDay = {
+  date: string;
+  day: string;
+  entries: TimeEntryPreviewItem[];
+  total: string;
+};
+
+const timePreviewDays: TimeEntryPreviewDay[] = [
+  {
+    day: 'Monday',
+    date: '2026-06-29',
+    total: '9h 09min',
+    entries: [
+      {
+        id: 'mon-1',
+        description: 'Cropper de Imagenes en todo el BackOffice [Serializers]',
+        project: 'RTVE',
+        color: '#ff714b',
+        timeRange: '16:41 - 19:33',
+        duration: '2h 51min',
+      },
+      {
+        id: 'mon-2',
+        description: 'Meet [tech]',
+        project: 'Meet / Mails / Catch up',
+        color: '#fff15c',
+        timeRange: '15:30 - 16:41',
+        duration: '1h 11min',
+        billable: true,
+      },
+      {
+        id: 'mon-3',
+        description: 'Refactor Quiz [Endpoint rapido con respuestas codificadas como ENACT, participacion anonima]',
+        project: 'RTVE',
+        color: '#ff714b',
+        count: 2,
+        timeRange: '08:04 - 15:30',
+        duration: '5h 06min',
+        selected: true,
+      },
+    ],
+  },
+  {
+    day: 'Friday',
+    date: '2026-06-26',
+    total: '6h 00min',
+    entries: [
+      {
+        id: 'fri-1',
+        description: 'Porto General Assembly',
+        project: 'ENACT',
+        color: '#45aaf2',
+        timeRange: '09:00 - 15:00',
+        duration: '6h 00min',
+      },
+    ],
+  },
+  {
+    day: 'Thursday',
+    date: '2026-06-25',
+    total: '8h 00min',
+    entries: [
+      {
+        id: 'thu-1',
+        description: 'Porto General Assembly',
+        project: 'ENACT',
+        color: '#45aaf2',
+        timeRange: '09:00 - 17:00',
+        duration: '8h 00min',
+      },
+    ],
+  },
+  {
+    day: 'Wednesday',
+    date: '2026-06-24',
+    total: '1h 56min',
+    entries: [
+      {
+        id: 'wed-1',
+        description: 'Reunion Ari + Correcciones',
+        project: 'Atempora.app',
+        color: '#ffb02e',
+        timeRange: '18:00 - 19:57',
+        duration: '1h 56min',
+      },
+    ],
+  },
+  {
+    day: 'Tuesday',
+    date: '2026-06-23',
+    total: '7h 09min',
+    entries: [
+      {
+        id: 'tue-1',
+        description: 'Alignment Meeting for the Porto General Assembly [Docs] + Tests de stress nuevos',
+        project: 'ENACT',
+        color: '#45aaf2',
+        count: 2,
+        timeRange: '09:04 - 15:10',
+        duration: '4h 26min',
+      },
+      {
+        id: 'tue-2',
+        description: 'Reunion de seguimiento',
+        project: 'RTVE',
+        color: '#ff714b',
+        timeRange: '12:26 - 14:05',
+        duration: '1h 39min',
+      },
+      {
+        id: 'tue-3',
+        description: 'Visibility Results en PRE [Correcciones]',
+        project: 'RTVE',
+        color: '#ff714b',
+        timeRange: '08:00 - 09:04',
+        duration: '1h 04min',
+      },
+    ],
+  },
+  {
+    day: 'Monday',
+    date: '2026-06-22',
+    total: '9h 09min',
+    entries: [
+      {
+        id: 'mon-prev-1',
+        description: 'Reu Nico Visibility Results',
+        project: 'RTVE',
+        color: '#ff714b',
+        count: 2,
+        timeRange: '14:09 - 17:49',
+        duration: '2h 13min',
+      },
+      {
+        id: 'mon-prev-2',
+        description: 'Meet [tech]',
+        project: 'Meet / Mails / Catch up',
+        color: '#fff15c',
+        timeRange: '15:30 - 15:59',
+        duration: '0h 29min',
+        billable: true,
+      },
+      {
+        id: 'mon-prev-3',
+        description: 'Visibility Results',
+        project: 'RTVE',
+        color: '#ff714b',
+        timeRange: '15:05 - 15:30',
+        duration: '0h 25min',
+      },
+      {
+        id: 'mon-prev-4',
+        description: 'Alignment Meeting for the Porto General Assembly [Docs] + Tests de stress nuevos',
+        project: 'ENACT',
+        color: '#45aaf2',
+        timeRange: '08:07 - 14:09',
+        duration: '6h 01min',
+      },
+    ],
+  },
+];
+
+function TimeEntriesPreview({ t }: { t: Translator }) {
+  return (
+    <section className="time-list-panel" id="timesheet" aria-labelledby="timesheet-title">
+      <div className="time-list-toolbar">
+        <label className="select-all-control">
+          <span className="entry-checkbox" aria-hidden="true" />
+          {t('selectAll')}
+        </label>
+        <strong id="timesheet-title">{t('timesheet')}</strong>
+      </div>
+      <div className="time-entry-list" role="table" aria-label={t('timesheet')}>
+        {timePreviewDays.map((day) => (
+          <div className="time-day-group" role="rowgroup" key={`${day.day}-${day.date}`}>
+            <div className="day-group-header" role="row">
+              <div>
+                <CalendarDays aria-hidden="true" />
+                <strong>{day.day}</strong>
+                <span>{day.date}</span>
+              </div>
+              <strong>{day.total}</strong>
+            </div>
+            {day.entries.map((entry) => (
+              <div className={entry.selected ? 'time-entry-row selected' : 'time-entry-row'} role="row" key={entry.id}>
+                <span className="entry-checkbox" aria-hidden="true" />
+                <div className="entry-task">
+                  {entry.count ? <span className="entry-count">{entry.count}</span> : null}
+                  <strong>{entry.description}</strong>
+                </div>
+                <EntityPill color={entry.color} label={entry.project} />
+                <div className="entry-flags">
+                  <Tag aria-hidden="true" />
+                  <DollarSign aria-hidden="true" className={entry.billable ? 'billable-on' : undefined} />
+                </div>
+                <span className="entry-time">{entry.timeRange}</span>
+                <strong className="entry-duration">{entry.duration}</strong>
+                <button className={entry.selected ? 'play-entry-button active' : 'play-entry-button'} type="button">
+                  <CirclePlay aria-hidden="true" />
+                </button>
+                <button className="more-entry-button" type="button" title={t('moreActions')}>
+                  <EllipsisVertical aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EntityPill({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="entity-pill">
+      <span style={{ backgroundColor: color }} aria-hidden="true" />
+      {label}
+    </span>
   );
 }
 
@@ -1014,6 +1250,17 @@ function formatMinor(value: number) {
   return (value / 100).toFixed(2);
 }
 
+function initials(value: string) {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return 'LT';
+  }
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+}
+
 function LayoutSwitcher({
   layoutMode,
   setLayoutMode,
@@ -1046,14 +1293,5 @@ function LayoutSwitcher({
         );
       })}
     </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <article className="metric-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </article>
   );
 }

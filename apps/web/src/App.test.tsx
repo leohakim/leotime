@@ -44,9 +44,10 @@ describe('App', () => {
   test('renders the authenticated dashboard', async () => {
     renderApp();
 
-    expect(await screen.findByRole('heading', { name: 'Administrador' })).toBeInTheDocument();
-    expect(screen.getByText('Registrar trabajo')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Time Tracker' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Entrada manual' })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Timesheet' })).toBeInTheDocument();
+    expect(screen.getAllByText('Cropper de Imagenes en todo el BackOffice [Serializers]')).toHaveLength(2);
     expect((await screen.findAllByText('Osoigo SL')).length).toBeGreaterThan(0);
     expect(await screen.findByText('Portal Web')).toBeInTheDocument();
   });
@@ -54,10 +55,10 @@ describe('App', () => {
   test('switches language', async () => {
     renderApp();
 
-    await screen.findByRole('heading', { name: 'Administrador' });
+    await screen.findByRole('heading', { name: 'Time Tracker' });
     fireEvent.click(screen.getByTitle('Idioma'));
 
-    await waitFor(() => expect(screen.getByText('Track work')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Manual time entry' })).toBeInTheDocument());
   });
 
   test('creates a client from the dashboard', async () => {
