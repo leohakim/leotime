@@ -44,6 +44,8 @@ The first product version is for one person:
 
 ## Backlog Capabilities
 
+The operational backlog lives in [`docs/13-backlog.md`](13-backlog.md). This section keeps the high-level product ideas.
+
 - Tauri desktop app.
 - Idle detection.
 - Activity tracking.
@@ -63,4 +65,3 @@ The first product version is for one person:
 - Enterprise roles and permissions.
 - Real-time collaboration.
 - Complex SaaS multi-tenancy.
-

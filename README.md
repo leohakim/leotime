@@ -35,7 +35,7 @@ The initial product target is:
 │   ├── api        # Go backend, SQLite migrations, HTTP tests
 │   └── web        # React/Vite frontend, Vitest and Playwright tests
 ├── deploy         # Production deployment examples
-├── docs           # Product, architecture, testing, deployment, and Rust plan
+├── docs           # Product, architecture, backlog, testing, deployment, and Rust plan
 ├── Dockerfile     # Production image: builds web assets and Go binary
 └── docker-compose.yml
 ```
@@ -84,4 +84,7 @@ Change them with `LEOTIME_BOOTSTRAP_EMAIL` and `LEOTIME_BOOTSTRAP_PASSWORD`.
 9. [Solidtime import compatibility](docs/09-solidtime-import.md)
 10. [Operations](docs/10-operations.md)
 11. [Clients API](docs/11-clients-api.md)
-12. [ADR 0001: Stack decision](docs/adr/0001-stack-go-sqlite-react.md)
+12. [Implementation plan](docs/12-implementation-plan.md)
+13. [Backlog](docs/13-backlog.md)
+14. [Projects API](docs/14-projects-api.md)
+15. [ADR 0001: Stack decision](docs/adr/0001-stack-go-sqlite-react.md)

@@ -75,6 +75,18 @@ func TestClientsRequireAuthentication(t *testing.T) {
 	}
 }
 
+func TestProjectsRequireAuthentication(t *testing.T) {
+	router := newTestRouter(t)
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", response.Code)
+	}
+}
+
 func TestClientHTTPLifecycle(t *testing.T) {
 	router := newTestRouter(t)
 	cookies := loginCookies(t, router)
@@ -172,6 +184,86 @@ func TestClientHTTPLifecycle(t *testing.T) {
 	}
 }
 
+func TestProjectHTTPLifecycle(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+	clientID := createClientForHTTPTest(t, router, cookies)
+
+	createResponse := httptest.NewRecorder()
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/projects", bytes.NewBufferString(`{
+		"clientId": "`+clientID+`",
+		"name": "Project One",
+		"color": "#0f7a5b",
+		"defaultHourlyRateMinor": 7500
+	}`))
+	for _, cookie := range cookies {
+		createRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(createResponse, createRequest)
+
+	if createResponse.Code != http.StatusCreated {
+		t.Fatalf("expected create 201, got %d: %s", createResponse.Code, createResponse.Body.String())
+	}
+
+	var created struct {
+		ID         string `json:"id"`
+		ClientID   string `json:"clientId"`
+		ClientName string `json:"clientName"`
+		Color      string `json:"color"`
+	}
+	if err := json.Unmarshal(createResponse.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created project: %v", err)
+	}
+	if created.ID == "" || created.ClientID != clientID || created.ClientName != "Client One" || created.Color != "#0f7a5b" {
+		t.Fatalf("unexpected created project: %+v", created)
+	}
+
+	updateResponse := httptest.NewRecorder()
+	updateRequest := httptest.NewRequest(http.MethodPatch, "/api/v1/projects/"+created.ID, bytes.NewBufferString(`{
+		"name": "Project One Updated",
+		"color": "#2563eb",
+		"defaultHourlyRateMinor": null
+	}`))
+	for _, cookie := range cookies {
+		updateRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(updateResponse, updateRequest)
+
+	if updateResponse.Code != http.StatusOK {
+		t.Fatalf("expected update 200, got %d: %s", updateResponse.Code, updateResponse.Body.String())
+	}
+
+	listResponse := httptest.NewRecorder()
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
+	for _, cookie := range cookies {
+		listRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(listResponse, listRequest)
+
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("expected list 200, got %d: %s", listResponse.Code, listResponse.Body.String())
+	}
+
+	var listPayload projectsResponse
+	if err := json.Unmarshal(listResponse.Body.Bytes(), &listPayload); err != nil {
+		t.Fatalf("decode list response: %v", err)
+	}
+	if len(listPayload.Projects) != 1 || listPayload.Projects[0].Name != "Project One Updated" {
+		t.Fatalf("unexpected project list: %+v", listPayload)
+	}
+
+	deleteResponse := httptest.NewRecorder()
+	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/projects/"+created.ID, nil)
+	for _, cookie := range cookies {
+		deleteRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(deleteResponse, deleteRequest)
+
+	if deleteResponse.Code != http.StatusNoContent {
+		t.Fatalf("expected delete 204, got %d: %s", deleteResponse.Code, deleteResponse.Body.String())
+	}
+}
+
 func newTestRouter(t *testing.T) http.Handler {
 	t.Helper()
 
@@ -215,4 +307,30 @@ func loginCookies(t *testing.T, router http.Handler) []*http.Cookie {
 		t.Fatalf("expected login 200, got %d: %s", loginResponse.Code, loginResponse.Body.String())
 	}
 	return loginResponse.Result().Cookies()
+}
+
+func createClientForHTTPTest(t *testing.T, router http.Handler, cookies []*http.Cookie) string {
+	t.Helper()
+
+	createResponse := httptest.NewRecorder()
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/clients", bytes.NewBufferString(`{
+		"name": "Client One",
+		"defaultCurrency": "EUR"
+	}`))
+	for _, cookie := range cookies {
+		createRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(createResponse, createRequest)
+
+	if createResponse.Code != http.StatusCreated {
+		t.Fatalf("expected client create 201, got %d: %s", createResponse.Code, createResponse.Body.String())
+	}
+
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createResponse.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created client: %v", err)
+	}
+	return created.ID
 }

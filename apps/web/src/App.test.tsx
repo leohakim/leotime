@@ -20,6 +20,19 @@ describe('App', () => {
         updatedAt: '2026-01-01T00:00:00Z',
       },
     ];
+    projectsMock = [
+      {
+        id: 'prj_1',
+        clientId: 'cli_1',
+        clientName: 'Osoigo SL',
+        name: 'Portal Web',
+        color: '#2563eb',
+        defaultHourlyRateMinor: 8000,
+        archivedAt: '',
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ];
     vi.stubGlobal('fetch', vi.fn(mockFetch));
   });
 
@@ -34,7 +47,8 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Administrador' })).toBeInTheDocument();
     expect(screen.getByText('Registrar trabajo')).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Timesheet' })).toBeInTheDocument();
-    expect(await screen.findByText('Osoigo SL')).toBeInTheDocument();
+    expect((await screen.findAllByText('Osoigo SL')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('Portal Web')).toBeInTheDocument();
   });
 
   test('switches language', async () => {
@@ -49,21 +63,21 @@ describe('App', () => {
   test('creates a client from the dashboard', async () => {
     renderApp();
 
-    await screen.findByText('Osoigo SL');
+    await screen.findAllByText('Osoigo SL');
     fireEvent.change(screen.getByPlaceholderText('Ej. Cliente ACME'), { target: { value: 'Nuevo Cliente' } });
     fireEvent.change(screen.getByPlaceholderText('facturacion@cliente.com'), {
       target: { value: 'facturacion@nuevocliente.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText('75.00'), { target: { value: '82.50' } });
+    fireEvent.change(screen.getAllByPlaceholderText('75.00')[0], { target: { value: '82.50' } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear cliente' }));
 
-    await waitFor(() => expect(screen.getByText('Nuevo Cliente')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Nuevo Cliente').length).toBeGreaterThan(0));
   });
 
   test('validates the client form before submitting', async () => {
     renderApp();
 
-    await screen.findByText('Osoigo SL');
+    await screen.findAllByText('Osoigo SL');
     fireEvent.click(screen.getByRole('button', { name: 'Crear cliente' }));
 
     expect(await screen.findByText('El nombre es obligatorio.')).toBeInTheDocument();
@@ -75,6 +89,36 @@ describe('App', () => {
 
     expect(await screen.findByText('Escribe un email valido o deja el campo vacio.')).toBeInTheDocument();
     expect(clientsMock).toHaveLength(1);
+  });
+
+  test('creates a project from the dashboard', async () => {
+    renderApp();
+
+    await screen.findByText('Portal Web');
+    fireEvent.change(screen.getByPlaceholderText('Ej. Rediseño web'), { target: { value: 'Nuevo Proyecto' } });
+    fireEvent.change(screen.getByLabelText('Cliente'), { target: { value: 'cli_1' } });
+    fireEvent.change(screen.getByPlaceholderText('#2563eb'), { target: { value: '#0f7a5b' } });
+    fireEvent.change(screen.getAllByPlaceholderText('75.00')[1], { target: { value: '91.25' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear proyecto' }));
+
+    await waitFor(() => expect(screen.getByText('Nuevo Proyecto')).toBeInTheDocument());
+  });
+
+  test('validates the project form before submitting', async () => {
+    renderApp();
+
+    await screen.findByText('Portal Web');
+    fireEvent.click(screen.getByRole('button', { name: 'Crear proyecto' }));
+
+    expect(await screen.findByText('El nombre del proyecto es obligatorio.')).toBeInTheDocument();
+    expect(projectsMock).toHaveLength(1);
+
+    fireEvent.change(screen.getByPlaceholderText('Ej. Rediseño web'), { target: { value: 'Proyecto Valido' } });
+    fireEvent.change(screen.getByPlaceholderText('#2563eb'), { target: { value: 'azul' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear proyecto' }));
+
+    expect(await screen.findByText('Usa un color hex valido, por ejemplo #2563eb.')).toBeInTheDocument();
+    expect(projectsMock).toHaveLength(1);
   });
 });
 
@@ -105,6 +149,18 @@ let clientsMock: Array<{
   updatedAt: string;
 }> = [];
 
+let projectsMock: Array<{
+  id: string;
+  clientId: string;
+  clientName: string;
+  name: string;
+  color: string;
+  defaultHourlyRateMinor: number | null;
+  archivedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}> = [];
+
 async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
   const url = String(input);
   if (url.endsWith('/api/v1/session')) {
@@ -123,7 +179,7 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
   if (url.endsWith('/api/v1/overview')) {
     return jsonResponse({
       clientsTotal: clientsMock.length,
-      projectsTotal: 2,
+      projectsTotal: projectsMock.length,
       tasksTotal: 3,
       tagsTotal: 4,
       timeEntriesTotal: 5,
@@ -152,6 +208,28 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     };
     clientsMock = [...clientsMock, client];
     return jsonResponse(client, 201);
+  }
+
+  if (url.endsWith('/api/v1/projects') && (!init?.method || init.method === 'GET')) {
+    return jsonResponse({ projects: projectsMock });
+  }
+
+  if (url.endsWith('/api/v1/projects') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    const client = clientsMock.find((item) => item.id === body.clientId);
+    const project = {
+      id: `prj_${projectsMock.length + 1}`,
+      clientId: body.clientId,
+      clientName: client?.name ?? '',
+      name: body.name,
+      color: body.color,
+      defaultHourlyRateMinor: body.defaultHourlyRateMinor,
+      archivedAt: '',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    projectsMock = [...projectsMock, project];
+    return jsonResponse(project, 201);
   }
 
   return jsonResponse({}, 404);

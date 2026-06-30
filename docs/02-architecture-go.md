@@ -77,10 +77,14 @@ The initial routes are:
 - `GET /api/v1/clients/{clientID}`
 - `PATCH /api/v1/clients/{clientID}`
 - `DELETE /api/v1/clients/{clientID}`
+- `GET /api/v1/projects`
+- `POST /api/v1/projects`
+- `GET /api/v1/projects/{projectID}`
+- `PATCH /api/v1/projects/{projectID}`
+- `DELETE /api/v1/projects/{projectID}`
 
 More feature routes should be added by domain:
 
-- `/api/v1/projects`
 - `/api/v1/tasks`
 - `/api/v1/tags`
 - `/api/v1/time-entries`

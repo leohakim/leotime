@@ -31,7 +31,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -73,6 +74,7 @@ button:disabled {
 }
 
 input:focus-visible,
+select:focus-visible,
 button:focus-visible,
 a:focus-visible {
   outline: 3px solid rgb(37 99 235 / 22%);
@@ -485,6 +487,17 @@ a:focus-visible {
   width: 38px;
 }
 
+.project-color-dot {
+  border: 2px solid #fff;
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 6px 14px rgb(17 24 39 / 14%);
+  flex: 0 0 auto;
+  height: 38px;
+  width: 38px;
+}
+
 .client-row-copy {
   display: grid;
   gap: 6px;
@@ -631,7 +644,8 @@ a:focus-visible {
   font-weight: 800;
 }
 
-.form-field input {
+.form-field input,
+.form-field select {
   background: #fbfcfe;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -641,13 +655,29 @@ a:focus-visible {
   width: 100%;
 }
 
+.form-field select {
+  appearance: none;
+}
+
 .form-field input::placeholder {
   color: #9aa5b5;
 }
 
-.form-field.has-error input {
+.form-field.has-error input,
+.form-field.has-error select {
   background: #fffafa;
   border-color: rgb(190 18 60 / 62%);
+}
+
+.color-input-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+
+.color-input-row input[type="color"] {
+  cursor: pointer;
+  padding: 4px;
 }
 
 .field-message {
