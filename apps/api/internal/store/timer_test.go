@@ -152,6 +152,53 @@ func TestDiscardOpenTimer(t *testing.T) {
 	}
 }
 
+func TestUpdateOpenTimerStartedAt(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTimeEntryTestStore(t, ctx)
+
+	timer, err := st.StartTimer(ctx, user.ID, TimerStartInput{Description: "Adjust start"})
+	if err != nil {
+		t.Fatalf("start timer: %v", err)
+	}
+
+	updatedStart := time.Now().UTC().Add(-45 * time.Minute).Truncate(time.Minute)
+	updated, err := st.UpdateOpenTimer(ctx, user.ID, timer.ID, TimerStartInput{
+		Description: "Adjust start",
+		StartedAt:   updatedStart.Format(time.RFC3339Nano),
+		Billable:    true,
+	})
+	if err != nil {
+		t.Fatalf("update timer startedAt: %v", err)
+	}
+
+	parsed, err := parseRFC3339(updated.StartedAt)
+	if err != nil {
+		t.Fatalf("parse updated startedAt: %v", err)
+	}
+	if !parsed.Equal(updatedStart) {
+		t.Fatalf("expected startedAt %s, got %s", formatTime(updatedStart), updated.StartedAt)
+	}
+}
+
+func TestUpdateOpenTimerRejectsFutureStartedAt(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTimeEntryTestStore(t, ctx)
+
+	timer, err := st.StartTimer(ctx, user.ID, TimerStartInput{Description: "Future start"})
+	if err != nil {
+		t.Fatalf("start timer: %v", err)
+	}
+
+	future := time.Now().UTC().Add(2 * time.Hour).Truncate(time.Minute)
+	if _, err := st.UpdateOpenTimer(ctx, user.ID, timer.ID, TimerStartInput{
+		Description: "Future start",
+		StartedAt:   future.Format(time.RFC3339Nano),
+		Billable:    true,
+	}); !errors.Is(err, ErrInvalidTimeEntryInput) {
+		t.Fatalf("expected ErrInvalidTimeEntryInput, got %v", err)
+	}
+}
+
 func TestStopTimerNotFound(t *testing.T) {
 	ctx := context.Background()
 	st, user := newTimeEntryTestStore(t, ctx)

@@ -17,6 +17,7 @@ type TimerStartInput struct {
 	TaskID      string   `json:"taskId"`
 	TagIDs      []string `json:"tagIds"`
 	Description string   `json:"description"`
+	StartedAt   string   `json:"startedAt,omitempty"`
 	Billable    bool     `json:"billable"`
 }
 
@@ -109,27 +110,70 @@ func (s *Store) UpdateOpenTimer(ctx context.Context, userID string, timeEntryID 
 		return nil, err
 	}
 
+	var startedAtUpdate *time.Time
+	var overlapWarning *bool
+	if strings.TrimSpace(input.StartedAt) != "" {
+		startedAt, err := parseRFC3339(input.StartedAt)
+		if err != nil {
+			return nil, fmt.Errorf("%w: startedAt must be RFC3339", ErrInvalidTimeEntryInput)
+		}
+		startedAt = truncateToMinute(startedAt)
+		now := truncateToMinute(time.Now().UTC())
+		if startedAt.After(now) {
+			return nil, fmt.Errorf("%w: startedAt cannot be in the future", ErrInvalidTimeEntryInput)
+		}
+		startedAtUpdate = &startedAt
+
+		endedAt := truncateToMinute(time.Now().UTC())
+		warning, err := s.hasTimeOverlap(ctx, userID, timeEntryID, *startedAtUpdate, endedAt)
+		if err != nil {
+			return nil, err
+		}
+		overlapWarning = &warning
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin update timer: %w", err)
 	}
 	defer tx.Rollback()
 
-	result, err := tx.ExecContext(ctx, `
-		UPDATE time_entries
-		SET client_id = ?, project_id = ?, task_id = ?, description = ?, billable = ?, updated_at = ?
-		WHERE user_id = ? AND id = ? AND ended_at IS NULL AND source = 'timer'
-	`, nullValue(normalized.ClientID), nullValue(normalized.ProjectID), nullValue(normalized.TaskID),
-		normalized.Description, boolToInt(normalized.Billable), nowString(), userID, timeEntryID)
-	if err != nil {
-		return nil, fmt.Errorf("update timer: %w", err)
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return nil, fmt.Errorf("inspect update timer result: %w", err)
-	}
-	if affected == 0 {
-		return nil, ErrTimerNotFound
+	nowString := nowString()
+	if startedAtUpdate != nil {
+		result, err := tx.ExecContext(ctx, `
+			UPDATE time_entries
+			SET client_id = ?, project_id = ?, task_id = ?, description = ?, billable = ?, started_at = ?, overlap_warning = ?, updated_at = ?
+			WHERE user_id = ? AND id = ? AND ended_at IS NULL AND source = 'timer'
+		`, nullValue(normalized.ClientID), nullValue(normalized.ProjectID), nullValue(normalized.TaskID),
+			normalized.Description, boolToInt(normalized.Billable), formatTime(*startedAtUpdate), boolToInt(*overlapWarning),
+			nowString, userID, timeEntryID)
+		if err != nil {
+			return nil, fmt.Errorf("update timer: %w", err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return nil, fmt.Errorf("inspect update timer result: %w", err)
+		}
+		if affected == 0 {
+			return nil, ErrTimerNotFound
+		}
+	} else {
+		result, err := tx.ExecContext(ctx, `
+			UPDATE time_entries
+			SET client_id = ?, project_id = ?, task_id = ?, description = ?, billable = ?, updated_at = ?
+			WHERE user_id = ? AND id = ? AND ended_at IS NULL AND source = 'timer'
+		`, nullValue(normalized.ClientID), nullValue(normalized.ProjectID), nullValue(normalized.TaskID),
+			normalized.Description, boolToInt(normalized.Billable), nowString, userID, timeEntryID)
+		if err != nil {
+			return nil, fmt.Errorf("update timer: %w", err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return nil, fmt.Errorf("inspect update timer result: %w", err)
+		}
+		if affected == 0 {
+			return nil, ErrTimerNotFound
+		}
 	}
 
 	if err := s.replaceTimeEntryTags(ctx, tx, timeEntryID, normalized.TagIDs); err != nil {

@@ -49,7 +49,10 @@ POST /api/v1/timers/{timeEntryID}/stop
 PATCH /api/v1/timers/{timeEntryID}
 ```
 
-Permite cambiar descripcion, cliente/proyecto/tarea, tags y billable mientras el timer sigue activo.
+Permite cambiar descripcion, cliente/proyecto/tarea, tags, billable y `startedAt` mientras el timer sigue activo.
+
+- `startedAt` es opcional en el PATCH; debe ser RFC3339 y no puede estar en el futuro.
+- `endedAt` no es editable mientras el timer sigue corriendo.
 
 ## Descartar timer
 

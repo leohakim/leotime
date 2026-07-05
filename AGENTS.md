@@ -33,6 +33,30 @@ make import-solidtime-dry ZIP=<path-to-export.zip>
 
 Install git hooks once per clone with `make setup-hooks` (included in `make setup`). Every commit runs `make pre-commit`: gofmt, go vet, backend tests, frontend tests, and web build.
 
+### Before Finishing Any Change
+
+Before telling the user that work is done, always run:
+
+```bash
+make pre-commit
+```
+
+This is the same gate the git hook runs. It verifies:
+
+- Go formatting with `gofmt`
+- Go static analysis with `go vet`
+- Backend tests with `go test ./...`
+- Frontend unit tests with Vitest
+- Frontend production build with TypeScript and Vite
+
+If `make pre-commit` fails, fix the reported issues and rerun until it passes. Do not hand off work with a failing gate. Common fixes:
+
+- `gofmt -w <file>` for Go formatting
+- address `go vet` findings in the reported package
+- fix failing tests or TypeScript/build errors before retrying
+
+Only skip this step when the change is explicitly read-only (questions, reviews with no edits). After larger delivery checks, also run `make smoke` and `make deploy-check` when behavior or deployment expectations changed.
+
 ## Commit Style
 
 Use small commits with clear messages following [Conventional Commits](https://www.conventionalcommits.org/):

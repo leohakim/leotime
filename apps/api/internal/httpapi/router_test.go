@@ -538,6 +538,32 @@ func TestTimerHTTPLifecycle(t *testing.T) {
 		t.Fatalf("expected list 200, got %d: %s", listResponse.Code, listResponse.Body.String())
 	}
 
+	updatedStart := time.Now().UTC().Add(-30 * time.Minute).Truncate(time.Minute)
+	updateResponse := httptest.NewRecorder()
+	updateRequest := httptest.NewRequest(http.MethodPatch, "/api/v1/timers/"+started.ID, bytes.NewBufferString(`{
+		"description": "Timer work",
+		"startedAt": "`+updatedStart.Format(time.RFC3339Nano)+`",
+		"billable": true
+	}`))
+	for _, cookie := range cookies {
+		updateRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(updateResponse, updateRequest)
+
+	if updateResponse.Code != http.StatusOK {
+		t.Fatalf("expected update 200, got %d: %s", updateResponse.Code, updateResponse.Body.String())
+	}
+
+	var updated struct {
+		StartedAt string `json:"startedAt"`
+	}
+	if err := json.Unmarshal(updateResponse.Body.Bytes(), &updated); err != nil {
+		t.Fatalf("decode updated timer: %v", err)
+	}
+	if updated.StartedAt == "" {
+		t.Fatalf("expected updated startedAt")
+	}
+
 	stopResponse := httptest.NewRecorder()
 	stopRequest := httptest.NewRequest(http.MethodPost, "/api/v1/timers/"+started.ID+"/stop", nil)
 	for _, cookie := range cookies {
@@ -705,6 +731,33 @@ func TestInvoiceDraftFromTimeAndExport(t *testing.T) {
 	router.ServeHTTP(statusResponse, statusRequest)
 	if statusResponse.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d: %s", statusResponse.Code, statusResponse.Body.String())
+	}
+}
+
+func TestDashboardStatsHTTP(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/dashboard/stats", nil)
+	for _, cookie := range cookies {
+		request.AddCookie(cookie)
+	}
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected dashboard 200, got %d: %s", response.Code, response.Body.String())
+	}
+
+	var stats struct {
+		RecentEntries []any `json:"recentEntries"`
+		LastSevenDays []any `json:"lastSevenDays"`
+		WeekDays      []any `json:"weekDays"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &stats); err != nil {
+		t.Fatalf("decode dashboard stats: %v", err)
+	}
+	if len(stats.LastSevenDays) != 7 || len(stats.WeekDays) != 7 {
+		t.Fatalf("unexpected dashboard payload: %+v", stats)
 	}
 }
 

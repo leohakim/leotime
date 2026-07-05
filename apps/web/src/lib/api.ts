@@ -162,6 +162,7 @@ export type TimerStartInput = {
   taskId: string;
   tagIds: string[];
   description: string;
+  startedAt?: string;
   billable: boolean;
 };
 
@@ -196,6 +197,58 @@ export type TimeReport = {
   entryCount: number;
   groups?: TimeReportGroup[];
   entries?: TimeEntry[];
+};
+
+export type DashboardRecentEntry = {
+  id: string;
+  clientId: string;
+  projectId: string;
+  projectName: string;
+  projectColor: string;
+  taskId: string;
+  description: string;
+  startedAt: string;
+  durationSeconds: number;
+  billable: boolean;
+};
+
+export type DashboardDaySummary = {
+  date: string;
+  label: string;
+  totalSeconds: number;
+};
+
+export type DashboardHeatmapDay = {
+  date: string;
+  totalSeconds: number;
+  level: number;
+  inMonth: boolean;
+};
+
+export type DashboardWeekDay = {
+  date: string;
+  weekday: string;
+  totalSeconds: number;
+};
+
+export type DashboardProjectShare = {
+  projectId: string;
+  projectName: string;
+  projectColor: string;
+  totalSeconds: number;
+};
+
+export type DashboardStats = {
+  activityMonth: string;
+  recentEntries: DashboardRecentEntry[];
+  lastSevenDays: DashboardDaySummary[];
+  activityHeatmap: DashboardHeatmapDay[];
+  weekDays: DashboardWeekDay[];
+  weekSpentSeconds: number;
+  weekBillableSeconds: number;
+  weekBillableMinor: number;
+  weekCurrency: string;
+  projectBreakdown: DashboardProjectShare[];
 };
 
 export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'cancelled';
@@ -272,6 +325,11 @@ export async function fetchSession(): Promise<SessionResponse> {
 
 export async function fetchOverview(): Promise<Overview> {
   return apiGet('/api/v1/overview');
+}
+
+export async function fetchDashboardStats(activityMonth?: string): Promise<DashboardStats> {
+  const query = activityMonth ? `?activityMonth=${encodeURIComponent(activityMonth)}` : '';
+  return apiGet(`/api/v1/dashboard/stats${query}`);
 }
 
 export async function fetchClients(): Promise<ClientsResponse> {

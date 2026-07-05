@@ -134,6 +134,8 @@ Run the same gate manually at any time:
 make pre-commit
 ```
 
+AI agents must run `make pre-commit` before finishing any code change and fix failures before handoff. This is the same check the git hook runs on commit.
+
 For full delivery checks after larger changes, also run:
 
 ```bash

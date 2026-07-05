@@ -70,6 +70,7 @@ import {
 import { translate } from './lib/i18n';
 import { sortTasksByNewest } from './lib/taskSort';
 import { CalendarPanel } from './lib/calendarUi';
+import { DashboardPanel } from './lib/dashboardUi';
 import { InvoicePanel } from './lib/invoiceUi';
 import { addMonths, endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './lib/calendarMonth';
 import { TimeReportPanel } from './lib/reportUi';
@@ -329,7 +330,7 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
       </aside>
 
       <main className="workspace">
-        <header className="tracker-topbar" id="dashboard">
+        <header className="tracker-topbar">
           <div className="tracker-title">
             <Clock3 aria-hidden="true" />
             <h1>{t('timeTracker')}</h1>
@@ -350,6 +351,8 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
           timers={openTimers}
           t={t}
         />
+
+        <DashboardPanel locale={locale} t={t} />
 
         <TimeViewSwitcher setTimeView={setTimeView} t={t} timeView={timeView} />
 

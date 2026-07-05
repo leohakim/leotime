@@ -83,14 +83,29 @@ export function TimerCommandRow({
   const activeTimer = timers[0] ?? null;
   const elapsed = useElapsedSeconds(activeTimer?.startedAt ?? null);
   const [liveDescription, setLiveDescription] = useState('');
+  const [clockPopoverOpen, setClockPopoverOpen] = useState(false);
+  const [liveStartedDate, setLiveStartedDate] = useState('');
+  const [liveStartedTime, setLiveStartedTime] = useState('');
   const skipDescriptionSaveRef = useRef(true);
+  const skipStartedAtSaveRef = useRef(true);
+  const clockPopoverRef = useRef<HTMLDivElement>(null);
   const activeTimerRef = useRef(activeTimer);
   activeTimerRef.current = activeTimer;
 
   useEffect(() => {
     skipDescriptionSaveRef.current = true;
+    skipStartedAtSaveRef.current = true;
     setLiveDescription(activeTimer?.description ?? '');
-  }, [activeTimer?.id]);
+    if (activeTimer?.startedAt) {
+      const parts = timerStartParts(activeTimer.startedAt);
+      setLiveStartedDate(parts.date);
+      setLiveStartedTime(parts.time);
+    } else {
+      setLiveStartedDate('');
+      setLiveStartedTime('');
+    }
+    setClockPopoverOpen(false);
+  }, [activeTimer?.id, activeTimer?.startedAt, activeTimer?.description]);
 
   const filteredTasks = useMemo(
     () => (form.projectId ? tasks.filter((task) => task.projectId === form.projectId || task.projectId === '') : tasks),
@@ -120,6 +135,7 @@ export function TimerCommandRow({
           timers: current.timers.map((timer) => (timer.id === updated.id ? updated : timer)),
         };
       });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
     },
     onError: () => setError(t('timerUpdateFailed')),
   });
@@ -144,12 +160,71 @@ export function TimerCommandRow({
       }
       updateMutation.mutate({
         timeEntryId: currentTimer.id,
-        input: timerEntryToInput(currentTimer, liveDescription),
+        input: timerEntryToInput(currentTimer, { description: liveDescription }),
       });
     }, 400);
 
     return () => window.clearTimeout(handle);
   }, [activeTimer?.id, liveDescription, updateMutation]);
+
+  useEffect(() => {
+    const timer = activeTimerRef.current;
+    if (!timer || !liveStartedDate || !liveStartedTime) {
+      return;
+    }
+    if (skipStartedAtSaveRef.current) {
+      skipStartedAtSaveRef.current = false;
+      return;
+    }
+
+    const nextStartedAt = timerStartISO(liveStartedDate, liveStartedTime);
+    if (timerStartParts(timer.startedAt).date === liveStartedDate && timerStartParts(timer.startedAt).time === liveStartedTime) {
+      return;
+    }
+    if (Date.parse(nextStartedAt) > Date.now()) {
+      setError(t('timerUpdateFailed'));
+      return;
+    }
+
+    const handle = window.setTimeout(() => {
+      const currentTimer = activeTimerRef.current;
+      if (!currentTimer) {
+        return;
+      }
+      updateMutation.mutate({
+        timeEntryId: currentTimer.id,
+        input: timerEntryToInput(currentTimer, {
+          description: liveDescription,
+          startedAt: nextStartedAt,
+        }),
+      });
+    }, 400);
+
+    return () => window.clearTimeout(handle);
+  }, [activeTimer?.id, liveDescription, liveStartedDate, liveStartedTime, t, updateMutation]);
+
+  useEffect(() => {
+    if (!clockPopoverOpen) {
+      return;
+    }
+
+    let removeListener: (() => void) | undefined;
+    const timeoutId = window.setTimeout(() => {
+      function handlePointerDown(event: MouseEvent) {
+        if (!clockPopoverRef.current?.contains(event.target as Node)) {
+          setClockPopoverOpen(false);
+        }
+      }
+
+      document.addEventListener('mousedown', handlePointerDown);
+      removeListener = () => document.removeEventListener('mousedown', handlePointerDown);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      removeListener?.();
+    };
+  }, [clockPopoverOpen]);
 
   function submitStart(event: FormEvent) {
     event.preventDefault();
@@ -206,7 +281,49 @@ export function TimerCommandRow({
               >
                 <DollarSign aria-hidden="true" />
               </button>
-              <strong className="timer-clock">{formatElapsedClock(elapsed)}</strong>
+              <div
+                className={`timer-clock-wrap${clockPopoverOpen ? ' is-open' : ''}`}
+                onMouseDown={(event) => event.stopPropagation()}
+                ref={clockPopoverRef}
+              >
+                <button
+                  aria-expanded={clockPopoverOpen}
+                  aria-haspopup="dialog"
+                  aria-label={t('timerEditStart')}
+                  className="timer-clock-button"
+                  onClick={() => setClockPopoverOpen((open) => !open)}
+                  type="button"
+                >
+                  {formatElapsedClock(elapsed)}
+                </button>
+                {clockPopoverOpen ? (
+                  <div className="timer-clock-popover" role="dialog">
+                    <div className="timer-clock-popover-head">
+                      <span>{t('startedAt')}</span>
+                      <span>{t('endedAt')}</span>
+                    </div>
+                    <div className="timer-clock-popover-body">
+                      <input
+                        aria-label={t('startedAt')}
+                        className="timer-clock-input timer-clock-input-time"
+                        onChange={(event) => setLiveStartedTime(event.target.value)}
+                        type="time"
+                        value={liveStartedTime}
+                      />
+                      <span aria-hidden="true" className="timer-clock-end-value">
+                        {t('timerRunningEnd')}
+                      </span>
+                      <input
+                        aria-label={t('startedAt')}
+                        className="timer-clock-input timer-clock-input-date"
+                        onChange={(event) => setLiveStartedDate(event.target.value)}
+                        type="date"
+                        value={liveStartedDate}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
           <button
@@ -309,13 +426,30 @@ export function formatElapsedClock(totalSeconds: number) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function timerEntryToInput(timer: TimeEntry, description: string): TimerStartInput {
+function timerEntryToInput(
+  timer: TimeEntry,
+  overrides: { description?: string; startedAt?: string } = {},
+): TimerStartInput {
   return {
     clientId: timer.clientId,
     projectId: timer.projectId,
     taskId: timer.taskId,
     tagIds: timer.tags.map((tag) => tag.id),
-    description,
+    description: overrides.description ?? timer.description,
     billable: timer.billable,
+    ...(overrides.startedAt ? { startedAt: overrides.startedAt } : {}),
   };
+}
+
+function timerStartParts(iso: string): { date: string; time: string } {
+  const value = new Date(iso);
+  const pad = (part: number) => String(part).padStart(2, '0');
+  return {
+    date: `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`,
+    time: `${pad(value.getHours())}:${pad(value.getMinutes())}`,
+  };
+}
+
+function timerStartISO(date: string, time: string): string {
+  return new Date(`${date}T${time}`).toISOString();
 }

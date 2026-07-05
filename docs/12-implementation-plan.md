@@ -31,13 +31,11 @@ Every product slice should include:
 - Calendar view with monthly grid, day selection, month navigation, inline editing, tests, and docs.
 - Reports and exports with grouped totals, CSV/JSON export, optional timestamps, tests, and docs.
 - Invoices with draft-from-time, frozen client fields, tax/withholding, status workflow, HTML/CSV/JSON export, tests, and docs.
+- Dashboard UI with recent entries, last 7 days, activity heatmap, weekly bars, billable totals, project donut, tests, and docs.
 
 ## MVP Delivery Slices
 
-1. **Dashboard UI Solidtime compatibility**
-   - Recent time entries/las 7 days/Activity graph/This week's bar graph / spent time / billable time / billable amount / pie chart.
-
-2. Theme selector with solidtime default, light, dark, minimal, etc.
+1. Theme selector with solidtime default, light, dark, minimal, etc.
    - Theme selector with solidtime default, light, dark, minimal, etc.
 
 3. **Profile Settings**
@@ -75,4 +73,4 @@ When port `8080` is already occupied by a local process without static assets, r
 
 ## Current Next Task
 
-The next implementation slice is **Dashboard UI Solidtime compatibility**.
+The next implementation slice is **Theme selector**.

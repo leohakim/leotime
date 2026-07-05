@@ -94,6 +94,16 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Esta semana')).toBeInTheDocument());
   });
 
+  test('renders dashboard stats widgets', async () => {
+    renderApp();
+
+    expect(await screen.findByText('Entradas recientes')).toBeInTheDocument();
+    expect(screen.getByText('Ultimos 7 dias')).toBeInTheDocument();
+    expect(screen.getByText('Resumen semanal')).toBeInTheDocument();
+    expect(screen.getByLabelText('Mes anterior')).toBeInTheDocument();
+    expect(screen.getByText('Tiempo registrado')).toBeInTheDocument();
+  });
+
   test('renders the time report panel', async () => {
     renderApp();
 
@@ -231,6 +241,27 @@ describe('App', () => {
     fireEvent.click(screen.getAllByTitle('Parar')[0]);
     await waitFor(() => expect(timersMock).toHaveLength(0));
     expect(timeEntriesMock).toHaveLength(1);
+  });
+
+  test('opens the running timer popover to edit start time', async () => {
+    renderApp();
+
+    await screen.findByRole('button', { name: 'Iniciar timer' });
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar timer' }));
+
+    await waitFor(() => expect(timersMock).toHaveLength(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar hora de inicio' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Inicio').length).toBeGreaterThan(0);
+    expect(screen.getByText('--:--')).toBeInTheDocument();
+
+    const timeInput = screen.getAllByLabelText('Inicio').find((element) => element.getAttribute('type') === 'time');
+    expect(timeInput).toBeDefined();
+    const originalStartedAt = timersMock[0]?.startedAt;
+    fireEvent.change(timeInput as HTMLInputElement, { target: { value: '08:30' } });
+
+    await waitFor(() => expect(timersMock[0]?.startedAt).not.toBe(originalStartedAt));
   });
 
   test('creates a manual time entry from the dashboard', async () => {
@@ -574,6 +605,55 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     return jsonResponse(tag, 201);
   }
 
+  if (url.includes('/api/v1/dashboard/stats') && (!init?.method || init.method === 'GET')) {
+    return jsonResponse({
+      activityMonth: '2026-07',
+      recentEntries: timeEntriesMock.slice(0, 4).map((entry) => ({
+        id: entry.id,
+        clientId: entry.clientId,
+        projectId: entry.projectId,
+        projectName: entry.projectName,
+        projectColor: entry.projectColor,
+        taskId: entry.taskId,
+        description: entry.description,
+        startedAt: entry.startedAt,
+        durationSeconds: entry.durationSeconds,
+        billable: entry.billable,
+      })),
+      lastSevenDays: [
+        { date: '2026-07-05', label: 'today', totalSeconds: 7200 },
+        { date: '2026-07-04', label: 'yesterday', totalSeconds: 5400 },
+        { date: '2026-07-03', label: '2d', totalSeconds: 3600 },
+        { date: '2026-07-02', label: '3d', totalSeconds: 1800 },
+        { date: '2026-07-01', label: '4d', totalSeconds: 0 },
+        { date: '2026-06-30', label: '5d', totalSeconds: 9000 },
+        { date: '2026-06-29', label: '6d', totalSeconds: 1200 },
+      ],
+      activityHeatmap: [
+        { date: '2026-06-30', totalSeconds: 0, level: 0, inMonth: false },
+        { date: '2026-07-01', totalSeconds: 5400, level: 2, inMonth: true },
+        { date: '2026-07-02', totalSeconds: 7200, level: 2, inMonth: true },
+      ],
+      weekDays: [
+        { date: '2026-06-30', weekday: 'Mon', totalSeconds: 3600 },
+        { date: '2026-07-01', weekday: 'Tue', totalSeconds: 5400 },
+        { date: '2026-07-02', weekday: 'Wed', totalSeconds: 1800 },
+        { date: '2026-07-03', weekday: 'Thu', totalSeconds: 7200 },
+        { date: '2026-07-04', weekday: 'Fri', totalSeconds: 3600 },
+        { date: '2026-07-05', weekday: 'Sat', totalSeconds: 9000 },
+        { date: '2026-07-06', weekday: 'Sun', totalSeconds: 0 },
+      ],
+      weekSpentSeconds: 30600,
+      weekBillableSeconds: 12600,
+      weekBillableMinor: 21000,
+      weekCurrency: 'EUR',
+      projectBreakdown: [
+        { projectId: 'prj_1', projectName: 'Portal Web', projectColor: '#2563eb', totalSeconds: 18000 },
+        { projectId: 'prj_2', projectName: 'ENACT', projectColor: '#f97316', totalSeconds: 12600 },
+      ],
+    });
+  }
+
   if (url.endsWith('/api/v1/invoices') && (!init?.method || init.method === 'GET')) {
     return jsonResponse({ invoices: invoicesMock });
   }
@@ -701,6 +781,23 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     });
     timersMock = [...timersMock, entry];
     return jsonResponse(entry, 201);
+  }
+
+  if (url.includes('/api/v1/timers/') && !url.endsWith('/stop') && init?.method === 'PATCH') {
+    const timeEntryId = url.split('/api/v1/timers/')[1] ?? '';
+    const timer = timersMock.find((item) => item.id === timeEntryId);
+    if (!timer) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    const body = JSON.parse(String(init.body));
+    const updated = {
+      ...timer,
+      description: body.description ?? timer.description,
+      startedAt: body.startedAt ?? timer.startedAt,
+      billable: body.billable ?? timer.billable,
+    };
+    timersMock = timersMock.map((item) => (item.id === timeEntryId ? updated : item));
+    return jsonResponse(updated);
   }
 
   if (url.includes('/api/v1/timers/') && url.endsWith('/stop') && init?.method === 'POST') {
