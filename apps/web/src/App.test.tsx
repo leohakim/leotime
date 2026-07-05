@@ -46,6 +46,15 @@ describe('App', () => {
         updatedAt: '2026-01-01T00:00:00Z',
       },
     ];
+    tagsMock = [
+      {
+        id: 'tag_1',
+        name: 'Deep Work',
+        color: '#2563eb',
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ];
     vi.stubGlobal('fetch', vi.fn(mockFetch));
   });
 
@@ -64,6 +73,7 @@ describe('App', () => {
     expect((await screen.findAllByText('Osoigo SL')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Portal Web')).length).toBeGreaterThan(0);
     expect(await screen.findByText('Refactor API')).toBeInTheDocument();
+    expect(await screen.findByText('Deep Work')).toBeInTheDocument();
   });
 
   test('switches language', async () => {
@@ -163,6 +173,33 @@ describe('App', () => {
     expect(await screen.findByText('La tarea debe tener al menos 2 caracteres.')).toBeInTheDocument();
     expect(tasksMock).toHaveLength(1);
   });
+
+  test('creates a tag from the dashboard', async () => {
+    renderApp();
+
+    await screen.findByText('Deep Work');
+    fireEvent.change(screen.getByPlaceholderText('Ej. Deep Work'), { target: { value: 'Nuevo Tag' } });
+    fireEvent.change(screen.getByPlaceholderText('#64748b'), { target: { value: '#0f7a5b' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear tag' }));
+
+    await waitFor(() => expect(screen.getByText('Nuevo Tag')).toBeInTheDocument());
+  });
+
+  test('validates the tag form before submitting', async () => {
+    renderApp();
+
+    await screen.findByText('Deep Work');
+    fireEvent.click(screen.getByRole('button', { name: 'Crear tag' }));
+
+    expect(await screen.findByText('El nombre del tag es obligatorio.')).toBeInTheDocument();
+    expect(tagsMock).toHaveLength(1);
+
+    fireEvent.change(screen.getByPlaceholderText('Ej. Deep Work'), { target: { value: 'A' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear tag' }));
+
+    expect(await screen.findByText('El tag debe tener al menos 2 caracteres.')).toBeInTheDocument();
+    expect(tagsMock).toHaveLength(1);
+  });
 });
 
 function renderApp() {
@@ -216,6 +253,14 @@ let tasksMock: Array<{
   updatedAt: string;
 }> = [];
 
+let tagsMock: Array<{
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+}> = [];
+
 async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
   const url = String(input);
   if (url.endsWith('/api/v1/session')) {
@@ -236,7 +281,7 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
       clientsTotal: clientsMock.length,
       projectsTotal: projectsMock.length,
       tasksTotal: tasksMock.length,
-      tagsTotal: 4,
+      tagsTotal: tagsMock.length,
       timeEntriesTotal: 5,
       invoicesTotal: 6,
       openTimers: 0,
@@ -307,6 +352,23 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     };
     tasksMock = [...tasksMock, task];
     return jsonResponse(task, 201);
+  }
+
+  if (url.endsWith('/api/v1/tags') && (!init?.method || init.method === 'GET')) {
+    return jsonResponse({ tags: tagsMock });
+  }
+
+  if (url.endsWith('/api/v1/tags') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    const tag = {
+      id: `tag_${tagsMock.length + 1}`,
+      name: body.name,
+      color: body.color,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    tagsMock = [...tagsMock, tag];
+    return jsonResponse(tag, 201);
   }
 
   return jsonResponse({}, 404);

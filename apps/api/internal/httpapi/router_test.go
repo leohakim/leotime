@@ -99,6 +99,18 @@ func TestTasksRequireAuthentication(t *testing.T) {
 	}
 }
 
+func TestTagsRequireAuthentication(t *testing.T) {
+	router := newTestRouter(t)
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/tags", nil)
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", response.Code)
+	}
+}
+
 func TestClientHTTPLifecycle(t *testing.T) {
 	router := newTestRouter(t)
 	cookies := loginCookies(t, router)
@@ -344,6 +356,81 @@ func TestTaskHTTPLifecycle(t *testing.T) {
 
 	deleteResponse := httptest.NewRecorder()
 	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/"+created.ID, nil)
+	for _, cookie := range cookies {
+		deleteRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(deleteResponse, deleteRequest)
+
+	if deleteResponse.Code != http.StatusNoContent {
+		t.Fatalf("expected delete 204, got %d: %s", deleteResponse.Code, deleteResponse.Body.String())
+	}
+}
+
+func TestTagHTTPLifecycle(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	createResponse := httptest.NewRecorder()
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/tags", bytes.NewBufferString(`{
+		"name": "Deep Work",
+		"color": "#2563eb"
+	}`))
+	for _, cookie := range cookies {
+		createRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(createResponse, createRequest)
+
+	if createResponse.Code != http.StatusCreated {
+		t.Fatalf("expected create 201, got %d: %s", createResponse.Code, createResponse.Body.String())
+	}
+
+	var created struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Color string `json:"color"`
+	}
+	if err := json.Unmarshal(createResponse.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created tag: %v", err)
+	}
+	if created.ID == "" || created.Name != "Deep Work" || created.Color != "#2563eb" {
+		t.Fatalf("unexpected created tag: %+v", created)
+	}
+
+	updateResponse := httptest.NewRecorder()
+	updateRequest := httptest.NewRequest(http.MethodPatch, "/api/v1/tags/"+created.ID, bytes.NewBufferString(`{
+		"name": "Focus",
+		"color": "#0f7a5b"
+	}`))
+	for _, cookie := range cookies {
+		updateRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(updateResponse, updateRequest)
+
+	if updateResponse.Code != http.StatusOK {
+		t.Fatalf("expected update 200, got %d: %s", updateResponse.Code, updateResponse.Body.String())
+	}
+
+	listResponse := httptest.NewRecorder()
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/tags", nil)
+	for _, cookie := range cookies {
+		listRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(listResponse, listRequest)
+
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("expected list 200, got %d: %s", listResponse.Code, listResponse.Body.String())
+	}
+
+	var listPayload tagsResponse
+	if err := json.Unmarshal(listResponse.Body.Bytes(), &listPayload); err != nil {
+		t.Fatalf("decode list response: %v", err)
+	}
+	if len(listPayload.Tags) != 1 || listPayload.Tags[0].Name != "Focus" {
+		t.Fatalf("unexpected tag list: %+v", listPayload)
+	}
+
+	deleteResponse := httptest.NewRecorder()
+	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/tags/"+created.ID, nil)
 	for _, cookie := range cookies {
 		deleteRequest.AddCookie(cookie)
 	}

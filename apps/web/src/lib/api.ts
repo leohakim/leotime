@@ -95,6 +95,23 @@ export type TasksResponse = {
   tasks: Task[];
 };
 
+export type Tag = {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TagInput = {
+  name: string;
+  color: string;
+};
+
+export type TagsResponse = {
+  tags: Tag[];
+};
+
 export async function fetchSession(): Promise<SessionResponse> {
   return apiGet('/api/v1/session');
 }
@@ -113,6 +130,10 @@ export async function fetchProjects(): Promise<ProjectsResponse> {
 
 export async function fetchTasks(): Promise<TasksResponse> {
   return apiGet('/api/v1/tasks');
+}
+
+export async function fetchTags(): Promise<TagsResponse> {
+  return apiGet('/api/v1/tags');
 }
 
 export async function createClient(input: ClientInput): Promise<Client> {
@@ -163,6 +184,25 @@ export async function updateTask(taskId: string, input: TaskInput): Promise<Task
 
 export async function archiveTask(taskId: string): Promise<void> {
   const response = await fetch(`/api/v1/tasks/${taskId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`request_failed:${response.status}`);
+  }
+}
+
+export async function createTag(input: TagInput): Promise<Tag> {
+  return apiJSON('/api/v1/tags', 'POST', input);
+}
+
+export async function updateTag(tagId: string, input: TagInput): Promise<Tag> {
+  return apiJSON(`/api/v1/tags/${tagId}`, 'PATCH', input);
+}
+
+export async function deleteTag(tagId: string): Promise<void> {
+  const response = await fetch(`/api/v1/tags/${tagId}`, {
     method: 'DELETE',
     credentials: 'include',
   });

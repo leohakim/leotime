@@ -24,36 +24,33 @@ Every product slice should include:
 - Client CRUD with backend API, frontend workbench, validation, tests, and docs.
 - Project CRUD with optional client assignment, colors, optional rate override, tests, and docs.
 - Task CRUD with optional project assignment, billable default, archive behavior, tests, and docs.
+- Tag CRUD with unique names, colors, hard delete, tests, and docs.
 
 ## MVP Delivery Slices
 
-1. **Tags CRUD**
-   - Independent taxonomy used by time entries and reports.
-   - Must keep unique names per user.
-
-2. **Manual Time Entries**
+1. **Manual Time Entries**
    - Depends on clients, projects, tasks, and tags.
    - Supports one-minute precision, billable flag, overlap warnings, and duration calculation.
 
-3. **Timer Workflow**
+2. **Timer Workflow**
    - Start, stop, and resume daily tracking.
    - Allows overlapping activities and flags overlaps for reporting.
 
-4. **Timesheet View**
+3. **Timesheet View**
    - Weekly editable view grouped by day, client, project, task, and tags.
 
-5. **Calendar View**
+4. **Calendar View**
    - Calendar-style inspection and editing of time entries.
 
-6. **Reports And Exports**
+5. **Reports And Exports**
    - CSV and JSON exports.
    - Hide start/end timestamps when the report is configured to show only totals.
 
-7. **Invoices**
+6. **Invoices**
    - Draft invoices from billable time.
    - Multi-currency, frozen client fields, line items, tax/withholding fields, and PDF/export.
 
-8. **Offline Queue MVP**
+7. **Offline Queue MVP**
    - Offline creation/edit queue for the core daily workflow.
    - Syncs when connectivity returns.
 
@@ -85,4 +82,4 @@ When port `8080` is already occupied by a local process without static assets, r
 
 ## Current Next Task
 
-The next implementation slice is **Tags CRUD**.
+The next implementation slice is **Manual Time Entries**.
