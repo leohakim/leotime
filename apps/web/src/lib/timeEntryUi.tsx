@@ -704,7 +704,7 @@ function useTimeEntryInlineEditor({
   return { error, form, liveDuration, project, updateField };
 }
 
-function TimesheetEntryRow({
+export function TimesheetEntryRow({
   entry,
   locale,
   projects,

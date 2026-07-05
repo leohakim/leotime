@@ -25,8 +25,8 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Manual time entries | One-minute precision, billable, overlap warning. |
 | Done | Timer workflow | Start/stop, open timer, overlap awareness. |
 | Done | Weekly timesheet | Editable weekly grid, week navigation, grouped totals. |
-| Next | Calendar view | Calendar inspection/editing of entries. |
-| Backlog | Reports/export | CSV/JSON, grouped totals, optional timestamp hiding. |
+| Done | Calendar view | Monthly grid, day selection, inline editing. |
+| Next | Reports/export | CSV/JSON, grouped totals, optional timestamp hiding. |
 | Backlog | Invoices | Draft/issued/paid/cancelled, PDF/export, multi-currency. |
 | Backlog | Offline queue MVP | Create/edit offline and sync when online. |
 | Later | Tauri desktop app | Desktop packaging after web MVP works. |

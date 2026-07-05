@@ -94,6 +94,16 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Esta semana')).toBeInTheDocument());
   });
 
+  test('opens the calendar view', async () => {
+    renderApp();
+
+    await screen.findByText('Esta semana');
+    fireEvent.click(screen.getByRole('tab', { name: 'Calendario' }));
+
+    expect(await screen.findByText('Este mes')).toBeInTheDocument();
+    expect(screen.getByRole('grid', { name: 'Calendario' })).toBeInTheDocument();
+  });
+
   test('switches language', async () => {
     renderApp();
 

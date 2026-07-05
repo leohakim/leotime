@@ -68,6 +68,8 @@ import {
 } from './lib/api';
 import { translate } from './lib/i18n';
 import { sortTasksByNewest } from './lib/taskSort';
+import { CalendarPanel } from './lib/calendarUi';
+import { addMonths, endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './lib/calendarMonth';
 import { ManualTimeEntryPanel, TimeEntriesList } from './lib/timeEntryUi';
 import { SidebarTimer, TimerCommandRow } from './lib/timerUi';
 import { addWeeks, startOfWeek, toWeekQueryFrom, toWeekQueryTo } from './lib/timesheetWeek';
@@ -169,29 +171,46 @@ type DashboardProps = {
   userName: string;
 };
 
+type TimeView = 'timesheet' | 'calendar';
+
 function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }: DashboardProps) {
   const queryClient = useQueryClient();
+  const [timeView, setTimeView] = usePersistentState<TimeView>('leotime.timeView', 'timesheet');
   const [weekAnchorIso, setWeekAnchorIso] = usePersistentState('leotime.timesheetWeek', new Date().toISOString().slice(0, 10));
+  const [monthAnchorIso, setMonthAnchorIso] = usePersistentState(
+    'leotime.calendarMonth',
+    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`,
+  );
+  const [selectedCalendarDay, setSelectedCalendarDay] = usePersistentState<string>('leotime.calendarDay', '');
   const weekAnchor = useMemo(() => new Date(`${weekAnchorIso}T12:00:00`), [weekAnchorIso]);
+  const monthAnchor = useMemo(() => new Date(`${monthAnchorIso}T12:00:00`), [monthAnchorIso]);
   const weekStart = useMemo(() => startOfWeek(weekAnchor), [weekAnchor]);
   const weekEnd = useMemo(() => {
     const end = new Date(weekStart);
     end.setDate(end.getDate() + 6);
     return end;
   }, [weekStart]);
+  const monthStart = useMemo(() => startOfMonth(monthAnchor), [monthAnchor]);
+  const monthEnd = useMemo(() => endOfMonth(monthStart), [monthStart]);
   const weekQueryKey = weekStart.toISOString().slice(0, 10);
+  const monthQueryKey = `${monthStart.getFullYear()}-${monthStart.getMonth()}`;
 
   const clientsQuery = useQuery({ queryKey: ['clients'], queryFn: fetchClients });
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: fetchProjects });
   const tasksQuery = useQuery({ queryKey: ['tasks'], queryFn: fetchTasks });
   const tagsQuery = useQuery({ queryKey: ['tags'], queryFn: fetchTags });
   const timeEntriesQuery = useQuery({
-    queryKey: ['time-entries', weekQueryKey],
+    queryKey: ['time-entries', timeView, timeView === 'timesheet' ? weekQueryKey : monthQueryKey],
     queryFn: () =>
-      fetchTimeEntries({
-        from: toWeekQueryFrom(weekStart),
-        to: toWeekQueryTo(weekEnd),
-      }),
+      timeView === 'timesheet'
+        ? fetchTimeEntries({
+            from: toWeekQueryFrom(weekStart),
+            to: toWeekQueryTo(weekEnd),
+          })
+        : fetchTimeEntries({
+            from: toMonthQueryFrom(monthStart),
+            to: toMonthQueryTo(monthEnd),
+          }),
   });
   const timersQuery = useQuery({
     queryKey: ['timers'],
@@ -236,9 +255,13 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
             <LayoutDashboard aria-hidden="true" />
             {t('dashboard')}
           </a>
-          <a className="active" href="#timesheet">
+          <a className={timeView === 'timesheet' ? 'active' : ''} href="#timesheet" onClick={() => setTimeView('timesheet')}>
             <Clock3 aria-hidden="true" />
             {t('time')}
+          </a>
+          <a className={timeView === 'calendar' ? 'active' : ''} href="#calendar" onClick={() => setTimeView('calendar')}>
+            <CalendarDays aria-hidden="true" />
+            {t('calendar')}
           </a>
           <a className="nav-parent" href="#reports">
             <BarChart3 aria-hidden="true" />
@@ -321,18 +344,46 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
           t={t}
         />
 
-        <TimeEntriesList
-          entries={timeEntriesQuery.data?.timeEntries ?? []}
-          isLoading={timeEntriesQuery.isLoading}
-          locale={locale}
-          onNextWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, 1).toISOString().slice(0, 10))}
-          onPreviousWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, -1).toISOString().slice(0, 10))}
-          onTodayWeek={() => setWeekAnchorIso(new Date().toISOString().slice(0, 10))}
-          projects={projectsQuery.data?.projects ?? []}
-          tasks={tasksQuery.data?.tasks ?? []}
-          t={t}
-          weekAnchor={weekAnchor}
-        />
+        <TimeViewSwitcher setTimeView={setTimeView} t={t} timeView={timeView} />
+
+        {timeView === 'timesheet' ? (
+          <TimeEntriesList
+            entries={timeEntriesQuery.data?.timeEntries ?? []}
+            isLoading={timeEntriesQuery.isLoading}
+            locale={locale}
+            onNextWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, 1).toISOString().slice(0, 10))}
+            onPreviousWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, -1).toISOString().slice(0, 10))}
+            onTodayWeek={() => setWeekAnchorIso(new Date().toISOString().slice(0, 10))}
+            projects={projectsQuery.data?.projects ?? []}
+            tasks={tasksQuery.data?.tasks ?? []}
+            t={t}
+            weekAnchor={weekAnchor}
+          />
+        ) : (
+          <CalendarPanel
+            entries={timeEntriesQuery.data?.timeEntries ?? []}
+            isLoading={timeEntriesQuery.isLoading}
+            locale={locale}
+            monthAnchor={monthAnchor}
+            onNextMonth={() => {
+              const next = addMonths(monthStart, 1);
+              setMonthAnchorIso(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-01`);
+            }}
+            onPreviousMonth={() => {
+              const previous = addMonths(monthStart, -1);
+              setMonthAnchorIso(`${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}-01`);
+            }}
+            onSelectDay={setSelectedCalendarDay}
+            onTodayMonth={() => {
+              const today = new Date();
+              setMonthAnchorIso(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`);
+            }}
+            projects={projectsQuery.data?.projects ?? []}
+            selectedDay={selectedCalendarDay}
+            tasks={tasksQuery.data?.tasks ?? []}
+            t={t}
+          />
+        )}
 
         <section className="management-surface" aria-label={t('manage')}>
           <ManualTimeEntryPanel
@@ -361,6 +412,41 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
           <TagPanel isLoading={tagsQuery.isLoading} tags={tagsQuery.data?.tags ?? []} t={t} />
         </section>
       </main>
+    </div>
+  );
+}
+
+function TimeViewSwitcher({
+  timeView,
+  setTimeView,
+  t,
+}: {
+  timeView: TimeView;
+  setTimeView: (view: TimeView) => void;
+  t: Translator;
+}) {
+  return (
+    <div className="time-view-switcher" role="tablist" aria-label={t('time')}>
+      <div className="segmented-control">
+        <button
+          aria-selected={timeView === 'timesheet'}
+          className={timeView === 'timesheet' ? 'selected' : undefined}
+          onClick={() => setTimeView('timesheet')}
+          role="tab"
+          type="button"
+        >
+          {t('timesheet')}
+        </button>
+        <button
+          aria-selected={timeView === 'calendar'}
+          className={timeView === 'calendar' ? 'selected' : undefined}
+          onClick={() => setTimeView('calendar')}
+          role="tab"
+          type="button"
+        >
+          {t('calendar')}
+        </button>
+      </div>
     </div>
   );
 }
