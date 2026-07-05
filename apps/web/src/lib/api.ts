@@ -1,3 +1,5 @@
+import { sortTasksByNewest } from './taskSort';
+
 export type LayoutMode = 'solid' | 'minimal' | 'compact';
 export type Locale = 'es' | 'en';
 
@@ -184,15 +186,44 @@ export async function fetchProjects(): Promise<ProjectsResponse> {
 }
 
 export async function fetchTasks(): Promise<TasksResponse> {
-  return apiGet('/api/v1/tasks');
+  const response = await apiGet<TasksResponse>('/api/v1/tasks');
+  return {
+    tasks: sortTasksByNewest(response.tasks),
+  };
 }
 
 export async function fetchTags(): Promise<TagsResponse> {
   return apiGet('/api/v1/tags');
 }
 
-export async function fetchTimeEntries(): Promise<TimeEntriesResponse> {
-  return apiGet('/api/v1/time-entries');
+export type TimeEntryListParams = {
+  clientId?: string;
+  from?: string;
+  projectId?: string;
+  taskId?: string;
+  to?: string;
+};
+
+export async function fetchTimeEntries(params?: TimeEntryListParams): Promise<TimeEntriesResponse> {
+  const search = new URLSearchParams();
+  if (params?.from) {
+    search.set('from', params.from);
+  }
+  if (params?.to) {
+    search.set('to', params.to);
+  }
+  if (params?.clientId) {
+    search.set('clientId', params.clientId);
+  }
+  if (params?.projectId) {
+    search.set('projectId', params.projectId);
+  }
+  if (params?.taskId) {
+    search.set('taskId', params.taskId);
+  }
+
+  const query = search.toString();
+  return apiGet(`/api/v1/time-entries${query ? `?${query}` : ''}`);
 }
 
 export async function fetchTimers(): Promise<TimersResponse> {

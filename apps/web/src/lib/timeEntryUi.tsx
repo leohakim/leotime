@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, CircleAlert, Clock3, DollarSign, Pencil, Plus, Save, Tag, Trash2, X } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, CircleAlert, Clock3, DollarSign, Pencil, Plus, Save, Tag, Trash2, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createTimeEntry,
@@ -14,6 +14,14 @@ import {
   type TimeEntryInput,
 } from './api';
 import type { MessageKey } from './i18n';
+import {
+  formatWeekRange,
+  groupTimeEntriesByWeek,
+  isSameWeek,
+  startOfWeek,
+  sumWeekSeconds,
+  type TimesheetDayGroup,
+} from './timesheetWeek';
 
 export type Translator = (key: MessageKey) => string;
 
@@ -25,18 +33,37 @@ export function TimeEntriesList({
   entries,
   isLoading,
   locale,
+  onNextWeek,
+  onPreviousWeek,
+  onTodayWeek,
   projects,
   tasks,
   t,
+  weekAnchor,
 }: {
   entries: TimeEntry[];
   isLoading: boolean;
   locale: Locale;
+  onNextWeek: () => void;
+  onPreviousWeek: () => void;
+  onTodayWeek: () => void;
   projects: Project[];
   tasks: Task[];
   t: Translator;
+  weekAnchor: Date;
 }) {
-  const groupedDays = useMemo(() => groupTimeEntriesByDay(entries, locale), [entries, locale]);
+  const weekStart = useMemo(() => startOfWeek(weekAnchor), [weekAnchor]);
+  const weekEnd = useMemo(() => {
+    const end = new Date(weekStart);
+    end.setDate(end.getDate() + 6);
+    return end;
+  }, [weekStart]);
+  const groupedDays = useMemo(
+    () => groupTimeEntriesByWeek(entries, weekStart, locale),
+    [entries, locale, weekStart],
+  );
+  const weekTotalSeconds = useMemo(() => sumWeekSeconds(groupedDays), [groupedDays]);
+  const viewingCurrentWeek = isSameWeek(weekAnchor, new Date());
 
   return (
     <section className="time-list-panel" id="timesheet" aria-labelledby="timesheet-title">
@@ -45,33 +72,84 @@ export function TimeEntriesList({
           <span className="entry-checkbox" aria-hidden="true" />
           {t('selectAll')}
         </label>
-        <strong id="timesheet-title">{t('timesheet')}</strong>
-        {isLoading ? <span className="sync-pill">{t('loading')}</span> : null}
+
+        <div className="week-nav" aria-label={t('timesheet')}>
+          <button className="ghost-button icon-button week-nav-button" onClick={onPreviousWeek} type="button" title={t('previousWeek')}>
+            <ChevronLeft aria-hidden="true" />
+            <span className="visually-hidden">{t('previousWeek')}</span>
+          </button>
+          <div className="week-nav-label">
+            <strong id="timesheet-title">{viewingCurrentWeek ? t('thisWeek') : t('timesheet')}</strong>
+            <span>{formatWeekRange(weekStart, weekEnd, locale)}</span>
+          </div>
+          <button className="ghost-button icon-button week-nav-button" onClick={onNextWeek} type="button" title={t('nextWeek')}>
+            <ChevronRight aria-hidden="true" />
+            <span className="visually-hidden">{t('nextWeek')}</span>
+          </button>
+          {!viewingCurrentWeek ? (
+            <button className="ghost-button week-today-button" onClick={onTodayWeek} type="button">
+              {t('today')}
+            </button>
+          ) : null}
+        </div>
+
+        <div className="week-summary">
+          <span>{t('weekTotal')}</span>
+          <strong>{formatDuration(weekTotalSeconds)}</strong>
+          {isLoading ? <span className="sync-pill">{t('loading')}</span> : null}
+        </div>
       </div>
       <div className="time-entry-list" role="table" aria-label={t('timesheet')}>
-        {groupedDays.length === 0 ? (
-          <div className="empty-state">
-            <Clock3 aria-hidden="true" />
-            <p>{t('noTimeEntries')}</p>
-          </div>
-        ) : null}
         {groupedDays.map((day) => (
-          <div className="time-day-group" role="rowgroup" key={day.date}>
-            <div className="day-group-header" role="row">
-              <div>
-                <CalendarDays aria-hidden="true" />
-                <strong>{day.day}</strong>
-                <span>{day.date}</span>
-              </div>
-              <strong>{formatDuration(day.totalSeconds)}</strong>
-            </div>
-            {day.entries.map((entry) => (
-              <TimesheetEntryRow entry={entry} key={entry.id} locale={locale} projects={projects} tasks={tasks} t={t} />
-            ))}
-          </div>
+          <TimesheetDaySection day={day} key={day.date} locale={locale} projects={projects} tasks={tasks} t={t} />
         ))}
       </div>
     </section>
+  );
+}
+
+function TimesheetDaySection({
+  day,
+  locale,
+  projects,
+  tasks,
+  t,
+}: {
+  day: TimesheetDayGroup;
+  locale: Locale;
+  projects: Project[];
+  tasks: Task[];
+  t: Translator;
+}) {
+  if (day.entries.length === 0) {
+    return (
+      <div className="time-day-group time-day-group-empty" role="rowgroup">
+        <div className="day-group-header" role="row">
+          <div>
+            <CalendarDays aria-hidden="true" />
+            <strong>{day.day}</strong>
+            <span>{formatDayDate(day.date, locale)}</span>
+          </div>
+          <strong>{formatDuration(0)}</strong>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="time-day-group" role="rowgroup">
+      <div className="day-group-header" role="row">
+        <div>
+          <CalendarDays aria-hidden="true" />
+          <strong>{day.day}</strong>
+          <span>{formatDayDate(day.date, locale)}</span>
+        </div>
+        <strong>{formatDuration(day.totalSeconds)}</strong>
+      </div>
+      {day.entries.map((entry) => (
+        <TimesheetEntryRow entry={entry} key={entry.id} locale={locale} projects={projects} tasks={tasks} t={t} />
+      ))}
+    </div>
   );
 }
 
@@ -813,27 +891,17 @@ function manualTimeEntryFormToInput(form: ManualTimeEntryFormState): TimeEntryIn
   };
 }
 
-function groupTimeEntriesByDay(entries: TimeEntry[], locale: Locale) {
-  const groups = new Map<string, TimeEntry[]>();
-  for (const entry of entries) {
-    const dayKey = entry.startedAt.slice(0, 10);
-    const current = groups.get(dayKey) ?? [];
-    current.push(entry);
-    groups.set(dayKey, current);
-  }
-
-  return Array.from(groups.entries()).map(([date, dayEntries]) => ({
-    date,
-    day: new Date(`${date}T12:00:00`).toLocaleDateString(locale === 'es' ? 'es-ES' : 'en-US', { weekday: 'long' }),
-    entries: dayEntries,
-    totalSeconds: dayEntries.reduce((sum, entry) => sum + entry.durationSeconds, 0),
-  }));
-}
-
 export function formatDuration(totalSeconds: number) {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   return `${hours}h ${String(minutes).padStart(2, '0')}min`;
+}
+
+function formatDayDate(date: string, locale: Locale) {
+  return new Date(`${date}T12:00:00`).toLocaleDateString(locale === 'es' ? 'es-ES' : 'en-US', {
+    day: 'numeric',
+    month: 'short',
+  });
 }
 
 function formatTimeRange(startedAt: string, endedAt: string, locale: Locale) {

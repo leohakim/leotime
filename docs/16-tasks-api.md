@@ -28,6 +28,8 @@ Filtrar por proyecto:
 GET /api/v1/tasks?projectId=prj_...
 ```
 
+El listado devuelve tareas ordenadas por `created_at` descendente (las mas recientes primero).
+
 ## Cuerpo de peticion
 
 Crear y actualizar usan el mismo cuerpo JSON:

@@ -45,7 +45,7 @@ func (s *Store) ListTasks(ctx context.Context, userID string, includeArchived bo
 		query += " AND t.project_id = ?"
 		args = append(args, strings.TrimSpace(projectID))
 	}
-	query += " ORDER BY lower(t.name), t.created_at"
+	query += " ORDER BY t.created_at DESC, t.id DESC"
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {

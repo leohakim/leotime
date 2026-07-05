@@ -8,7 +8,6 @@ import {
   Clock3,
   CircleAlert,
   CircleCheck,
-  CirclePlay,
   Columns3,
   DollarSign,
   EllipsisVertical,
@@ -68,8 +67,10 @@ import {
   type TaskInput,
 } from './lib/api';
 import { translate } from './lib/i18n';
+import { sortTasksByNewest } from './lib/taskSort';
 import { ManualTimeEntryPanel, TimeEntriesList } from './lib/timeEntryUi';
 import { SidebarTimer, TimerCommandRow } from './lib/timerUi';
+import { addWeeks, startOfWeek, toWeekQueryFrom, toWeekQueryTo } from './lib/timesheetWeek';
 import { usePersistentState } from './lib/persistentState';
 
 export function App() {
@@ -170,11 +171,28 @@ type DashboardProps = {
 
 function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }: DashboardProps) {
   const queryClient = useQueryClient();
+  const [weekAnchorIso, setWeekAnchorIso] = usePersistentState('leotime.timesheetWeek', new Date().toISOString().slice(0, 10));
+  const weekAnchor = useMemo(() => new Date(`${weekAnchorIso}T12:00:00`), [weekAnchorIso]);
+  const weekStart = useMemo(() => startOfWeek(weekAnchor), [weekAnchor]);
+  const weekEnd = useMemo(() => {
+    const end = new Date(weekStart);
+    end.setDate(end.getDate() + 6);
+    return end;
+  }, [weekStart]);
+  const weekQueryKey = weekStart.toISOString().slice(0, 10);
+
   const clientsQuery = useQuery({ queryKey: ['clients'], queryFn: fetchClients });
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: fetchProjects });
   const tasksQuery = useQuery({ queryKey: ['tasks'], queryFn: fetchTasks });
   const tagsQuery = useQuery({ queryKey: ['tags'], queryFn: fetchTags });
-  const timeEntriesQuery = useQuery({ queryKey: ['time-entries'], queryFn: fetchTimeEntries });
+  const timeEntriesQuery = useQuery({
+    queryKey: ['time-entries', weekQueryKey],
+    queryFn: () =>
+      fetchTimeEntries({
+        from: toWeekQueryFrom(weekStart),
+        to: toWeekQueryTo(weekEnd),
+      }),
+  });
   const timersQuery = useQuery({
     queryKey: ['timers'],
     queryFn: fetchTimers,
@@ -307,9 +325,13 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
           entries={timeEntriesQuery.data?.timeEntries ?? []}
           isLoading={timeEntriesQuery.isLoading}
           locale={locale}
+          onNextWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, 1).toISOString().slice(0, 10))}
+          onPreviousWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, -1).toISOString().slice(0, 10))}
+          onTodayWeek={() => setWeekAnchorIso(new Date().toISOString().slice(0, 10))}
           projects={projectsQuery.data?.projects ?? []}
           tasks={tasksQuery.data?.tasks ?? []}
           t={t}
+          weekAnchor={weekAnchor}
         />
 
         <section className="management-surface" aria-label={t('manage')}>
@@ -994,10 +1016,19 @@ function TaskPanel({
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [form, setForm] = useState<TaskFormState>(emptyTaskForm);
   const [errors, setErrors] = useState<TaskFormErrors>({});
+  const sortedTasks = useMemo(() => sortTasksByNewest(tasks), [tasks]);
 
   const createMutation = useMutation({
     mutationFn: createTask,
-    onSuccess: () => {
+    onSuccess: (created) => {
+      queryClient.setQueryData(['tasks'], (current: { tasks: Task[] } | undefined) => {
+        if (!current) {
+          return current;
+        }
+        return {
+          tasks: sortTasksByNewest([created, ...current.tasks.filter((item) => item.id !== created.id)]),
+        };
+      });
       setForm(emptyTaskForm);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -1026,7 +1057,7 @@ function TaskPanel({
           return current;
         }
         return {
-          tasks: current.tasks.map((item) => (item.id === updated.id ? updated : item)),
+          tasks: sortTasksByNewest(current.tasks.map((item) => (item.id === updated.id ? updated : item))),
         };
       });
       if (editingTaskId === updated.id) {
@@ -1127,7 +1158,7 @@ function TaskPanel({
           <div className="directory-toolbar">
             <div>
               <span>{t('activeTasks')}</span>
-              <strong>{tasks.length}</strong>
+              <strong>{sortedTasks.length}</strong>
             </div>
             {isLoading ? (
               <span className="sync-pill">{t('loading')}</span>
@@ -1137,13 +1168,13 @@ function TaskPanel({
           </div>
 
           <div className="client-list" aria-busy={isLoading}>
-            {tasks.length === 0 ? (
+            {sortedTasks.length === 0 ? (
               <div className="empty-state">
                 <ListTodo aria-hidden="true" />
                 <p>{t('noTasks')}</p>
               </div>
             ) : null}
-            {tasks.map((task) => (
+            {sortedTasks.map((task) => (
               <article className={editingTaskId === task.id ? 'client-row selected' : 'client-row'} key={task.id}>
                 <div className="client-row-main">
                   {task.projectColor ? (

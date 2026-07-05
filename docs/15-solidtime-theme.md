@@ -40,7 +40,7 @@ Este documento define el look & feel base de `leotime` para el layout `solid`. L
 La sidebar mide aproximadamente 272 px en escritorio y queda fija. Orden esperado:
 
 1. Selector de organizacion con avatar inicial, nombre y chevron.
-2. Current Timer con tiempo grande y boton circular de stop.
+2. Current Timer con tiempo grande, boton circular de stop (cuadrado blanco) o indicador play atenuado si no hay timer activo.
 3. Navegacion principal: Dashboard, Time activo, Reporting con hijos.
 4. Grupo Manage: Projects, Clients, Members, Tags.
 5. Grupo Admin: Import / Export, Settings.
@@ -57,7 +57,7 @@ La fila superior del tracker tiene:
 3. Icono de tag.
 4. Icono de facturable.
 5. Reloj activo en formato `HH:MM:SS`.
-6. Boton circular rojo de stop.
+6. Boton circular rojo de stop con cuadrado blanco relleno.
 7. Boton `Manual time entry`.
 
 El timer debe ser la pieza visual mas clara de la pantalla, pero sin hero ni tarjeta grande.

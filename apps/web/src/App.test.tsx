@@ -71,13 +71,27 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Time Tracker' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entrada manual' })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Timesheet' })).toBeInTheDocument();
-    expect((await screen.findAllByText('Sin entradas todavia')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('Esta semana')).toBeInTheDocument();
+    expect(screen.getByText('Total semana')).toBeInTheDocument();
     expect((await screen.findAllByText('Osoigo SL')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Portal Web')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Refactor API')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Deep Work')).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Iniciar timer' })).toBeInTheDocument();
     expect(screen.getByText('Sin timer activo')).toBeInTheDocument();
+  });
+
+  test('navigates the weekly timesheet', async () => {
+    renderApp();
+
+    await screen.findByText('Esta semana');
+    fireEvent.click(screen.getByTitle('Semana anterior'));
+
+    await waitFor(() => expect(screen.queryByText('Esta semana')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Hoy' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hoy' }));
+    await waitFor(() => expect(screen.getByText('Esta semana')).toBeInTheDocument());
   });
 
   test('switches language', async () => {
@@ -466,7 +480,7 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     return jsonResponse(tag, 201);
   }
 
-  if (url.endsWith('/api/v1/time-entries') && (!init?.method || init.method === 'GET')) {
+  if (url.includes('/api/v1/time-entries') && (!init?.method || init.method === 'GET') && !url.includes('/api/v1/time-entries/')) {
     return jsonResponse({ timeEntries: timeEntriesMock });
   }
 

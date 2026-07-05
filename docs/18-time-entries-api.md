@@ -89,7 +89,8 @@ Crear y actualizar usan el mismo cuerpo JSON:
 
 ## Frontend
 
-- El timesheet (`#timesheet`) muestra entradas reales agrupadas por dia.
+- El timesheet (`#timesheet`) muestra entradas reales agrupadas por dia dentro de la semana visible.
+- La navegacion semanal filtra con `from` y `to` en el listado HTTP.
 - El panel `#manual-time-entry` permite crear, editar y eliminar entradas manuales.
 - El boton **Entrada manual** hace scroll al formulario.
 

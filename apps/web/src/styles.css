@@ -326,11 +326,54 @@ a:focus-visible {
   background: rgb(227 106 106 / 28%);
 }
 
-.sidebar-stop-button svg {
-  fill: var(--rose);
-  stroke: var(--rose);
-  height: 25px;
-  width: 25px;
+.sidebar-stop-button svg,
+.sidebar-stop-button .timer-stop-icon {
+  color: #fff;
+  height: 14px;
+  width: 14px;
+}
+
+.sidebar-idle-indicator {
+  align-items: center;
+  background: rgb(53 199 138 / 10%);
+  border: 5px solid #2a3430;
+  border-radius: 999px;
+  color: rgb(53 199 138 / 45%);
+  display: grid;
+  height: 48px;
+  place-items: center;
+  width: 48px;
+}
+
+.sidebar-idle-indicator .timer-play-icon-idle {
+  height: 16px;
+  margin-left: 2px;
+  width: 16px;
+}
+
+.timer-stop-icon {
+  color: #fff;
+  height: 14px;
+  width: 14px;
+}
+
+.timer-play-icon {
+  height: 15px;
+  margin-left: 2px;
+  width: 15px;
+}
+
+.stop-timer-button svg,
+.stop-timer-button .timer-stop-icon {
+  color: #fff;
+  height: 16px;
+  width: 16px;
+}
+
+.start-timer-button .timer-play-icon {
+  color: currentColor;
+  height: 14px;
+  width: 14px;
 }
 
 .sidebar-nav {
@@ -698,6 +741,14 @@ a:focus-visible {
   width: 30px;
 }
 
+.stop-timer-button .timer-stop-icon {
+  color: #fff;
+  fill: currentColor;
+  height: 16px;
+  stroke: none;
+  width: 16px;
+}
+
 .manual-entry-button {
   background: #15161b;
   border-color: var(--border);
@@ -717,9 +768,80 @@ a:focus-visible {
   border-bottom: 1px solid #202129;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 38px;
-  padding: 0 18px;
+  grid-template-columns: minmax(120px, auto) minmax(0, 1fr) auto;
+  min-height: 52px;
+  padding: 8px 18px;
+}
+
+.week-nav {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  min-width: 0;
+}
+
+.week-nav-button {
+  flex: 0 0 auto;
+}
+
+.week-nav-label {
+  align-items: center;
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.week-nav-label strong {
+  color: #ececf0;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.week-nav-label span {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-normal);
+}
+
+.week-today-button {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.week-summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.week-summary span {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.week-summary strong {
+  color: #f0f0f2;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.time-day-group-empty .day-group-header {
+  opacity: 0.72;
 }
 
 .time-list-toolbar strong {
@@ -1610,6 +1732,18 @@ a:focus-visible {
 
   .toolbar {
     width: 100%;
+  }
+
+  .time-list-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .week-nav {
+    justify-content: space-between;
+  }
+
+  .week-summary {
+    justify-content: flex-start;
   }
 
   .active-timer-card {

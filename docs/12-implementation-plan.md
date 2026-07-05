@@ -27,24 +27,22 @@ Every product slice should include:
 - Tag CRUD with unique names, colors, hard delete, tests, and docs.
 - Manual time entries with one-minute precision, billable flag, overlap warnings, duration calculation, tests, and docs.
 - Timer workflow with start/stop, multiple open timers, overlap warnings, live clock UI, tests, and docs.
+- Weekly timesheet with 7-day grid, week navigation, API date filters, inline editing, tests, and docs.
 
 ## MVP Delivery Slices
 
-1. **Timesheet View**
-   - Weekly editable view grouped by day, client, project, task, and tags.
-
-2. **Calendar View**
+1. **Calendar View**
    - Calendar-style inspection and editing of time entries.
 
-3. **Reports And Exports**
+2. **Reports And Exports**
    - CSV and JSON exports.
    - Hide start/end timestamps when the report is configured to show only totals.
 
-4. **Invoices**
+3. **Invoices**
    - Draft invoices from billable time.
    - Multi-currency, frozen client fields, line items, tax/withholding fields, and PDF/export.
 
-5. **Offline Queue MVP**
+4. **Offline Queue MVP**
    - Offline creation/edit queue for the core daily workflow.
    - Syncs when connectivity returns.
 
@@ -76,4 +74,4 @@ When port `8080` is already occupied by a local process without static assets, r
 
 ## Current Next Task
 
-The next implementation slice is **Timesheet View**.
+The next implementation slice is **Calendar View**.

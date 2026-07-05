@@ -72,6 +72,31 @@ func TestTaskLifecycle(t *testing.T) {
 	}
 }
 
+func TestListTasksOrdersByCreatedAtDesc(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTaskTestStore(t, ctx)
+
+	first, err := st.CreateTask(ctx, user.ID, TaskInput{Name: "Alpha task", Billable: true})
+	if err != nil {
+		t.Fatalf("create first task: %v", err)
+	}
+	second, err := st.CreateTask(ctx, user.ID, TaskInput{Name: "Beta task", Billable: true})
+	if err != nil {
+		t.Fatalf("create second task: %v", err)
+	}
+
+	tasks, err := st.ListTasks(ctx, user.ID, false, "")
+	if err != nil {
+		t.Fatalf("list tasks: %v", err)
+	}
+	if len(tasks) != 2 {
+		t.Fatalf("expected two tasks, got %d", len(tasks))
+	}
+	if tasks[0].ID != second.ID || tasks[1].ID != first.ID {
+		t.Fatalf("expected newest task first, got %+v", tasks)
+	}
+}
+
 func TestListTasksFiltersByProject(t *testing.T) {
 	ctx := context.Background()
 	st, user := newTaskTestStore(t, ctx)

@@ -1,9 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CircleAlert, CirclePlay, CircleStop, DollarSign, Plus, Tag } from 'lucide-react';
+import { CircleAlert, DollarSign, Plus, Tag } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { startTimer, updateTimer, type Project, type Task, type TimeEntry, type TimerStartInput } from './api';
 import type { MessageKey } from './i18n';
 import { scrollToManualEntryForm } from './timeEntryUi';
+import { TimerPlayIcon, TimerStopIcon } from './timerIcons';
 
 export type Translator = (key: MessageKey) => string;
 
@@ -41,15 +42,22 @@ export function SidebarTimer({
         <strong>{activeTimer ? formatElapsedClock(elapsed) : '--:--:--'}</strong>
         {activeTimer ? <small>{activeTimer.description || t('noDescription')}</small> : <small>{t('noActiveTimer')}</small>}
       </div>
-      <button
-        className="sidebar-stop-button"
-        disabled={!activeTimer || stoppingTimerId === activeTimer?.id}
-        onClick={() => activeTimer && onStop(activeTimer.id)}
-        type="button"
-        title={t('stop')}
-      >
-        <CircleStop aria-hidden="true" />
-      </button>
+      {activeTimer ? (
+        <button
+          className="sidebar-stop-button"
+          disabled={stoppingTimerId === activeTimer.id}
+          onClick={() => onStop(activeTimer.id)}
+          type="button"
+          title={t('stop')}
+        >
+          <TimerStopIcon className="timer-stop-icon" />
+          <span className="visually-hidden">{t('stop')}</span>
+        </button>
+      ) : (
+        <div aria-hidden="true" className="sidebar-idle-indicator" title={t('startTimer')}>
+          <TimerPlayIcon className="timer-play-icon timer-play-icon-idle" />
+        </div>
+      )}
     </div>
   );
 }
@@ -208,7 +216,8 @@ export function TimerCommandRow({
             type="button"
             title={t('stop')}
           >
-            <CircleStop aria-hidden="true" />
+            <TimerStopIcon className="timer-stop-icon" />
+            <span className="visually-hidden">{t('stop')}</span>
           </button>
         </>
       ) : (
@@ -245,7 +254,7 @@ export function TimerCommandRow({
             ))}
           </select>
           <button className="start-timer-button" disabled={startMutation.isPending} type="submit" title={t('startTimer')}>
-            <CirclePlay aria-hidden="true" />
+            <TimerPlayIcon className="timer-play-icon" />
             {t('startTimer')}
           </button>
         </form>
