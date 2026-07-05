@@ -12,6 +12,7 @@ POST   /api/v1/clients
 GET    /api/v1/clients/{clientID}
 PATCH  /api/v1/clients/{clientID}
 DELETE /api/v1/clients/{clientID}
+POST   /api/v1/clients/{clientID}/restore
 ```
 
 List archived clients:
@@ -48,14 +49,17 @@ Create and update use the same body:
 
 `DELETE` archives the client by setting `archived_at`. This keeps imported and historical reporting data stable while hiding the client from the default list.
 
+`POST /restore` clears `archived_at` and returns the restored client.
+
 ## Frontend
 
 The dashboard includes a clients workbench with a directory on the left and an editor on the right. It can:
 
-- List active clients.
+- List active and archived clients (`includeArchived=true`).
 - Create clients.
 - Edit clients.
-- Archive clients.
+- Archive clients from the list or by unchecking **Active client** in the edit form.
+- Reactivate archived clients from the edit form.
 
 The form validates before submit:
 

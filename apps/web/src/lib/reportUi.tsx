@@ -11,6 +11,7 @@ import {
 import { endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './calendarMonth';
 import type { Translator } from './timeEntryUi';
 import { formatDuration } from './timeEntryUi';
+import { ProjectBadge } from './projectBadgeUi';
 
 type ReportFormState = {
   billableOnly: boolean;
@@ -196,7 +197,18 @@ export function TimeReportPanel({ locale, t }: { locale: Locale; t: Translator }
               <tbody>
                 {report.groups?.map((group) => (
                   <tr key={`${group.key}-${group.label}`}>
-                    <td>{group.label}</td>
+                    <td>
+                      {report.groupBy === 'project' ? (
+                        <ProjectBadge
+                          color={group.projectColor}
+                          compact
+                          emptyLabel={group.label}
+                          name={group.key ? group.label : undefined}
+                        />
+                      ) : (
+                        group.label
+                      )}
+                    </td>
                     <td>{group.entryCount}</td>
                     <td>{formatDuration(group.totalSeconds)}</td>
                   </tr>
@@ -228,7 +240,14 @@ export function TimeReportPanel({ locale, t }: { locale: Locale; t: Translator }
                 {report.entries.map((entry) => (
                   <tr key={entry.id}>
                     <td>{entry.description || t('noDescription')}</td>
-                    <td>{entry.projectName || t('taskProjectOptional')}</td>
+                    <td>
+                      <ProjectBadge
+                        color={entry.projectColor}
+                        compact
+                        emptyLabel={t('taskProjectOptional')}
+                        name={entry.projectName}
+                      />
+                    </td>
                     <td>{formatReportDateTime(entry.startedAt, locale)}</td>
                     <td>{formatReportDateTime(entry.endedAt, locale)}</td>
                     <td>{formatDuration(entry.durationSeconds)}</td>

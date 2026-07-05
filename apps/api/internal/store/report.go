@@ -18,6 +18,7 @@ type TimeReportOptions struct {
 type TimeReportGroup struct {
 	Key          string `json:"key"`
 	Label        string `json:"label"`
+	ProjectColor string `json:"projectColor,omitempty"`
 	TotalSeconds int    `json:"totalSeconds"`
 	EntryCount   int    `json:"entryCount"`
 }
@@ -83,11 +84,12 @@ func normalizeReportGroupBy(groupBy string) string {
 
 func groupTimeReportEntries(entries []TimeEntry, groupBy string) []TimeReportGroup {
 	type aggregate struct {
-		key    string
-		label  string
-		total  int
-		count  int
-		latest string
+		key          string
+		label        string
+		projectColor string
+		total        int
+		count        int
+		latest       string
 	}
 
 	buckets := map[string]*aggregate{}
@@ -103,6 +105,9 @@ func groupTimeReportEntries(entries []TimeEntry, groupBy string) []TimeReportGro
 		}
 		current.total += entry.DurationSeconds
 		current.count++
+		if groupBy == "project" && entry.ProjectColor != "" {
+			current.projectColor = entry.ProjectColor
+		}
 		if entry.StartedAt > current.latest {
 			current.latest = entry.StartedAt
 		}
@@ -120,12 +125,16 @@ func groupTimeReportEntries(entries []TimeEntry, groupBy string) []TimeReportGro
 	groups := make([]TimeReportGroup, 0, len(order))
 	for _, key := range order {
 		item := buckets[key]
-		groups = append(groups, TimeReportGroup{
+		group := TimeReportGroup{
 			Key:          item.key,
 			Label:        item.label,
 			TotalSeconds: item.total,
 			EntryCount:   item.count,
-		})
+		}
+		if groupBy == "project" {
+			group.ProjectColor = item.projectColor
+		}
+		groups = append(groups, group)
 	}
 	return groups
 }

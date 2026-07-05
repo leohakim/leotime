@@ -74,6 +74,22 @@ func TestProjectLifecycle(t *testing.T) {
 	if len(allProjects) != 1 || allProjects[0].ArchivedAt == "" {
 		t.Fatalf("expected archived project, got %+v", allProjects)
 	}
+
+	restored, err := st.RestoreProject(ctx, user.ID, project.ID)
+	if err != nil {
+		t.Fatalf("restore project: %v", err)
+	}
+	if restored.ArchivedAt != "" {
+		t.Fatalf("expected restored project without archivedAt, got %+v", restored)
+	}
+
+	activeProjectsAfterRestore, err := st.ListProjects(ctx, user.ID, false, "")
+	if err != nil {
+		t.Fatalf("list active projects after restore: %v", err)
+	}
+	if len(activeProjectsAfterRestore) != 1 {
+		t.Fatalf("expected one active project after restore, got %d", len(activeProjectsAfterRestore))
+	}
 }
 
 func TestCreateProjectValidatesInput(t *testing.T) {

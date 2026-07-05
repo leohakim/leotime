@@ -120,3 +120,61 @@ export function weekChartAxisTicks(peakSeconds: number, steps = 4): number[] {
 export function weekChartPeak(peakSeconds: number): number {
   return peakSeconds > 0 ? peakSeconds : 4 * 3600;
 }
+
+export function formatWeekdayShort(dateKey: string, locale: 'es' | 'en'): string {
+  return new Date(`${dateKey}T12:00:00`).toLocaleDateString(locale === 'es' ? 'es-ES' : 'en-US', {
+    weekday: 'short',
+  });
+}
+
+export type DonutSegment = {
+  color: string;
+  endAngle: number;
+  startAngle: number;
+  totalSeconds: number;
+};
+
+export function buildDonutSegments(
+  shares: Array<{ color: string; totalSeconds: number }>,
+  gapDegrees = 2.5,
+): DonutSegment[] {
+  const total = shares.reduce((sum, share) => sum + share.totalSeconds, 0);
+  if (total <= 0) {
+    return [];
+  }
+
+  const availableDegrees = 360 - gapDegrees * shares.length;
+  let cursor = -90;
+
+  return shares.map((share) => {
+    const sweep = (share.totalSeconds / total) * availableDegrees;
+    const segment: DonutSegment = {
+      color: share.color || '#64748b',
+      startAngle: cursor,
+      endAngle: cursor + sweep,
+      totalSeconds: share.totalSeconds,
+    };
+    cursor += sweep + gapDegrees;
+    return segment;
+  });
+}
+
+export function describeDonutArc(
+  center: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number,
+): string {
+  const start = polarToCartesian(center, center, radius, startAngle);
+  const end = polarToCartesian(center, center, radius, endAngle);
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`;
+}
+
+function polarToCartesian(center: number, middle: number, radius: number, angleDegrees: number) {
+  const angleRadians = (angleDegrees * Math.PI) / 180;
+  return {
+    x: center + radius * Math.cos(angleRadians),
+    y: middle + radius * Math.sin(angleRadians),
+  };
+}

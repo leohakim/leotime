@@ -12,6 +12,7 @@ POST   /api/v1/projects
 GET    /api/v1/projects/{projectID}
 PATCH  /api/v1/projects/{projectID}
 DELETE /api/v1/projects/{projectID}
+POST   /api/v1/projects/{projectID}/restore
 ```
 
 List archived projects:
@@ -55,14 +56,17 @@ Create and update use the same body:
 `DELETE` archives the project by setting `archived_at`. This keeps historical time entries and import mappings stable
 while hiding the project from the default list.
 
+`POST /restore` clears `archived_at` and returns the restored project.
+
 ## Frontend
 
 The dashboard includes a projects workbench that can:
 
-- List active projects.
+- List active and archived projects (`includeArchived=true`).
 - Create projects.
 - Edit projects.
-- Archive projects.
+- Archive projects from the list or by unchecking **Active project** in the edit form.
+- Reactivate archived projects from the edit form.
 - Assign a project to an active client or leave it unassigned.
 - Pick a project color.
 - Set an optional project-specific hourly rate.

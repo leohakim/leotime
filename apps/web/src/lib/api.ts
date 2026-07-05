@@ -1,6 +1,7 @@
 import { sortTasksByNewest } from './taskSort';
 
 export type LayoutMode = 'solid' | 'minimal' | 'compact';
+export type ThemeMode = 'solid' | 'light' | 'dark' | 'minimal';
 export type Locale = 'es' | 'en';
 
 export type User = {
@@ -101,6 +102,7 @@ export type Tag = {
   id: string;
   name: string;
   color: string;
+  archivedAt: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -183,6 +185,7 @@ export type TimeReportParams = {
 export type TimeReportGroup = {
   key: string;
   label: string;
+  projectColor?: string;
   totalSeconds: number;
   entryCount: number;
 };
@@ -332,23 +335,27 @@ export async function fetchDashboardStats(activityMonth?: string): Promise<Dashb
   return apiGet(`/api/v1/dashboard/stats${query}`);
 }
 
-export async function fetchClients(): Promise<ClientsResponse> {
-  return apiGet('/api/v1/clients');
+export async function fetchClients(options?: { includeArchived?: boolean }): Promise<ClientsResponse> {
+  const query = options?.includeArchived ? '?includeArchived=true' : '';
+  return apiGet(`/api/v1/clients${query}`);
 }
 
-export async function fetchProjects(): Promise<ProjectsResponse> {
-  return apiGet('/api/v1/projects');
+export async function fetchProjects(options?: { includeArchived?: boolean }): Promise<ProjectsResponse> {
+  const query = options?.includeArchived ? '?includeArchived=true' : '';
+  return apiGet(`/api/v1/projects${query}`);
 }
 
-export async function fetchTasks(): Promise<TasksResponse> {
-  const response = await apiGet<TasksResponse>('/api/v1/tasks');
+export async function fetchTasks(options?: { includeArchived?: boolean }): Promise<TasksResponse> {
+  const query = options?.includeArchived ? '?includeArchived=true' : '';
+  const response = await apiGet<TasksResponse>(`/api/v1/tasks${query}`);
   return {
     tasks: sortTasksByNewest(response.tasks),
   };
 }
 
-export async function fetchTags(): Promise<TagsResponse> {
-  return apiGet('/api/v1/tags');
+export async function fetchTags(options?: { includeArchived?: boolean }): Promise<TagsResponse> {
+  const query = options?.includeArchived ? '?includeArchived=true' : '';
+  return apiGet(`/api/v1/tags${query}`);
 }
 
 export type TimeEntryListParams = {
@@ -425,6 +432,10 @@ export async function archiveClient(clientId: string): Promise<void> {
   }
 }
 
+export async function restoreClient(clientId: string): Promise<Client> {
+  return apiJSON(`/api/v1/clients/${clientId}/restore`, 'POST', {});
+}
+
 export async function createProject(input: ProjectInput): Promise<Project> {
   return apiJSON('/api/v1/projects', 'POST', input);
 }
@@ -442,6 +453,10 @@ export async function archiveProject(projectId: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`request_failed:${response.status}`);
   }
+}
+
+export async function restoreProject(projectId: string): Promise<Project> {
+  return apiJSON(`/api/v1/projects/${projectId}/restore`, 'POST', {});
 }
 
 export async function createTask(input: TaskInput): Promise<Task> {
@@ -463,6 +478,10 @@ export async function archiveTask(taskId: string): Promise<void> {
   }
 }
 
+export async function restoreTask(taskId: string): Promise<Task> {
+  return apiJSON(`/api/v1/tasks/${taskId}/restore`, 'POST', {});
+}
+
 export async function createTag(input: TagInput): Promise<Tag> {
   return apiJSON('/api/v1/tags', 'POST', input);
 }
@@ -471,7 +490,7 @@ export async function updateTag(tagId: string, input: TagInput): Promise<Tag> {
   return apiJSON(`/api/v1/tags/${tagId}`, 'PATCH', input);
 }
 
-export async function deleteTag(tagId: string): Promise<void> {
+export async function archiveTag(tagId: string): Promise<void> {
   const response = await fetch(`/api/v1/tags/${tagId}`, {
     method: 'DELETE',
     credentials: 'include',
@@ -480,6 +499,10 @@ export async function deleteTag(tagId: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`request_failed:${response.status}`);
   }
+}
+
+export async function restoreTag(tagId: string): Promise<Tag> {
+  return apiJSON(`/api/v1/tags/${tagId}/restore`, 'POST', {});
 }
 
 export async function createTimeEntry(input: TimeEntryInput): Promise<TimeEntry> {

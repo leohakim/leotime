@@ -1,5 +1,16 @@
 import { describe, expect, test } from 'vitest';
-import { currentMonthKey, groupHeatmapByWeek, isFutureMonth, shiftMonthKey, weekBarHeight, weekChartAxisTicks, weekChartPeak } from './dashboardHeatmap';
+import {
+  buildDonutSegments,
+  currentMonthKey,
+  describeDonutArc,
+  formatWeekdayShort,
+  groupHeatmapByWeek,
+  isFutureMonth,
+  shiftMonthKey,
+  weekBarHeight,
+  weekChartAxisTicks,
+  weekChartPeak,
+} from './dashboardHeatmap';
 
 describe('groupHeatmapByWeek', () => {
   test('groups month grid days into week rows', () => {
@@ -42,5 +53,29 @@ describe('weekChartAxisTicks', () => {
   test('uses a default scale when there is no activity', () => {
     expect(weekChartAxisTicks(0)).toEqual([14400, 10800, 7200, 3600, 0]);
     expect(weekChartPeak(0)).toBe(14400);
+  });
+});
+
+describe('formatWeekdayShort', () => {
+  test('localizes weekday labels', () => {
+    expect(formatWeekdayShort('2026-07-06', 'es')).toMatch(/^lun/i);
+    expect(formatWeekdayShort('2026-07-06', 'en')).toMatch(/^mon/i);
+  });
+});
+
+describe('buildDonutSegments', () => {
+  test('creates proportional segments with gaps', () => {
+    const segments = buildDonutSegments([
+      { color: '#2563eb', totalSeconds: 3600 },
+      { color: '#16a34a', totalSeconds: 3600 },
+    ]);
+
+    expect(segments).toHaveLength(2);
+    expect(segments[0].endAngle - segments[0].startAngle).toBeCloseTo(segments[1].endAngle - segments[1].startAngle, 5);
+    expect(describeDonutArc(74, 52, segments[0].startAngle, segments[0].endAngle)).toMatch(/^M /);
+  });
+
+  test('returns no segments when there is no tracked time', () => {
+    expect(buildDonutSegments([])).toEqual([]);
   });
 });

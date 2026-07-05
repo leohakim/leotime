@@ -103,4 +103,5 @@ Change them with `LEOTIME_BOOTSTRAP_EMAIL` and `LEOTIME_BOOTSTRAP_PASSWORD`.
 22. [Reports API](docs/22-reports-api.md)
 23. [Invoices API](docs/23-invoices-api.md)
 24. [Dashboard API](docs/24-dashboard-api.md)
+25. [Theme selector](docs/25-theme-selector.md)
 18. [ADR 0001: Stack decision](docs/adr/0001-stack-go-sqlite-react.md)

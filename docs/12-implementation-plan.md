@@ -32,16 +32,14 @@ Every product slice should include:
 - Reports and exports with grouped totals, CSV/JSON export, optional timestamps, tests, and docs.
 - Invoices with draft-from-time, frozen client fields, tax/withholding, status workflow, HTML/CSV/JSON export, tests, and docs.
 - Dashboard UI with recent entries, last 7 days, activity heatmap, weekly bars, billable totals, project donut, tests, and docs.
+- Theme selector with Solidtime, light, dark, and minimal palettes, persistence, tests, and docs.
 
 ## MVP Delivery Slices
 
-1. Theme selector with solidtime default, light, dark, minimal, etc.
-   - Theme selector with solidtime default, light, dark, minimal, etc.
-
-3. **Profile Settings**
+1. **Profile Settings**
    - Change password, email, name, timezone, currency, theme, etc.
 
-4. **Offline Queue MVP**
+2. **Offline Queue MVP**
    - Offline creation/edit queue for the core daily workflow.
    - Syncs when connectivity returns.
 
@@ -73,4 +71,4 @@ When port `8080` is already occupied by a local process without static assets, r
 
 ## Current Next Task
 
-The next implementation slice is **Theme selector**.
+The next implementation slice is **Profile Settings**.

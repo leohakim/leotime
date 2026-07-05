@@ -45,6 +45,7 @@ GET /api/v1/reports/time/export?format=json&from=...&to=...
     {
       "key": "prj_...",
       "label": "Portal Web",
+      "projectColor": "#2563eb",
       "totalSeconds": 5400,
       "entryCount": 2
     }

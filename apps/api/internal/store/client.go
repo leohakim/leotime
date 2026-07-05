@@ -151,6 +151,26 @@ func (s *Store) ArchiveClient(ctx context.Context, userID string, clientID strin
 	return nil
 }
 
+func (s *Store) RestoreClient(ctx context.Context, userID string, clientID string) (*Client, error) {
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE clients
+		SET archived_at = NULL, updated_at = ?
+		WHERE user_id = ? AND id = ?
+	`, nowString(), userID, clientID)
+	if err != nil {
+		return nil, fmt.Errorf("restore client: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("inspect restore client result: %w", err)
+	}
+	if affected == 0 {
+		return nil, ErrClientNotFound
+	}
+
+	return s.ClientByID(ctx, userID, clientID)
+}
+
 type clientScanner interface {
 	Scan(dest ...any) error
 }

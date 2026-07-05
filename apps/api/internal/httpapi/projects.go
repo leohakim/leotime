@@ -69,6 +69,15 @@ func (s *Server) archiveProject(w http.ResponseWriter, r *http.Request, user *st
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) restoreProject(w http.ResponseWriter, r *http.Request, user *store.User) {
+	project, err := s.store.RestoreProject(r.Context(), user.ID, chi.URLParam(r, "projectID"))
+	if err != nil {
+		writeProjectError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, project)
+}
+
 func decodeProjectInput(w http.ResponseWriter, r *http.Request) (store.ProjectInput, bool) {
 	var input store.ProjectInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {

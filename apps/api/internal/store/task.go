@@ -147,6 +147,26 @@ func (s *Store) ArchiveTask(ctx context.Context, userID string, taskID string) e
 	return nil
 }
 
+func (s *Store) RestoreTask(ctx context.Context, userID string, taskID string) (*Task, error) {
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE tasks
+		SET archived_at = NULL, updated_at = ?
+		WHERE user_id = ? AND id = ?
+	`, nowString(), userID, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("restore task: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("inspect restore task result: %w", err)
+	}
+	if affected == 0 {
+		return nil, ErrTaskNotFound
+	}
+
+	return s.TaskByID(ctx, userID, taskID)
+}
+
 type taskScanner interface {
 	Scan(dest ...any) error
 }

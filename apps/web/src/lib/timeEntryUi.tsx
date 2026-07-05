@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, ChevronLeft, ChevronRight, CircleAlert, Clock3, DollarSign, Pencil, Plus, Save, Tag, Trash2, X } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   createTimeEntry,
   deleteTimeEntry,
@@ -14,6 +14,7 @@ import {
   type TimeEntryInput,
 } from './api';
 import type { MessageKey } from './i18n';
+import { ProjectBadge, ProjectBadgeSelect } from './projectBadgeUi';
 import {
   formatWeekRange,
   groupTimeEntriesByWeek,
@@ -184,6 +185,48 @@ function defaultManualTimeEntryForm(): ManualTimeEntryFormState {
   };
 }
 
+export function tasksForManualEntryForm(projectId: string, taskId: string, tasks: Task[]): Task[] {
+  const activeTasks = tasks.filter((task) => !task.archivedAt);
+  const base = projectId
+    ? activeTasks.filter((task) => task.projectId === projectId || task.projectId === '')
+    : activeTasks;
+  if (!taskId || base.some((task) => task.id === taskId)) {
+    return base;
+  }
+  const selected = tasks.find((task) => task.id === taskId);
+  return selected ? [...base, selected] : base;
+}
+
+export function applyManualEntryFieldUpdate(
+  form: ManualTimeEntryFormState,
+  field: keyof ManualTimeEntryFormState,
+  value: ManualTimeEntryFormState[keyof ManualTimeEntryFormState],
+  projects: Project[],
+  tasks: Task[],
+): ManualTimeEntryFormState {
+  const next = { ...form, [field]: value } as ManualTimeEntryFormState;
+
+  if (field === 'taskId' && typeof value === 'string' && value) {
+    const task = tasks.find((item) => item.id === value);
+    if (task?.projectId) {
+      next.projectId = task.projectId;
+      const project = projects.find((item) => item.id === task.projectId);
+      if (project?.clientId) {
+        next.clientId = project.clientId;
+      }
+    }
+  }
+
+  if (field === 'projectId' && typeof value === 'string') {
+    const task = tasks.find((item) => item.id === next.taskId);
+    if (task?.projectId && task.projectId !== value) {
+      next.taskId = '';
+    }
+  }
+
+  return next;
+}
+
 export function ManualTimeEntryPanel({
   clients,
   isLoading,
@@ -242,9 +285,15 @@ export function ManualTimeEntryPanel({
   });
 
   const filteredTasks = useMemo(
-    () => (form.projectId ? tasks.filter((task) => task.projectId === form.projectId || task.projectId === '') : tasks),
-    [form.projectId, tasks],
+    () => tasksForManualEntryForm(form.projectId, form.taskId, tasks),
+    [form.projectId, form.taskId, tasks],
   );
+
+  const visibleTags = useMemo(() => {
+    const activeTags = tags.filter((tag) => !tag.archivedAt);
+    const selectedArchived = tags.filter((tag) => tag.archivedAt && form.tagIds.includes(tag.id));
+    return [...activeTags, ...selectedArchived];
+  }, [form.tagIds, tags]);
 
   function submitTimeEntry(event: FormEvent) {
     event.preventDefault();
@@ -263,7 +312,7 @@ export function ManualTimeEntryPanel({
   }
 
   function updateField<K extends keyof ManualTimeEntryFormState>(field: K, value: ManualTimeEntryFormState[K]) {
-    const next = { ...form, [field]: value };
+    const next = applyManualEntryFieldUpdate(form, field, value, projects, tasks);
     setForm(next);
     if (hasErrors(errors)) {
       setErrors(validateManualTimeEntryForm(next, t));
@@ -345,20 +394,7 @@ export function ManualTimeEntryPanel({
                 locale={locale}
                 onDelete={() => deleteMutation.mutate(entry.id)}
                 onOpenEditor={() => startEditing(entry)}
-                onSynced={(updated) => {
-                  if (editingEntryId === updated.id) {
-                    setForm({
-                      clientId: updated.clientId,
-                      projectId: updated.projectId,
-                      taskId: updated.taskId,
-                      tagIds: updated.tags.map((tag) => tag.id),
-                      description: updated.description,
-                      startedAt: toDateTimeLocalValue(updated.startedAt),
-                      endedAt: toDateTimeLocalValue(updated.endedAt),
-                      billable: updated.billable,
-                    });
-                  }
-                }}
+                pauseInlineSave={editingEntryId === entry.id}
                 projects={projects}
                 tasks={tasks}
                 t={t}
@@ -428,7 +464,7 @@ export function ManualTimeEntryPanel({
               <span>{t('projectClient')}</span>
               <select id="time-entry-client" onChange={(event) => updateField('clientId', event.target.value)} value={form.clientId}>
                 <option value="">{t('projectClientOptional')}</option>
-                {clients.map((client) => (
+                {clients.filter((client) => !client.archivedAt).map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}
                   </option>
@@ -440,7 +476,7 @@ export function ManualTimeEntryPanel({
               <span>{t('taskProject')}</span>
               <select id="time-entry-project" onChange={(event) => updateField('projectId', event.target.value)} value={form.projectId}>
                 <option value="">{t('taskProjectOptional')}</option>
-                {projects.map((project) => (
+                {projects.filter((project) => !project.archivedAt).map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
                   </option>
@@ -463,7 +499,7 @@ export function ManualTimeEntryPanel({
             <div className="form-field tag-picker-field">
               <span>{t('tags')}</span>
               <div className="tag-picker">
-                {tags.map((tag) => (
+                {visibleTags.map((tag) => (
                   <label key={tag.id}>
                     <input checked={form.tagIds.includes(tag.id)} onChange={() => toggleTag(tag.id)} type="checkbox" />
                     <span>{tag.name}</span>
@@ -620,14 +656,14 @@ function computeLiveDurationSeconds(form: TimeEntryInlineForm, fallback: number)
 }
 
 function useTimeEntryInlineEditor({
+  autoSave = true,
   entry,
-  onSynced,
   projects,
   tasks,
   t,
 }: {
+  autoSave?: boolean;
   entry: TimeEntry;
-  onSynced?: (updated: TimeEntry) => void;
   projects: Project[];
   tasks: Task[];
   t: Translator;
@@ -651,7 +687,6 @@ function useTimeEntryInlineEditor({
           timeEntries: current.timeEntries.map((item) => (item.id === updated.id ? updated : item)),
         };
       });
-      onSynced?.(updated);
     },
     onError: () => setError(t('timeEntrySaveFailed')),
   });
@@ -660,9 +695,14 @@ function useTimeEntryInlineEditor({
     skipSaveRef.current = true;
     setForm(entryToInlineForm(entry));
     setError('');
-  }, [entry.id]);
+  }, [entry.id, entry.updatedAt]);
 
   useEffect(() => {
+    if (!autoSave) {
+      skipSaveRef.current = true;
+      return;
+    }
+
     if (skipSaveRef.current) {
       skipSaveRef.current = false;
       return;
@@ -683,7 +723,7 @@ function useTimeEntryInlineEditor({
     }, 400);
 
     return () => window.clearTimeout(handle);
-  }, [form, entry.id, projects, tasks, t, updateMutation]);
+  }, [autoSave, form, entry.id, projects, tasks, t, updateMutation]);
 
   function updateField<K extends keyof TimeEntryInlineForm>(field: K, value: TimeEntryInlineForm[K]) {
     setForm((current) => {
@@ -699,9 +739,10 @@ function useTimeEntryInlineEditor({
   }
 
   const project = projects.find((item) => item.id === form.projectId);
+  const projectColor = project?.color || entry.projectColor;
   const liveDuration = computeLiveDurationSeconds(form, entry.durationSeconds);
 
-  return { error, form, liveDuration, project, updateField };
+  return { error, form, liveDuration, project, projectColor, updateField };
 }
 
 export function TimesheetEntryRow({
@@ -731,19 +772,13 @@ export function TimesheetEntryRow({
           value={form.description}
         />
       </div>
-      <select
-        aria-label={t('taskProject')}
-        className="entry-inline-select"
-        onChange={(event) => updateField('projectId', event.target.value)}
+      <ProjectBadgeSelect
+        ariaLabel={t('taskProject')}
+        emptyLabel={t('taskProjectOptional')}
+        onChange={(projectId) => updateField('projectId', projectId)}
+        projects={projects}
         value={form.projectId}
-      >
-        <option value="">{t('taskProjectOptional')}</option>
-        {projects.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.name}
-          </option>
-        ))}
-      </select>
+      />
       <div className="entry-flags">
         {entry.tags.length > 0 ? <Tag aria-hidden="true" /> : null}
         <DollarSign aria-hidden="true" className={entry.billable ? 'billable-on' : undefined} />
@@ -781,7 +816,7 @@ function DirectoryEntryRow({
   locale,
   onDelete,
   onOpenEditor,
-  onSynced,
+  pauseInlineSave,
   projects,
   tasks,
   t,
@@ -791,88 +826,79 @@ function DirectoryEntryRow({
   locale: Locale;
   onDelete: () => void;
   onOpenEditor: () => void;
-  onSynced?: (updated: TimeEntry) => void;
+  pauseInlineSave: boolean;
   projects: Project[];
   tasks: Task[];
   t: Translator;
 }) {
-  const { error, form, liveDuration, project, updateField } = useTimeEntryInlineEditor({
+  const { error, form, liveDuration, projectColor, updateField } = useTimeEntryInlineEditor({
+    autoSave: !pauseInlineSave,
     entry,
-    onSynced,
     projects,
     tasks,
     t,
   });
 
+  const entryAccentStyle = projectColor ? ({ '--entry-accent': projectColor } as CSSProperties) : undefined;
+
   return (
-    <article className={isSelected ? 'client-row selected' : 'client-row'}>
-      <div className="client-row-main">
-        <div
-          className="project-color-dot"
-          style={{ backgroundColor: project?.color || entry.projectColor || '#64748b' }}
-          aria-hidden="true"
-        />
-        <div className="client-row-copy entry-inline-copy">
-          <div className="client-row-title">
-            <input
-              aria-label={t('description')}
-              className="client-row-inline-input entry-inline-description"
-              onChange={(event) => updateField('description', event.target.value)}
-              placeholder={t('noDescription')}
-              value={form.description}
-            />
-            {entry.overlapWarning ? (
-              <span className="status-pill warning-pill">
-                <CircleAlert aria-hidden="true" />
-                {t('overlapWarning')}
-              </span>
-            ) : null}
-          </div>
-          <div className="entry-inline-meta">
-            <select
-              aria-label={t('taskProject')}
-              className="entry-inline-select"
-              onChange={(event) => updateField('projectId', event.target.value)}
-              value={form.projectId}
-            >
-              <option value="">{t('taskProjectOptional')}</option>
-              {projects.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            <input
-              aria-label={t('startedAt')}
-              className="entry-inline-datetime"
-              onChange={(event) => updateField('startedAt', event.target.value)}
-              type="datetime-local"
-              value={form.startedAt}
-            />
-            <input
-              aria-label={t('endedAt')}
-              className="entry-inline-datetime"
-              onChange={(event) => updateField('endedAt', event.target.value)}
-              type="datetime-local"
-              value={form.endedAt}
-            />
-            <span className="entry-inline-duration">{formatDuration(liveDuration)}</span>
-          </div>
-          {error ? (
-            <span className="entry-inline-error" role="alert">
-              {error}
+    <article className={isSelected ? 'client-row time-entry-directory-row selected' : 'client-row time-entry-directory-row'}>
+      <div className="time-entry-directory-top">
+        <div className="time-entry-directory-title">
+          <input
+            aria-label={t('description')}
+            className="client-row-inline-input entry-inline-description"
+            onChange={(event) => updateField('description', event.target.value)}
+            placeholder={t('noDescription')}
+            style={entryAccentStyle}
+            value={form.description}
+          />
+          {entry.overlapWarning ? (
+            <span className="status-pill warning-pill">
+              <CircleAlert aria-hidden="true" />
+              {t('overlapWarning')}
             </span>
           ) : null}
         </div>
+        <div className="client-row-actions">
+          <button className="secondary-button icon-button" type="button" onClick={onOpenEditor} title={t('edit')}>
+            <Pencil aria-hidden="true" />
+          </button>
+          <button className="secondary-button icon-button danger-button" type="button" onClick={onDelete} title={t('delete')}>
+            <Trash2 aria-hidden="true" />
+          </button>
+        </div>
       </div>
-      <div className="client-row-actions">
-        <button className="secondary-button icon-button" type="button" onClick={onOpenEditor} title={t('edit')}>
-          <Pencil aria-hidden="true" />
-        </button>
-        <button className="secondary-button icon-button danger-button" type="button" onClick={onDelete} title={t('delete')}>
-          <Trash2 aria-hidden="true" />
-        </button>
+      <div className="entry-inline-meta">
+        <ProjectBadgeSelect
+          ariaLabel={t('taskProject')}
+          color={projectColor}
+          emptyLabel={t('taskProjectOptional')}
+          onChange={(projectId) => updateField('projectId', projectId)}
+          projects={projects}
+          value={form.projectId}
+        />
+        <input
+          aria-label={t('startedAt')}
+          className="entry-inline-datetime"
+          onChange={(event) => updateField('startedAt', event.target.value)}
+          type="datetime-local"
+          value={form.startedAt}
+        />
+        <input
+          aria-label={t('endedAt')}
+          className="entry-inline-datetime"
+          onChange={(event) => updateField('endedAt', event.target.value)}
+          type="datetime-local"
+          value={form.endedAt}
+        />
+        <span className="entry-inline-duration">{formatDuration(liveDuration)}</span>
       </div>
+      {error ? (
+        <span className="entry-inline-error time-entry-directory-error" role="alert">
+          {error}
+        </span>
+      ) : null}
       <span className="visually-hidden">{formatTimeRange(entry.startedAt, entry.endedAt, locale)}</span>
     </article>
   );

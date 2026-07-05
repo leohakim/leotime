@@ -83,6 +83,22 @@ func TestClientLifecycle(t *testing.T) {
 	if len(allClients) != 1 || allClients[0].ArchivedAt == "" {
 		t.Fatalf("expected archived client, got %+v", allClients)
 	}
+
+	restored, err := st.RestoreClient(ctx, user.ID, client.ID)
+	if err != nil {
+		t.Fatalf("restore client: %v", err)
+	}
+	if restored.ArchivedAt != "" {
+		t.Fatalf("expected restored client without archivedAt, got %+v", restored)
+	}
+
+	activeClientsAfterRestore, err := st.ListClients(ctx, user.ID, false)
+	if err != nil {
+		t.Fatalf("list active clients after restore: %v", err)
+	}
+	if len(activeClientsAfterRestore) != 1 {
+		t.Fatalf("expected one active client after restore, got %d", len(activeClientsAfterRestore))
+	}
 }
 
 func TestCreateClientValidatesInput(t *testing.T) {

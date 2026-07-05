@@ -215,7 +215,7 @@ func (s *Store) Overview(ctx context.Context, userID string) (Overview, error) {
 		struct {
 			query string
 			into  *int
-		}{"SELECT COUNT(*) FROM tags WHERE user_id = ?", &overview.TagsTotal},
+		}{"SELECT COUNT(*) FROM tags WHERE user_id = ? AND archived_at IS NULL", &overview.TagsTotal},
 		struct {
 			query string
 			into  *int

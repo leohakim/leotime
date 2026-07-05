@@ -207,6 +207,46 @@ func TestClientHTTPLifecycle(t *testing.T) {
 	if len(emptyListPayload.Clients) != 0 {
 		t.Fatalf("expected no active clients after archive, got %+v", emptyListPayload)
 	}
+
+	restoreResponse := httptest.NewRecorder()
+	restoreRequest := httptest.NewRequest(http.MethodPost, "/api/v1/clients/"+created.ID+"/restore", nil)
+	for _, cookie := range cookies {
+		restoreRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(restoreResponse, restoreRequest)
+
+	if restoreResponse.Code != http.StatusOK {
+		t.Fatalf("expected restore 200, got %d: %s", restoreResponse.Code, restoreResponse.Body.String())
+	}
+
+	var restored struct {
+		ID         string `json:"id"`
+		ArchivedAt string `json:"archivedAt"`
+	}
+	if err := json.Unmarshal(restoreResponse.Body.Bytes(), &restored); err != nil {
+		t.Fatalf("decode restored client: %v", err)
+	}
+	if restored.ID != created.ID || restored.ArchivedAt != "" {
+		t.Fatalf("unexpected restored client: %+v", restored)
+	}
+
+	activeListResponse := httptest.NewRecorder()
+	activeListRequest := httptest.NewRequest(http.MethodGet, "/api/v1/clients", nil)
+	for _, cookie := range cookies {
+		activeListRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(activeListResponse, activeListRequest)
+
+	if activeListResponse.Code != http.StatusOK {
+		t.Fatalf("expected active list 200, got %d: %s", activeListResponse.Code, activeListResponse.Body.String())
+	}
+	var activeListPayload clientsResponse
+	if err := json.Unmarshal(activeListResponse.Body.Bytes(), &activeListPayload); err != nil {
+		t.Fatalf("decode active list response: %v", err)
+	}
+	if len(activeListPayload.Clients) != 1 || activeListPayload.Clients[0].Name != "Client One Updated" {
+		t.Fatalf("unexpected active client list after restore: %+v", activeListPayload)
+	}
 }
 
 func TestProjectHTTPLifecycle(t *testing.T) {
@@ -287,6 +327,28 @@ func TestProjectHTTPLifecycle(t *testing.T) {
 	if deleteResponse.Code != http.StatusNoContent {
 		t.Fatalf("expected delete 204, got %d: %s", deleteResponse.Code, deleteResponse.Body.String())
 	}
+
+	restoreResponse := httptest.NewRecorder()
+	restoreRequest := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+created.ID+"/restore", nil)
+	for _, cookie := range cookies {
+		restoreRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(restoreResponse, restoreRequest)
+
+	if restoreResponse.Code != http.StatusOK {
+		t.Fatalf("expected restore 200, got %d: %s", restoreResponse.Code, restoreResponse.Body.String())
+	}
+
+	var restored struct {
+		ID         string `json:"id"`
+		ArchivedAt string `json:"archivedAt"`
+	}
+	if err := json.Unmarshal(restoreResponse.Body.Bytes(), &restored); err != nil {
+		t.Fatalf("decode restored project: %v", err)
+	}
+	if restored.ID != created.ID || restored.ArchivedAt != "" {
+		t.Fatalf("unexpected restored project: %+v", restored)
+	}
 }
 
 func TestTaskHTTPLifecycle(t *testing.T) {
@@ -365,6 +427,28 @@ func TestTaskHTTPLifecycle(t *testing.T) {
 	if deleteResponse.Code != http.StatusNoContent {
 		t.Fatalf("expected delete 204, got %d: %s", deleteResponse.Code, deleteResponse.Body.String())
 	}
+
+	restoreResponse := httptest.NewRecorder()
+	restoreRequest := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/"+created.ID+"/restore", nil)
+	for _, cookie := range cookies {
+		restoreRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(restoreResponse, restoreRequest)
+
+	if restoreResponse.Code != http.StatusOK {
+		t.Fatalf("expected restore 200, got %d: %s", restoreResponse.Code, restoreResponse.Body.String())
+	}
+
+	var restored struct {
+		ID         string `json:"id"`
+		ArchivedAt string `json:"archivedAt"`
+	}
+	if err := json.Unmarshal(restoreResponse.Body.Bytes(), &restored); err != nil {
+		t.Fatalf("decode restored task: %v", err)
+	}
+	if restored.ID != created.ID || restored.ArchivedAt != "" {
+		t.Fatalf("unexpected restored task: %+v", restored)
+	}
 }
 
 func TestTagHTTPLifecycle(t *testing.T) {
@@ -439,6 +523,28 @@ func TestTagHTTPLifecycle(t *testing.T) {
 
 	if deleteResponse.Code != http.StatusNoContent {
 		t.Fatalf("expected delete 204, got %d: %s", deleteResponse.Code, deleteResponse.Body.String())
+	}
+
+	restoreResponse := httptest.NewRecorder()
+	restoreRequest := httptest.NewRequest(http.MethodPost, "/api/v1/tags/"+created.ID+"/restore", nil)
+	for _, cookie := range cookies {
+		restoreRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(restoreResponse, restoreRequest)
+
+	if restoreResponse.Code != http.StatusOK {
+		t.Fatalf("expected restore 200, got %d: %s", restoreResponse.Code, restoreResponse.Body.String())
+	}
+
+	var restored struct {
+		ID         string `json:"id"`
+		ArchivedAt string `json:"archivedAt"`
+	}
+	if err := json.Unmarshal(restoreResponse.Body.Bytes(), &restored); err != nil {
+		t.Fatalf("decode restored tag: %v", err)
+	}
+	if restored.ID != created.ID || restored.ArchivedAt != "" {
+		t.Fatalf("unexpected restored tag: %+v", restored)
 	}
 }
 

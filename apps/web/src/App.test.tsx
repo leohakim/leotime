@@ -51,6 +51,7 @@ describe('App', () => {
         id: 'tag_1',
         name: 'Deep Work',
         color: '#2563eb',
+        archivedAt: '',
         createdAt: '2026-01-01T00:00:00Z',
         updatedAt: '2026-01-01T00:00:00Z',
       },
@@ -72,7 +73,7 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Entrada manual' })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Timesheet' })).toBeInTheDocument();
     expect(await screen.findByText('Esta semana')).toBeInTheDocument();
-    expect(screen.getByText('Total semana')).toBeInTheDocument();
+    expect((await screen.findAllByText('Total semana')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Osoigo SL')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Portal Web')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Refactor API')).length).toBeGreaterThan(0);
@@ -102,6 +103,18 @@ describe('App', () => {
     expect(screen.getByText('Resumen semanal')).toBeInTheDocument();
     expect(screen.getByLabelText('Mes anterior')).toBeInTheDocument();
     expect(screen.getByText('Tiempo registrado')).toBeInTheDocument();
+  });
+
+  test('switches theme from the toolbar', async () => {
+    renderApp();
+
+    await screen.findByRole('heading', { name: 'Time Tracker' });
+    expect(document.documentElement.dataset.theme).toBe('solid');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Claro' }));
+
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe('light'));
+    expect(window.localStorage.getItem('leotime.theme')).toBe('light');
   });
 
   test('renders the time report panel', async () => {
@@ -170,6 +183,43 @@ describe('App', () => {
     expect(clientsMock).toHaveLength(1);
   });
 
+  test('deactivates a client from the edit form', async () => {
+    renderApp();
+
+    await screen.findAllByText('Osoigo SL');
+    fireEvent.click(screen.getAllByTitle('Editar')[0]);
+    fireEvent.click(screen.getByLabelText('Cliente activo'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    await waitFor(() => expect(clientsMock[0]?.archivedAt).not.toBe(''));
+    expect(screen.getByText('Inactivos')).toBeInTheDocument();
+  });
+
+  test('reactivates a client from the inactive list', async () => {
+    clientsMock = clientsMock.map((client, index) =>
+      index === 0 ? { ...client, archivedAt: '2026-01-02T00:00:00Z' } : client,
+    );
+
+    renderApp();
+
+    await screen.findByText('Inactivos');
+    fireEvent.click(screen.getAllByTitle('Reactivar')[0]);
+
+    await waitFor(() => expect(clientsMock[0]?.archivedAt).toBe(''));
+  });
+
+  test('deactivates a project from the edit form', async () => {
+    renderApp();
+
+    await screen.findAllByText('Portal Web');
+    fireEvent.click(screen.getAllByTitle('Editar')[1]);
+    fireEvent.click(screen.getByLabelText('Proyecto activo'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    await waitFor(() => expect(projectsMock[0]?.archivedAt).not.toBe(''));
+    expect(screen.getAllByText('Inactivo').length).toBeGreaterThan(0);
+  });
+
   test('creates a project from the dashboard', async () => {
     renderApp();
 
@@ -199,6 +249,18 @@ describe('App', () => {
 
     expect(await screen.findByText('Usa un color hex valido, por ejemplo #2563eb.')).toBeInTheDocument();
     expect(projectsMock).toHaveLength(1);
+  });
+
+  test('deactivates a task from the edit form', async () => {
+    renderApp();
+
+    await screen.findAllByText('Refactor API');
+    fireEvent.click(screen.getAllByTitle('Editar')[2]);
+    fireEvent.click(screen.getByLabelText('Tarea activa'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    await waitFor(() => expect(tasksMock[0]?.archivedAt).not.toBe(''));
+    expect(screen.getAllByText('Inactivo').length).toBeGreaterThan(0);
   });
 
   test('creates a task from the dashboard', async () => {
@@ -275,6 +337,18 @@ describe('App', () => {
 
     await waitFor(() => expect(timeEntriesMock).toHaveLength(1));
     expect(manualPanel.getByDisplayValue('Trabajo manual')).toBeInTheDocument();
+  });
+
+  test('deactivates a tag from the edit form', async () => {
+    renderApp();
+
+    await screen.findAllByText('Deep Work');
+    fireEvent.click(screen.getAllByTitle('Editar')[3]);
+    fireEvent.click(screen.getByLabelText('Tag activo'));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    await waitFor(() => expect(tagsMock[0]?.archivedAt).not.toBe(''));
+    expect(screen.getAllByText('Inactivo').length).toBeGreaterThan(0);
   });
 
   test('creates a tag from the dashboard', async () => {
@@ -360,6 +434,7 @@ let tagsMock: Array<{
   id: string;
   name: string;
   color: string;
+  archivedAt: string;
   createdAt: string;
   updatedAt: string;
 }> = [];
@@ -501,8 +576,60 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     });
   }
 
-  if (url.endsWith('/api/v1/clients') && (!init?.method || init.method === 'GET')) {
-    return jsonResponse({ clients: clientsMock });
+  const clientsUrl = new URL(url, 'http://localhost');
+  if (clientsUrl.pathname === '/api/v1/clients' && (!init?.method || init.method === 'GET')) {
+    const includeArchived = clientsUrl.searchParams.get('includeArchived') === 'true';
+    return jsonResponse({
+      clients: includeArchived ? clientsMock : clientsMock.filter((client) => !client.archivedAt),
+    });
+  }
+
+  if (url.includes('/api/v1/clients/') && init?.method === 'PATCH') {
+    const clientId = url.split('/api/v1/clients/')[1]?.split('?')[0] ?? '';
+    const body = JSON.parse(String(init.body));
+    const index = clientsMock.findIndex((item) => item.id === clientId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    const updated = {
+      ...clientsMock[index],
+      name: body.name,
+      email: body.email,
+      taxId: body.taxId,
+      billingAddress: body.billingAddress,
+      defaultCurrency: body.defaultCurrency,
+      defaultHourlyRateMinor: body.defaultHourlyRateMinor,
+      updatedAt: '2026-01-02T00:00:00Z',
+    };
+    clientsMock = clientsMock.map((item) => (item.id === clientId ? updated : item));
+    return jsonResponse(updated);
+  }
+
+  if (url.includes('/api/v1/clients/') && init?.method === 'DELETE') {
+    const clientId = url.split('/api/v1/clients/')[1]?.split('?')[0] ?? '';
+    const index = clientsMock.findIndex((item) => item.id === clientId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    clientsMock = clientsMock.map((item) =>
+      item.id === clientId ? { ...item, archivedAt: '2026-01-02T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z' } : item,
+    );
+    return new Response(null, { status: 204 });
+  }
+
+  if (url.includes('/api/v1/clients/') && url.endsWith('/restore') && init?.method === 'POST') {
+    const clientId = url.split('/api/v1/clients/')[1]?.replace('/restore', '') ?? '';
+    const index = clientsMock.findIndex((item) => item.id === clientId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    const restored = {
+      ...clientsMock[index],
+      archivedAt: '',
+      updatedAt: '2026-01-02T00:00:00Z',
+    };
+    clientsMock = clientsMock.map((item) => (item.id === clientId ? restored : item));
+    return jsonResponse(restored);
   }
 
   if (url.endsWith('/api/v1/clients') && init?.method === 'POST') {
@@ -523,8 +650,60 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     return jsonResponse(client, 201);
   }
 
-  if (url.endsWith('/api/v1/projects') && (!init?.method || init.method === 'GET')) {
-    return jsonResponse({ projects: projectsMock });
+  const projectsUrl = new URL(url, 'http://localhost');
+  if (projectsUrl.pathname === '/api/v1/projects' && (!init?.method || init.method === 'GET')) {
+    const includeArchived = projectsUrl.searchParams.get('includeArchived') === 'true';
+    return jsonResponse({
+      projects: includeArchived ? projectsMock : projectsMock.filter((project) => !project.archivedAt),
+    });
+  }
+
+  if (url.includes('/api/v1/projects/') && init?.method === 'PATCH') {
+    const projectId = url.split('/api/v1/projects/')[1]?.split('?')[0] ?? '';
+    const body = JSON.parse(String(init.body));
+    const client = clientsMock.find((item) => item.id === body.clientId);
+    const index = projectsMock.findIndex((item) => item.id === projectId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    const updated = {
+      ...projectsMock[index],
+      clientId: body.clientId,
+      clientName: client?.name ?? '',
+      name: body.name,
+      color: body.color,
+      defaultHourlyRateMinor: body.defaultHourlyRateMinor,
+      updatedAt: '2026-01-02T00:00:00Z',
+    };
+    projectsMock = projectsMock.map((item) => (item.id === projectId ? updated : item));
+    return jsonResponse(updated);
+  }
+
+  if (url.includes('/api/v1/projects/') && init?.method === 'DELETE') {
+    const projectId = url.split('/api/v1/projects/')[1]?.split('?')[0] ?? '';
+    const index = projectsMock.findIndex((item) => item.id === projectId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    projectsMock = projectsMock.map((item) =>
+      item.id === projectId ? { ...item, archivedAt: '2026-01-02T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z' } : item,
+    );
+    return new Response(null, { status: 204 });
+  }
+
+  if (url.includes('/api/v1/projects/') && url.endsWith('/restore') && init?.method === 'POST') {
+    const projectId = url.split('/api/v1/projects/')[1]?.replace('/restore', '') ?? '';
+    const index = projectsMock.findIndex((item) => item.id === projectId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    const restored = {
+      ...projectsMock[index],
+      archivedAt: '',
+      updatedAt: '2026-01-02T00:00:00Z',
+    };
+    projectsMock = projectsMock.map((item) => (item.id === projectId ? restored : item));
+    return jsonResponse(restored);
   }
 
   if (url.endsWith('/api/v1/projects') && init?.method === 'POST') {
@@ -545,8 +724,60 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     return jsonResponse(project, 201);
   }
 
-  if (url.endsWith('/api/v1/tasks') && (!init?.method || init.method === 'GET')) {
-    return jsonResponse({ tasks: tasksMock });
+  const tasksUrl = new URL(url, 'http://localhost');
+  if (tasksUrl.pathname === '/api/v1/tasks' && (!init?.method || init.method === 'GET')) {
+    const includeArchived = tasksUrl.searchParams.get('includeArchived') === 'true';
+    return jsonResponse({
+      tasks: includeArchived ? tasksMock : tasksMock.filter((task) => !task.archivedAt),
+    });
+  }
+
+  if (url.includes('/api/v1/tasks/') && init?.method === 'PATCH') {
+    const taskId = url.split('/api/v1/tasks/')[1]?.split('?')[0] ?? '';
+    const body = JSON.parse(String(init.body));
+    const index = tasksMock.findIndex((item) => item.id === taskId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    const project = projectsMock.find((item) => item.id === body.projectId);
+    const updated = {
+      ...tasksMock[index],
+      projectId: body.projectId,
+      projectName: project?.name ?? '',
+      projectColor: project?.color ?? '',
+      name: body.name,
+      billable: body.billable,
+      updatedAt: '2026-01-02T00:00:00Z',
+    };
+    tasksMock = tasksMock.map((item) => (item.id === taskId ? updated : item));
+    return jsonResponse(updated);
+  }
+
+  if (url.includes('/api/v1/tasks/') && init?.method === 'DELETE') {
+    const taskId = url.split('/api/v1/tasks/')[1]?.split('?')[0] ?? '';
+    const index = tasksMock.findIndex((item) => item.id === taskId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    tasksMock = tasksMock.map((item) =>
+      item.id === taskId ? { ...item, archivedAt: '2026-01-02T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z' } : item,
+    );
+    return new Response(null, { status: 204 });
+  }
+
+  if (url.includes('/api/v1/tasks/') && url.endsWith('/restore') && init?.method === 'POST') {
+    const taskId = url.split('/api/v1/tasks/')[1]?.replace('/restore', '') ?? '';
+    const index = tasksMock.findIndex((item) => item.id === taskId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    const restored = {
+      ...tasksMock[index],
+      archivedAt: '',
+      updatedAt: '2026-01-02T00:00:00Z',
+    };
+    tasksMock = tasksMock.map((item) => (item.id === taskId ? restored : item));
+    return jsonResponse(restored);
   }
 
   if (url.endsWith('/api/v1/tasks') && init?.method === 'POST') {
@@ -567,29 +798,56 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     return jsonResponse(task, 201);
   }
 
-  if (url.includes('/api/v1/tasks/') && init?.method === 'PATCH') {
-    const taskId = url.split('/api/v1/tasks/')[1] ?? '';
+  const tagsUrl = new URL(url, 'http://localhost');
+  if (tagsUrl.pathname === '/api/v1/tags' && (!init?.method || init.method === 'GET')) {
+    const includeArchived = tagsUrl.searchParams.get('includeArchived') === 'true';
+    return jsonResponse({
+      tags: includeArchived ? tagsMock : tagsMock.filter((tag) => !tag.archivedAt),
+    });
+  }
+
+  if (url.includes('/api/v1/tags/') && init?.method === 'PATCH') {
+    const tagId = url.split('/api/v1/tags/')[1]?.split('?')[0] ?? '';
     const body = JSON.parse(String(init.body));
-    const index = tasksMock.findIndex((item) => item.id === taskId);
+    const index = tagsMock.findIndex((item) => item.id === tagId);
     if (index === -1) {
       return jsonResponse({ error: 'not found' }, 404);
     }
-    const project = projectsMock.find((item) => item.id === body.projectId);
     const updated = {
-      ...tasksMock[index],
-      projectId: body.projectId,
-      projectName: project?.name ?? '',
-      projectColor: project?.color ?? '',
+      ...tagsMock[index],
       name: body.name,
-      billable: body.billable,
-      updatedAt: '2026-01-01T00:00:00Z',
+      color: body.color,
+      updatedAt: '2026-01-02T00:00:00Z',
     };
-    tasksMock = tasksMock.map((item) => (item.id === taskId ? updated : item));
+    tagsMock = tagsMock.map((item) => (item.id === tagId ? updated : item));
     return jsonResponse(updated);
   }
 
-  if (url.endsWith('/api/v1/tags') && (!init?.method || init.method === 'GET')) {
-    return jsonResponse({ tags: tagsMock });
+  if (url.includes('/api/v1/tags/') && init?.method === 'DELETE') {
+    const tagId = url.split('/api/v1/tags/')[1]?.split('?')[0] ?? '';
+    const index = tagsMock.findIndex((item) => item.id === tagId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    tagsMock = tagsMock.map((item) =>
+      item.id === tagId ? { ...item, archivedAt: '2026-01-02T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z' } : item,
+    );
+    return new Response(null, { status: 204 });
+  }
+
+  if (url.includes('/api/v1/tags/') && url.endsWith('/restore') && init?.method === 'POST') {
+    const tagId = url.split('/api/v1/tags/')[1]?.replace('/restore', '') ?? '';
+    const index = tagsMock.findIndex((item) => item.id === tagId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    const restored = {
+      ...tagsMock[index],
+      archivedAt: '',
+      updatedAt: '2026-01-02T00:00:00Z',
+    };
+    tagsMock = tagsMock.map((item) => (item.id === tagId ? restored : item));
+    return jsonResponse(restored);
   }
 
   if (url.endsWith('/api/v1/tags') && init?.method === 'POST') {
@@ -598,6 +856,7 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
       id: `tag_${tagsMock.length + 1}`,
       name: body.name,
       color: body.color,
+      archivedAt: '',
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:00:00Z',
     };
@@ -702,6 +961,7 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
         {
           key: 'prj_1',
           label: 'Portal Web',
+          projectColor: '#2563eb',
           totalSeconds,
           entryCount: entries.length,
         },

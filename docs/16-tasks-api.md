@@ -12,6 +12,7 @@ POST   /api/v1/tasks
 GET    /api/v1/tasks/{taskID}
 PATCH  /api/v1/tasks/{taskID}
 DELETE /api/v1/tasks/{taskID}
+POST   /api/v1/tasks/{taskID}/restore
 ```
 
 ### Filtros de listado
@@ -60,6 +61,8 @@ Errores de validacion devuelven `400 Bad Request` con un mensaje de texto plano.
 
 `DELETE` no elimina la fila. Marca `archived_at` con la fecha actual para mantener historial de entradas e importaciones. Si la tarea ya estaba archivada, la fecha no cambia.
 
+`POST /restore` limpia `archived_at` y devuelve la tarea restaurada.
+
 ## Respuesta de ejemplo
 
 ```json
@@ -82,10 +85,11 @@ Errores de validacion devuelven `400 Bad Request` con un mensaje de texto plano.
 
 El dashboard incluye un panel de tareas (`#tasks`) que permite:
 
-- Listar tareas activas.
+- Listar tareas activas y archivadas (`includeArchived=true`).
 - Crear tareas con nombre, proyecto opcional y checkbox facturable.
 - Editar tareas existentes.
-- Archivar tareas.
+- Archivar tareas desde la lista o desmarcando **Tarea activa** en el formulario de edicion.
+- Reactivar tareas archivadas desde el formulario de edicion.
 
 Tras cada mutacion, la UI invalida las queries `tasks` y `overview` para mantener contadores alineados.
 

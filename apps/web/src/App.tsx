@@ -24,6 +24,7 @@ import {
   PanelLeft,
   Play,
   Plus,
+  RotateCcw,
   Save,
   Settings,
   Tag,
@@ -36,12 +37,12 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import {
   archiveClient,
   archiveProject,
+  archiveTag,
   archiveTask,
   createClient,
   createProject,
   createTag,
   createTask,
-  deleteTag,
   fetchClients,
   fetchProjects,
   fetchSession,
@@ -52,6 +53,10 @@ import {
   login,
   logout,
   stopTimer,
+  restoreClient,
+  restoreProject,
+  restoreTag,
+  restoreTask,
   updateClient,
   updateProject,
   updateTag,
@@ -60,6 +65,7 @@ import {
   type ClientInput,
   type LayoutMode,
   type Locale,
+  type ThemeMode,
   type Project,
   type ProjectInput,
   type Tag as TagRecord,
@@ -69,6 +75,7 @@ import {
 } from './lib/api';
 import { translate } from './lib/i18n';
 import { sortTasksByNewest } from './lib/taskSort';
+import { ProjectBadge } from './lib/projectBadgeUi';
 import { CalendarPanel } from './lib/calendarUi';
 import { DashboardPanel } from './lib/dashboardUi';
 import { InvoicePanel } from './lib/invoiceUi';
@@ -78,10 +85,13 @@ import { ManualTimeEntryPanel, TimeEntriesList } from './lib/timeEntryUi';
 import { SidebarTimer, TimerCommandRow } from './lib/timerUi';
 import { addWeeks, startOfWeek, toWeekQueryFrom, toWeekQueryTo } from './lib/timesheetWeek';
 import { usePersistentState } from './lib/persistentState';
+import { ThemeSwitcher, useThemeEffect } from './lib/themeUi';
 
 export function App() {
   const [locale, setLocale] = usePersistentState<Locale>('leotime.locale', 'es');
   const [layoutMode, setLayoutMode] = usePersistentState<LayoutMode>('leotime.layout', 'solid');
+  const [themeMode, setThemeMode] = usePersistentState<ThemeMode>('leotime.theme', 'solid');
+  useThemeEffect(themeMode);
   const sessionQuery = useQuery({ queryKey: ['session'], queryFn: fetchSession });
 
   const t = useMemo(() => (key: Parameters<typeof translate>[1]) => translate(locale, key), [locale]);
@@ -105,6 +115,8 @@ export function App() {
       locale={locale}
       setLayoutMode={setLayoutMode}
       setLocale={setLocale}
+      setThemeMode={setThemeMode}
+      themeMode={themeMode}
       t={t}
       userName={sessionQuery.data.user.name}
     />
@@ -171,13 +183,15 @@ type DashboardProps = {
   locale: Locale;
   setLayoutMode: (layoutMode: LayoutMode) => void;
   setLocale: (locale: Locale) => void;
+  setThemeMode: (themeMode: ThemeMode) => void;
+  themeMode: ThemeMode;
   t: Translator;
   userName: string;
 };
 
 type TimeView = 'timesheet' | 'calendar';
 
-function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }: DashboardProps) {
+function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode, themeMode, t, userName }: DashboardProps) {
   const queryClient = useQueryClient();
   const [timeView, setTimeView] = usePersistentState<TimeView>('leotime.timeView', 'timesheet');
   const [weekAnchorIso, setWeekAnchorIso] = usePersistentState('leotime.timesheetWeek', new Date().toISOString().slice(0, 10));
@@ -199,10 +213,22 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
   const weekQueryKey = weekStart.toISOString().slice(0, 10);
   const monthQueryKey = `${monthStart.getFullYear()}-${monthStart.getMonth()}`;
 
-  const clientsQuery = useQuery({ queryKey: ['clients'], queryFn: fetchClients });
-  const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: fetchProjects });
-  const tasksQuery = useQuery({ queryKey: ['tasks'], queryFn: fetchTasks });
-  const tagsQuery = useQuery({ queryKey: ['tags'], queryFn: fetchTags });
+  const clientsQuery = useQuery({
+    queryKey: ['clients'],
+    queryFn: () => fetchClients({ includeArchived: true }),
+  });
+  const projectsQuery = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => fetchProjects({ includeArchived: true }),
+  });
+  const tasksQuery = useQuery({
+    queryKey: ['tasks'],
+    queryFn: () => fetchTasks({ includeArchived: true }),
+  });
+  const tagsQuery = useQuery({
+    queryKey: ['tags'],
+    queryFn: () => fetchTags({ includeArchived: true }),
+  });
   const timeEntriesQuery = useQuery({
     queryKey: ['time-entries', timeView, timeView === 'timesheet' ? weekQueryKey : monthQueryKey],
     queryFn: () =>
@@ -336,6 +362,7 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
             <h1>{t('timeTracker')}</h1>
           </div>
           <div className="toolbar">
+            <ThemeSwitcher setThemeMode={setThemeMode} themeMode={themeMode} t={t} />
             <LayoutSwitcher layoutMode={layoutMode} setLayoutMode={setLayoutMode} t={t} />
             <button type="button" title={t('logout')} onClick={() => logoutMutation.mutate()}>
               <LogOut aria-hidden="true" />
@@ -463,17 +490,9 @@ function TimeViewSwitcher({
   );
 }
 
-function EntityPill({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="entity-pill">
-      <span style={{ backgroundColor: color }} aria-hidden="true" />
-      {label}
-    </span>
-  );
-}
-
 type ClientFormState = Omit<ClientInput, 'defaultHourlyRateMinor'> & {
   hourlyRate: string;
+  active: boolean;
 };
 
 type ClientFormErrors = Partial<Record<keyof ClientFormState | 'form', string>>;
@@ -485,6 +504,7 @@ const emptyClientForm: ClientFormState = {
   billingAddress: '',
   defaultCurrency: 'EUR',
   hourlyRate: '',
+  active: true,
 };
 
 function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: boolean; t: Translator }) {
@@ -505,7 +525,25 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ clientId, input }: { clientId: string; input: ClientInput }) => updateClient(clientId, input),
+    mutationFn: async ({
+      clientId,
+      input,
+      active,
+      wasActive,
+    }: {
+      clientId: string;
+      input: ClientInput;
+      active: boolean;
+      wasActive: boolean;
+    }) => {
+      const updated = await updateClient(clientId, input);
+      if (active && !wasActive) {
+        await restoreClient(clientId);
+      } else if (!active && wasActive) {
+        await archiveClient(clientId);
+      }
+      return updated;
+    },
     onSuccess: () => {
       setEditingClientId(null);
       setForm(emptyClientForm);
@@ -525,6 +563,18 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
     onError: () => setErrors((current) => ({ ...current, form: t('clientArchiveFailed') })),
   });
 
+  const restoreMutation = useMutation({
+    mutationFn: restoreClient,
+    onSuccess: () => {
+      setEditingClientId(null);
+      setForm(emptyClientForm);
+      setErrors({});
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+    onError: () => setErrors((current) => ({ ...current, form: t('clientSaveFailed') })),
+  });
+
   function submitClient(event: FormEvent) {
     event.preventDefault();
     const validation = validateClientForm(form, t);
@@ -535,7 +585,13 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
 
     const input = clientFormToInput(form);
     if (editingClientId) {
-      updateMutation.mutate({ clientId: editingClientId, input });
+      const client = clients.find((item) => item.id === editingClientId);
+      updateMutation.mutate({
+        clientId: editingClientId,
+        input,
+        active: form.active,
+        wasActive: !client?.archivedAt,
+      });
       return;
     }
     createMutation.mutate(input);
@@ -559,6 +615,7 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
       billingAddress: client.billingAddress,
       defaultCurrency: client.defaultCurrency,
       hourlyRate: formatRateInput(client.defaultHourlyRateMinor),
+      active: !client.archivedAt,
     });
   }
 
@@ -569,6 +626,73 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const activeClientCount = clients.filter((client) => !client.archivedAt).length;
+  const activeClients = clients.filter((client) => !client.archivedAt);
+  const inactiveClients = clients.filter((client) => client.archivedAt);
+
+  function renderClientRow(client: Client, isActive: boolean) {
+    return (
+      <article
+        className={editingClientId === client.id ? 'client-row selected' : isActive ? 'client-row' : 'client-row archived'}
+        key={client.id}
+      >
+        <div className="client-row-main">
+          <div className="client-avatar" aria-hidden="true">
+            {client.name.slice(0, 1).toUpperCase()}
+          </div>
+          <div className="client-row-copy">
+            <div className="client-row-title">
+              <strong>{client.name}</strong>
+              <span className={isActive ? 'status-pill' : 'status-pill warning-pill'}>
+                {isActive ? <CircleCheck aria-hidden="true" /> : null}
+                {isActive ? t('active') : t('inactive')}
+              </span>
+            </div>
+            <span className="client-contact">
+              <Mail aria-hidden="true" />
+              {client.email || t('noContact')}
+            </span>
+          </div>
+        </div>
+        <div className="client-row-meta">
+          <span className="rate-pill">
+            <BadgeDollarSign aria-hidden="true" />
+            {client.defaultCurrency} {formatMinor(client.defaultHourlyRateMinor)}/h
+          </span>
+          {client.taxId ? <span>{client.taxId}</span> : null}
+        </div>
+        <div className="client-row-actions">
+          <button
+            className="secondary-button icon-button"
+            type="button"
+            onClick={() => startEditing(client)}
+            title={t('edit')}
+          >
+            <Pencil aria-hidden="true" />
+          </button>
+          {isActive ? (
+            <button
+              className="secondary-button icon-button danger-button"
+              type="button"
+              onClick={() => archiveMutation.mutate(client.id)}
+              title={t('archive')}
+            >
+              <Trash2 aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              className="secondary-button icon-button"
+              type="button"
+              onClick={() => restoreMutation.mutate(client.id)}
+              title={t('reactivate')}
+            >
+              <RotateCcw aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </article>
+    );
+  }
 
   return (
     <section className="clients-section" id="clients" aria-labelledby="clients-title">
@@ -592,7 +716,7 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
           <div className="directory-toolbar">
             <div>
               <span>{t('activeClients')}</span>
-              <strong>{clients.length}</strong>
+              <strong>{activeClientCount}</strong>
             </div>
             {isLoading ? (
               <span className="sync-pill">{t('loading')}</span>
@@ -608,54 +732,15 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
                 <p>{t('noClients')}</p>
               </div>
             ) : null}
-            {clients.map((client) => (
-              <article className={editingClientId === client.id ? 'client-row selected' : 'client-row'} key={client.id}>
-                <div className="client-row-main">
-                  <div className="client-avatar" aria-hidden="true">
-                    {client.name.slice(0, 1).toUpperCase()}
-                  </div>
-                  <div className="client-row-copy">
-                    <div className="client-row-title">
-                      <strong>{client.name}</strong>
-                      <span className="status-pill">
-                        <CircleCheck aria-hidden="true" />
-                        {t('active')}
-                      </span>
-                    </div>
-                    <span className="client-contact">
-                      <Mail aria-hidden="true" />
-                      {client.email || t('noContact')}
-                    </span>
-                  </div>
-                </div>
-                <div className="client-row-meta">
-                  <span className="rate-pill">
-                    <BadgeDollarSign aria-hidden="true" />
-                    {client.defaultCurrency} {formatMinor(client.defaultHourlyRateMinor)}/h
-                  </span>
-                  {client.taxId ? <span>{client.taxId}</span> : null}
-                </div>
-                <div className="client-row-actions">
-                  <button
-                    className="secondary-button icon-button"
-                    type="button"
-                    onClick={() => startEditing(client)}
-                    title={t('edit')}
-                  >
-                    <Pencil aria-hidden="true" />
-                  </button>
-                  <button
-                    className="secondary-button icon-button danger-button"
-                    type="button"
-                    onClick={() => archiveMutation.mutate(client.id)}
-                    title={t('archive')}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </button>
-                </div>
-              </article>
-            ))}
+            {activeClients.map((client) => renderClientRow(client, true))}
           </div>
+
+          <DirectoryInactiveHeading count={inactiveClients.length} t={t} />
+          {inactiveClients.length > 0 ? (
+            <div className="client-list client-list-inactive" aria-label={t('inactiveDirectory')}>
+              {inactiveClients.map((client) => renderClientRow(client, false))}
+            </div>
+          ) : null}
         </div>
 
         <form className="client-editor" noValidate onSubmit={submitClient}>
@@ -761,6 +846,18 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
               />
               <FieldError id="client-address-error" message={errors.billingAddress} />
             </label>
+
+            {editingClientId ? (
+              <label className="client-active-field" htmlFor="client-active">
+                <input
+                  checked={form.active}
+                  id="client-active"
+                  onChange={(event) => updateField('active', event.target.checked)}
+                  type="checkbox"
+                />
+                <span>{t('clientActive')}</span>
+              </label>
+            ) : null}
           </div>
 
           <div className="client-form-actions">
@@ -781,6 +878,7 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
 
 type ProjectFormState = Omit<ProjectInput, 'defaultHourlyRateMinor'> & {
   hourlyRate: string;
+  active: boolean;
 };
 
 type ProjectFormErrors = Partial<Record<keyof ProjectFormState | 'form', string>>;
@@ -790,6 +888,7 @@ const emptyProjectForm: ProjectFormState = {
   name: '',
   color: '#2563eb',
   hourlyRate: '',
+  active: true,
 };
 
 function ProjectPanel({
@@ -820,7 +919,25 @@ function ProjectPanel({
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ projectId, input }: { projectId: string; input: ProjectInput }) => updateProject(projectId, input),
+    mutationFn: async ({
+      projectId,
+      input,
+      active,
+      wasActive,
+    }: {
+      projectId: string;
+      input: ProjectInput;
+      active: boolean;
+      wasActive: boolean;
+    }) => {
+      const updated = await updateProject(projectId, input);
+      if (active && !wasActive) {
+        await restoreProject(projectId);
+      } else if (!active && wasActive) {
+        await archiveProject(projectId);
+      }
+      return updated;
+    },
     onSuccess: () => {
       setEditingProjectId(null);
       setForm(emptyProjectForm);
@@ -840,6 +957,18 @@ function ProjectPanel({
     onError: () => setErrors((current) => ({ ...current, form: t('projectArchiveFailed') })),
   });
 
+  const restoreMutation = useMutation({
+    mutationFn: restoreProject,
+    onSuccess: () => {
+      setEditingProjectId(null);
+      setForm(emptyProjectForm);
+      setErrors({});
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+    onError: () => setErrors((current) => ({ ...current, form: t('projectSaveFailed') })),
+  });
+
   function submitProject(event: FormEvent) {
     event.preventDefault();
     const validation = validateProjectForm(form, t);
@@ -850,7 +979,13 @@ function ProjectPanel({
 
     const input = projectFormToInput(form);
     if (editingProjectId) {
-      updateMutation.mutate({ projectId: editingProjectId, input });
+      const project = projects.find((item) => item.id === editingProjectId);
+      updateMutation.mutate({
+        projectId: editingProjectId,
+        input,
+        active: form.active,
+        wasActive: !project?.archivedAt,
+      });
       return;
     }
     createMutation.mutate(input);
@@ -875,6 +1010,7 @@ function ProjectPanel({
         project.defaultHourlyRateMinor === null || project.defaultHourlyRateMinor === undefined
           ? ''
           : formatRateInput(project.defaultHourlyRateMinor),
+      active: !project.archivedAt,
     });
   }
 
@@ -885,6 +1021,73 @@ function ProjectPanel({
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const activeProjectCount = projects.filter((project) => !project.archivedAt).length;
+  const activeProjects = projects.filter((project) => !project.archivedAt);
+  const inactiveProjects = projects.filter((project) => project.archivedAt);
+
+  function renderProjectRow(project: Project, isActive: boolean) {
+    return (
+      <article
+        className={editingProjectId === project.id ? 'client-row selected' : isActive ? 'client-row' : 'client-row archived'}
+        key={project.id}
+      >
+        <div className="client-row-main">
+          <div className="project-color-dot" style={{ backgroundColor: project.color }} aria-hidden="true" />
+          <div className="client-row-copy">
+            <div className="client-row-title">
+              <strong>{project.name}</strong>
+              <span className={isActive ? 'status-pill' : 'status-pill warning-pill'}>
+                {isActive ? <CircleCheck aria-hidden="true" /> : null}
+                {isActive ? t('active') : t('inactive')}
+              </span>
+            </div>
+            <span className="client-contact">
+              <Building2 aria-hidden="true" />
+              {project.clientName || t('projectClientOptional')}
+            </span>
+          </div>
+        </div>
+        <div className="client-row-meta">
+          {project.defaultHourlyRateMinor === null ? null : (
+            <span className="rate-pill">
+              <BadgeDollarSign aria-hidden="true" />
+              {formatMinor(project.defaultHourlyRateMinor)}/h
+            </span>
+          )}
+          <span>{project.color}</span>
+        </div>
+        <div className="client-row-actions">
+          <button
+            className="secondary-button icon-button"
+            type="button"
+            onClick={() => startEditing(project)}
+            title={t('edit')}
+          >
+            <Pencil aria-hidden="true" />
+          </button>
+          {isActive ? (
+            <button
+              className="secondary-button icon-button danger-button"
+              type="button"
+              onClick={() => archiveMutation.mutate(project.id)}
+              title={t('archive')}
+            >
+              <Trash2 aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              className="secondary-button icon-button"
+              type="button"
+              onClick={() => restoreMutation.mutate(project.id)}
+              title={t('reactivate')}
+            >
+              <RotateCcw aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </article>
+    );
+  }
 
   return (
     <section className="clients-section projects-section" id="projects" aria-labelledby="projects-title">
@@ -908,7 +1111,7 @@ function ProjectPanel({
           <div className="directory-toolbar">
             <div>
               <span>{t('activeProjects')}</span>
-              <strong>{projects.length}</strong>
+              <strong>{activeProjectCount}</strong>
             </div>
             {isLoading ? (
               <span className="sync-pill">{t('loading')}</span>
@@ -924,63 +1127,21 @@ function ProjectPanel({
                 <p>{t('noProjects')}</p>
               </div>
             ) : null}
-            {projects.map((project) => (
-              <article
-                className={editingProjectId === project.id ? 'client-row selected' : 'client-row'}
-                key={project.id}
-              >
-                <div className="client-row-main">
-                  <div className="project-color-dot" style={{ backgroundColor: project.color }} aria-hidden="true" />
-                  <div className="client-row-copy">
-                    <div className="client-row-title">
-                      <strong>{project.name}</strong>
-                      <span className="status-pill">
-                        <CircleCheck aria-hidden="true" />
-                        {t('active')}
-                      </span>
-                    </div>
-                    <span className="client-contact">
-                      <Building2 aria-hidden="true" />
-                      {project.clientName || t('projectClientOptional')}
-                    </span>
-                  </div>
-                </div>
-                <div className="client-row-meta">
-                  {project.defaultHourlyRateMinor === null ? null : (
-                    <span className="rate-pill">
-                      <BadgeDollarSign aria-hidden="true" />
-                      {formatMinor(project.defaultHourlyRateMinor)}/h
-                    </span>
-                  )}
-                  <span>{project.color}</span>
-                </div>
-                <div className="client-row-actions">
-                  <button
-                    className="secondary-button icon-button"
-                    type="button"
-                    onClick={() => startEditing(project)}
-                    title={t('edit')}
-                  >
-                    <Pencil aria-hidden="true" />
-                  </button>
-                  <button
-                    className="secondary-button icon-button danger-button"
-                    type="button"
-                    onClick={() => archiveMutation.mutate(project.id)}
-                    title={t('archive')}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </button>
-                </div>
-              </article>
-            ))}
+            {activeProjects.map((project) => renderProjectRow(project, true))}
           </div>
+
+          <DirectoryInactiveHeading count={inactiveProjects.length} t={t} />
+          {inactiveProjects.length > 0 ? (
+            <div className="client-list client-list-inactive" aria-label={t('inactiveDirectory')}>
+              {inactiveProjects.map((project) => renderProjectRow(project, false))}
+            </div>
+          ) : null}
         </div>
 
         <form className="client-editor" noValidate onSubmit={submitProject}>
           <div className="editor-header">
             <div>
-              <span>{editingProjectId ? t('editingProject') : t('createProject')}</span>
+              <span>{editingProjectId ? t('editingProject') : t('newProject')}</span>
               <h3>{editingProjectId ? t('projectFormEdit') : t('projectFormCreate')}</h3>
             </div>
             {editingProjectId ? (
@@ -1021,7 +1182,7 @@ function ProjectPanel({
                 value={form.clientId}
               >
                 <option value="">{t('projectClientOptional')}</option>
-                {clients.map((client) => (
+                {clients.filter((client) => !client.archivedAt).map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}
                   </option>
@@ -1067,6 +1228,18 @@ function ProjectPanel({
               />
               <FieldError id="project-rate-error" message={errors.hourlyRate} />
             </label>
+
+            {editingProjectId ? (
+              <label className="client-active-field" htmlFor="project-active">
+                <input
+                  checked={form.active}
+                  id="project-active"
+                  onChange={(event) => updateField('active', event.target.checked)}
+                  type="checkbox"
+                />
+                <span>{t('projectActive')}</span>
+              </label>
+            ) : null}
           </div>
 
           <div className="client-form-actions">
@@ -1089,6 +1262,7 @@ type TaskFormState = {
   projectId: string;
   name: string;
   billable: boolean;
+  active: boolean;
 };
 
 type TaskFormErrors = Partial<Record<keyof TaskFormState | 'form', string>>;
@@ -1097,6 +1271,7 @@ const emptyTaskForm: TaskFormState = {
   projectId: '',
   name: '',
   billable: true,
+  active: true,
 };
 
 function TaskPanel({
@@ -1136,7 +1311,25 @@ function TaskPanel({
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ taskId, input }: { taskId: string; input: TaskInput }) => updateTask(taskId, input),
+    mutationFn: async ({
+      taskId,
+      input,
+      active,
+      wasActive,
+    }: {
+      taskId: string;
+      input: TaskInput;
+      active: boolean;
+      wasActive: boolean;
+    }) => {
+      const updated = await updateTask(taskId, input);
+      if (active && !wasActive) {
+        await restoreTask(taskId);
+      } else if (!active && wasActive) {
+        await archiveTask(taskId);
+      }
+      return updated;
+    },
     onSuccess: () => {
       setEditingTaskId(null);
       setForm(emptyTaskForm);
@@ -1192,6 +1385,18 @@ function TaskPanel({
     onError: () => setErrors((current) => ({ ...current, form: t('taskArchiveFailed') })),
   });
 
+  const restoreMutation = useMutation({
+    mutationFn: restoreTask,
+    onSuccess: () => {
+      setEditingTaskId(null);
+      setForm(emptyTaskForm);
+      setErrors({});
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+    onError: () => setErrors((current) => ({ ...current, form: t('taskSaveFailed') })),
+  });
+
   function submitTask(event: FormEvent) {
     event.preventDefault();
     const validation = validateTaskForm(form, t);
@@ -1202,7 +1407,13 @@ function TaskPanel({
 
     const input = taskFormToInput(form);
     if (editingTaskId) {
-      updateMutation.mutate({ taskId: editingTaskId, input });
+      const task = tasks.find((item) => item.id === editingTaskId);
+      updateMutation.mutate({
+        taskId: editingTaskId,
+        input,
+        active: form.active,
+        wasActive: !task?.archivedAt,
+      });
       return;
     }
     createMutation.mutate(input);
@@ -1223,6 +1434,7 @@ function TaskPanel({
       projectId: task.projectId,
       name: task.name,
       billable: task.billable,
+      active: !task.archivedAt,
     });
   }
 
@@ -1233,6 +1445,66 @@ function TaskPanel({
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const activeTaskCount = sortedTasks.filter((task) => !task.archivedAt).length;
+  const activeTasks = sortedTasks.filter((task) => !task.archivedAt);
+  const inactiveTasks = sortedTasks.filter((task) => task.archivedAt);
+
+  function renderTaskRow(task: Task, isActive: boolean) {
+    return (
+      <article
+        className={editingTaskId === task.id ? 'client-row selected' : isActive ? 'client-row' : 'client-row archived'}
+        key={task.id}
+      >
+        <div className="client-row-main">
+          <div className="client-row-copy">
+            <div className="client-row-title">
+              <TaskInlineNameInput onSave={saveInlineTaskName} t={t} task={task} />
+              <span className={isActive ? 'status-pill' : 'status-pill warning-pill'}>
+                {isActive ? <CircleCheck aria-hidden="true" /> : null}
+                {isActive ? t('active') : t('inactive')}
+              </span>
+            </div>
+            <ProjectBadge color={task.projectColor} emptyLabel={t('taskProjectOptional')} name={task.projectName} />
+          </div>
+        </div>
+        <div className="client-row-meta">
+          <span className={task.billable ? 'rate-pill billable-on' : 'rate-pill'}>
+            <DollarSign aria-hidden="true" />
+            {task.billable ? t('billable') : t('nonBillable')}
+          </span>
+        </div>
+        <div className="client-row-actions">
+          <button
+            className="secondary-button icon-button"
+            type="button"
+            onClick={() => startEditing(task)}
+            title={t('edit')}
+          >
+            <Pencil aria-hidden="true" />
+          </button>
+          {isActive ? (
+            <button
+              className="secondary-button icon-button danger-button"
+              type="button"
+              onClick={() => archiveMutation.mutate(task.id)}
+              title={t('archive')}
+            >
+              <Trash2 aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              className="secondary-button icon-button"
+              type="button"
+              onClick={() => restoreMutation.mutate(task.id)}
+              title={t('reactivate')}
+            >
+              <RotateCcw aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </article>
+    );
+  }
 
   return (
     <section className="clients-section tasks-section" id="tasks" aria-labelledby="tasks-title">
@@ -1256,7 +1528,7 @@ function TaskPanel({
           <div className="directory-toolbar">
             <div>
               <span>{t('activeTasks')}</span>
-              <strong>{sortedTasks.length}</strong>
+              <strong>{activeTaskCount}</strong>
             </div>
             {isLoading ? (
               <span className="sync-pill">{t('loading')}</span>
@@ -1272,61 +1544,21 @@ function TaskPanel({
                 <p>{t('noTasks')}</p>
               </div>
             ) : null}
-            {sortedTasks.map((task) => (
-              <article className={editingTaskId === task.id ? 'client-row selected' : 'client-row'} key={task.id}>
-                <div className="client-row-main">
-                  {task.projectColor ? (
-                    <div className="project-color-dot" style={{ backgroundColor: task.projectColor }} aria-hidden="true" />
-                  ) : (
-                    <div className="project-color-dot" style={{ backgroundColor: '#64748b' }} aria-hidden="true" />
-                  )}
-                  <div className="client-row-copy">
-                    <div className="client-row-title">
-                      <TaskInlineNameInput onSave={saveInlineTaskName} t={t} task={task} />
-                      <span className="status-pill">
-                        <CircleCheck aria-hidden="true" />
-                        {t('active')}
-                      </span>
-                    </div>
-                    <span className="client-contact">
-                      <FolderKanban aria-hidden="true" />
-                      {task.projectName || t('taskProjectOptional')}
-                    </span>
-                  </div>
-                </div>
-                <div className="client-row-meta">
-                  <span className={task.billable ? 'rate-pill billable-on' : 'rate-pill'}>
-                    <DollarSign aria-hidden="true" />
-                    {task.billable ? t('billable') : t('nonBillable')}
-                  </span>
-                </div>
-                <div className="client-row-actions">
-                  <button
-                    className="secondary-button icon-button"
-                    type="button"
-                    onClick={() => startEditing(task)}
-                    title={t('edit')}
-                  >
-                    <Pencil aria-hidden="true" />
-                  </button>
-                  <button
-                    className="secondary-button icon-button danger-button"
-                    type="button"
-                    onClick={() => archiveMutation.mutate(task.id)}
-                    title={t('archive')}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </button>
-                </div>
-              </article>
-            ))}
+            {activeTasks.map((task) => renderTaskRow(task, true))}
           </div>
+
+          <DirectoryInactiveHeading count={inactiveTasks.length} t={t} />
+          {inactiveTasks.length > 0 ? (
+            <div className="client-list client-list-inactive" aria-label={t('inactiveDirectory')}>
+              {inactiveTasks.map((task) => renderTaskRow(task, false))}
+            </div>
+          ) : null}
         </div>
 
         <form className="client-editor" noValidate onSubmit={submitTask}>
           <div className="editor-header">
             <div>
-              <span>{editingTaskId ? t('editingTask') : t('createTask')}</span>
+              <span>{editingTaskId ? t('editingTask') : t('newTask')}</span>
               <h3>{editingTaskId ? t('taskFormEdit') : t('taskFormCreate')}</h3>
             </div>
             {editingTaskId ? (
@@ -1367,7 +1599,7 @@ function TaskPanel({
                 value={form.projectId}
               >
                 <option value="">{t('taskProjectOptional')}</option>
-                {projects.map((project) => (
+                {projects.filter((project) => !project.archivedAt).map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
                   </option>
@@ -1384,6 +1616,18 @@ function TaskPanel({
                 type="checkbox"
               />
             </label>
+
+            {editingTaskId ? (
+              <label className="client-active-field" htmlFor="task-active">
+                <input
+                  checked={form.active}
+                  id="task-active"
+                  onChange={(event) => updateField('active', event.target.checked)}
+                  type="checkbox"
+                />
+                <span>{t('taskActive')}</span>
+              </label>
+            ) : null}
           </div>
 
           <div className="client-form-actions">
@@ -1405,6 +1649,7 @@ function TaskPanel({
 type TagFormState = {
   name: string;
   color: string;
+  active: boolean;
 };
 
 type TagFormErrors = Partial<Record<keyof TagFormState | 'form', string>>;
@@ -1412,6 +1657,7 @@ type TagFormErrors = Partial<Record<keyof TagFormState | 'form', string>>;
 const emptyTagForm: TagFormState = {
   name: '',
   color: '#64748b',
+  active: true,
 };
 
 function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[]; t: Translator }) {
@@ -1432,7 +1678,25 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ tagId, input }: { tagId: string; input: TagInput }) => updateTag(tagId, input),
+    mutationFn: async ({
+      tagId,
+      input,
+      active,
+      wasActive,
+    }: {
+      tagId: string;
+      input: TagInput;
+      active: boolean;
+      wasActive: boolean;
+    }) => {
+      const updated = await updateTag(tagId, input);
+      if (active && !wasActive) {
+        await restoreTag(tagId);
+      } else if (!active && wasActive) {
+        await archiveTag(tagId);
+      }
+      return updated;
+    },
     onSuccess: () => {
       setEditingTagId(null);
       setForm(emptyTagForm);
@@ -1443,13 +1707,25 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
     onError: () => setErrors((current) => ({ ...current, form: t('tagSaveFailed') })),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteTag,
+  const archiveMutation = useMutation({
+    mutationFn: archiveTag,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('tagDeleteFailed') })),
+    onError: () => setErrors((current) => ({ ...current, form: t('tagArchiveFailed') })),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: restoreTag,
+    onSuccess: () => {
+      setEditingTagId(null);
+      setForm(emptyTagForm);
+      setErrors({});
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+    onError: () => setErrors((current) => ({ ...current, form: t('tagSaveFailed') })),
   });
 
   function submitTag(event: FormEvent) {
@@ -1462,7 +1738,13 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
 
     const input = tagFormToInput(form);
     if (editingTagId) {
-      updateMutation.mutate({ tagId: editingTagId, input });
+      const tag = tags.find((item) => item.id === editingTagId);
+      updateMutation.mutate({
+        tagId: editingTagId,
+        input,
+        active: form.active,
+        wasActive: !tag?.archivedAt,
+      });
       return;
     }
     createMutation.mutate(input);
@@ -1482,6 +1764,7 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
     setForm({
       name: tag.name,
       color: tag.color,
+      active: !tag.archivedAt,
     });
   }
 
@@ -1492,6 +1775,64 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const activeTagCount = tags.filter((tag) => !tag.archivedAt).length;
+  const activeTags = tags.filter((tag) => !tag.archivedAt);
+  const inactiveTags = tags.filter((tag) => tag.archivedAt);
+
+  function renderTagRow(tag: TagRecord, isActive: boolean) {
+    return (
+      <article
+        className={editingTagId === tag.id ? 'client-row selected' : isActive ? 'client-row' : 'client-row archived'}
+        key={tag.id}
+      >
+        <div className="client-row-main">
+          <div className="project-color-dot" style={{ backgroundColor: tag.color }} aria-hidden="true" />
+          <div className="client-row-copy">
+            <div className="client-row-title">
+              <strong>{tag.name}</strong>
+              <span className={isActive ? 'status-pill' : 'status-pill warning-pill'}>
+                {isActive ? <CircleCheck aria-hidden="true" /> : null}
+                {isActive ? t('active') : t('inactive')}
+              </span>
+            </div>
+            <span className="client-contact">
+              <Tag aria-hidden="true" />
+              {tag.color}
+            </span>
+          </div>
+        </div>
+        <div className="client-row-actions">
+          <button
+            className="secondary-button icon-button"
+            type="button"
+            onClick={() => startEditing(tag)}
+            title={t('edit')}
+          >
+            <Pencil aria-hidden="true" />
+          </button>
+          {isActive ? (
+            <button
+              className="secondary-button icon-button danger-button"
+              type="button"
+              onClick={() => archiveMutation.mutate(tag.id)}
+              title={t('archive')}
+            >
+              <Trash2 aria-hidden="true" />
+            </button>
+          ) : (
+            <button
+              className="secondary-button icon-button"
+              type="button"
+              onClick={() => restoreMutation.mutate(tag.id)}
+              title={t('reactivate')}
+            >
+              <RotateCcw aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </article>
+    );
+  }
 
   return (
     <section className="clients-section tags-section" id="tags" aria-labelledby="tags-title">
@@ -1515,7 +1856,7 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
           <div className="directory-toolbar">
             <div>
               <span>{t('activeTags')}</span>
-              <strong>{tags.length}</strong>
+              <strong>{activeTagCount}</strong>
             </div>
             {isLoading ? (
               <span className="sync-pill">{t('loading')}</span>
@@ -1531,45 +1872,15 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
                 <p>{t('noTags')}</p>
               </div>
             ) : null}
-            {tags.map((tag) => (
-              <article className={editingTagId === tag.id ? 'client-row selected' : 'client-row'} key={tag.id}>
-                <div className="client-row-main">
-                  <div className="project-color-dot" style={{ backgroundColor: tag.color }} aria-hidden="true" />
-                  <div className="client-row-copy">
-                    <div className="client-row-title">
-                      <strong>{tag.name}</strong>
-                      <span className="status-pill">
-                        <CircleCheck aria-hidden="true" />
-                        {t('active')}
-                      </span>
-                    </div>
-                    <span className="client-contact">
-                      <Tag aria-hidden="true" />
-                      {tag.color}
-                    </span>
-                  </div>
-                </div>
-                <div className="client-row-actions">
-                  <button
-                    className="secondary-button icon-button"
-                    type="button"
-                    onClick={() => startEditing(tag)}
-                    title={t('edit')}
-                  >
-                    <Pencil aria-hidden="true" />
-                  </button>
-                  <button
-                    className="secondary-button icon-button danger-button"
-                    type="button"
-                    onClick={() => deleteMutation.mutate(tag.id)}
-                    title={t('delete')}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </button>
-                </div>
-              </article>
-            ))}
+            {activeTags.map((tag) => renderTagRow(tag, true))}
           </div>
+
+          <DirectoryInactiveHeading count={inactiveTags.length} t={t} />
+          {inactiveTags.length > 0 ? (
+            <div className="client-list client-list-inactive" aria-label={t('inactiveDirectory')}>
+              {inactiveTags.map((tag) => renderTagRow(tag, false))}
+            </div>
+          ) : null}
         </div>
 
         <form className="client-editor" noValidate onSubmit={submitTag}>
@@ -1630,6 +1941,18 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
               </div>
               <FieldError id="tag-color-error" message={errors.color} />
             </label>
+
+            {editingTagId ? (
+              <label className="client-active-field" htmlFor="tag-active">
+                <input
+                  checked={form.active}
+                  id="tag-active"
+                  onChange={(event) => updateField('active', event.target.checked)}
+                  type="checkbox"
+                />
+                <span>{t('tagActive')}</span>
+              </label>
+            ) : null}
           </div>
 
           <div className="client-form-actions">
@@ -1742,6 +2065,19 @@ function FieldError({ id, message }: { id: string; message?: string }) {
     <span className="field-message" id={id}>
       {message}
     </span>
+  );
+}
+
+function DirectoryInactiveHeading({ count, t }: { count: number; t: Translator }) {
+  if (count === 0) {
+    return null;
+  }
+
+  return (
+    <div className="directory-inactive-heading">
+      <span>{t('inactiveDirectory')}</span>
+      <strong>{count}</strong>
+    </div>
   );
 }
 

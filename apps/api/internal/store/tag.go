@@ -13,11 +13,12 @@ var ErrInvalidTagInput = errors.New("invalid tag input")
 var ErrDuplicateTagName = errors.New("duplicate tag name")
 
 type Tag struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Color     string `json:"color"`
-	CreatedAt string `json:"createdAt"`
-	UpdatedAt string `json:"updatedAt"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Color      string `json:"color"`
+	ArchivedAt string `json:"archivedAt"`
+	CreatedAt  string `json:"createdAt"`
+	UpdatedAt  string `json:"updatedAt"`
 }
 
 type TagInput struct {
@@ -25,13 +26,18 @@ type TagInput struct {
 	Color string `json:"color"`
 }
 
-func (s *Store) ListTags(ctx context.Context, userID string) ([]Tag, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, name, color, created_at, updated_at
+func (s *Store) ListTags(ctx context.Context, userID string, includeArchived bool) ([]Tag, error) {
+	query := `
+		SELECT id, name, color, archived_at, created_at, updated_at
 		FROM tags
 		WHERE user_id = ?
-		ORDER BY lower(name), created_at
-	`, userID)
+	`
+	if !includeArchived {
+		query += " AND archived_at IS NULL"
+	}
+	query += " ORDER BY lower(name), created_at"
+
+	rows, err := s.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list tags: %w", err)
 	}
@@ -53,7 +59,7 @@ func (s *Store) ListTags(ctx context.Context, userID string) ([]Tag, error) {
 
 func (s *Store) TagByID(ctx context.Context, userID string, tagID string) (*Tag, error) {
 	tag, err := queryTag(ctx, s.db, `
-		SELECT id, name, color, created_at, updated_at
+		SELECT id, name, color, archived_at, created_at, updated_at
 		FROM tags
 		WHERE user_id = ? AND id = ?
 	`, userID, tagID)
@@ -116,22 +122,43 @@ func (s *Store) UpdateTag(ctx context.Context, userID string, tagID string, inpu
 	return s.TagByID(ctx, userID, tagID)
 }
 
-func (s *Store) DeleteTag(ctx context.Context, userID string, tagID string) error {
+func (s *Store) ArchiveTag(ctx context.Context, userID string, tagID string) error {
 	result, err := s.db.ExecContext(ctx, `
-		DELETE FROM tags
+		UPDATE tags
+		SET archived_at = COALESCE(archived_at, ?), updated_at = ?
 		WHERE user_id = ? AND id = ?
-	`, userID, tagID)
+	`, nowString(), nowString(), userID, tagID)
 	if err != nil {
-		return fmt.Errorf("delete tag: %w", err)
+		return fmt.Errorf("archive tag: %w", err)
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("inspect delete tag result: %w", err)
+		return fmt.Errorf("inspect archive tag result: %w", err)
 	}
 	if affected == 0 {
 		return ErrTagNotFound
 	}
 	return nil
+}
+
+func (s *Store) RestoreTag(ctx context.Context, userID string, tagID string) (*Tag, error) {
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE tags
+		SET archived_at = NULL, updated_at = ?
+		WHERE user_id = ? AND id = ?
+	`, nowString(), userID, tagID)
+	if err != nil {
+		return nil, fmt.Errorf("restore tag: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("inspect restore tag result: %w", err)
+	}
+	if affected == 0 {
+		return nil, ErrTagNotFound
+	}
+
+	return s.TagByID(ctx, userID, tagID)
 }
 
 type tagScanner interface {
@@ -151,9 +178,11 @@ func queryTag(ctx context.Context, db *sql.DB, query string, args ...any) (*Tag,
 
 func scanTag(scanner tagScanner) (Tag, error) {
 	var tag Tag
-	if err := scanner.Scan(&tag.ID, &tag.Name, &tag.Color, &tag.CreatedAt, &tag.UpdatedAt); err != nil {
+	var archivedAt sql.NullString
+	if err := scanner.Scan(&tag.ID, &tag.Name, &tag.Color, &archivedAt, &tag.CreatedAt, &tag.UpdatedAt); err != nil {
 		return Tag{}, fmt.Errorf("scan tag: %w", err)
 	}
+	tag.ArchivedAt = archivedAt.String
 	return tag, nil
 }
 
@@ -186,7 +215,7 @@ func (s *Store) tagNameTaken(ctx context.Context, userID string, name string, ex
 	query := `
 		SELECT COUNT(*)
 		FROM tags
-		WHERE user_id = ? AND lower(name) = lower(?)`
+		WHERE user_id = ? AND lower(name) = lower(?) AND archived_at IS NULL`
 	args := []any{userID, name}
 	if excludeTagID != "" {
 		query += " AND id <> ?"

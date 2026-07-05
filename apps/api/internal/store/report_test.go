@@ -49,6 +49,9 @@ func TestBuildTimeReportGroupsByProject(t *testing.T) {
 	if len(report.Groups) != 1 || report.Groups[0].Label != "Portal Web" || report.Groups[0].TotalSeconds != 9000 {
 		t.Fatalf("unexpected groups: %+v", report.Groups)
 	}
+	if report.Groups[0].ProjectColor != "#2563eb" {
+		t.Fatalf("expected project color in grouped report: %+v", report.Groups[0])
+	}
 	if len(report.Entries) != 0 {
 		t.Fatalf("expected no entries in summary mode")
 	}

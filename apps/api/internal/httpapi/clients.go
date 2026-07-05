@@ -68,6 +68,15 @@ func (s *Server) archiveClient(w http.ResponseWriter, r *http.Request, user *sto
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) restoreClient(w http.ResponseWriter, r *http.Request, user *store.User) {
+	client, err := s.store.RestoreClient(r.Context(), user.ID, chi.URLParam(r, "clientID"))
+	if err != nil {
+		writeClientError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, client)
+}
+
 func decodeClientInput(w http.ResponseWriter, r *http.Request) (store.ClientInput, bool) {
 	var input store.ClientInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {

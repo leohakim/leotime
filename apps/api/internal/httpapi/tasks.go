@@ -69,6 +69,15 @@ func (s *Server) archiveTask(w http.ResponseWriter, r *http.Request, user *store
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) restoreTask(w http.ResponseWriter, r *http.Request, user *store.User) {
+	task, err := s.store.RestoreTask(r.Context(), user.ID, chi.URLParam(r, "taskID"))
+	if err != nil {
+		writeTaskError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, task)
+}
+
 func decodeTaskInput(w http.ResponseWriter, r *http.Request) (store.TaskInput, bool) {
 	var input store.TaskInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {

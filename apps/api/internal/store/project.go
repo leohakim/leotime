@@ -152,6 +152,26 @@ func (s *Store) ArchiveProject(ctx context.Context, userID string, projectID str
 	return nil
 }
 
+func (s *Store) RestoreProject(ctx context.Context, userID string, projectID string) (*Project, error) {
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE projects
+		SET archived_at = NULL, updated_at = ?
+		WHERE user_id = ? AND id = ?
+	`, nowString(), userID, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("restore project: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("inspect restore project result: %w", err)
+	}
+	if affected == 0 {
+		return nil, ErrProjectNotFound
+	}
+
+	return s.ProjectByID(ctx, userID, projectID)
+}
+
 type projectScanner interface {
 	Scan(dest ...any) error
 }

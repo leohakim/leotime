@@ -21,7 +21,7 @@ func TestTagLifecycle(t *testing.T) {
 		t.Fatalf("expected normalized tag, got %+v", tag)
 	}
 
-	tags, err := st.ListTags(ctx, user.ID)
+	tags, err := st.ListTags(ctx, user.ID, false)
 	if err != nil {
 		t.Fatalf("list tags: %v", err)
 	}
@@ -40,16 +40,40 @@ func TestTagLifecycle(t *testing.T) {
 		t.Fatalf("unexpected updated tag: %+v", updated)
 	}
 
-	if err := st.DeleteTag(ctx, user.ID, tag.ID); err != nil {
-		t.Fatalf("delete tag: %v", err)
+	if err := st.ArchiveTag(ctx, user.ID, tag.ID); err != nil {
+		t.Fatalf("archive tag: %v", err)
 	}
 
-	remaining, err := st.ListTags(ctx, user.ID)
+	activeTags, err := st.ListTags(ctx, user.ID, false)
 	if err != nil {
-		t.Fatalf("list tags after delete: %v", err)
+		t.Fatalf("list active tags: %v", err)
 	}
-	if len(remaining) != 0 {
-		t.Fatalf("expected no tags, got %d", len(remaining))
+	if len(activeTags) != 0 {
+		t.Fatalf("expected no active tags, got %d", len(activeTags))
+	}
+
+	allTags, err := st.ListTags(ctx, user.ID, true)
+	if err != nil {
+		t.Fatalf("list all tags: %v", err)
+	}
+	if len(allTags) != 1 || allTags[0].ArchivedAt == "" {
+		t.Fatalf("expected archived tag, got %+v", allTags)
+	}
+
+	restored, err := st.RestoreTag(ctx, user.ID, tag.ID)
+	if err != nil {
+		t.Fatalf("restore tag: %v", err)
+	}
+	if restored.ArchivedAt != "" {
+		t.Fatalf("expected restored tag without archivedAt, got %+v", restored)
+	}
+
+	activeTagsAfterRestore, err := st.ListTags(ctx, user.ID, false)
+	if err != nil {
+		t.Fatalf("list active tags after restore: %v", err)
+	}
+	if len(activeTagsAfterRestore) != 1 {
+		t.Fatalf("expected one active tag after restore, got %d", len(activeTagsAfterRestore))
 	}
 }
 

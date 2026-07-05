@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { startTimer, updateTimer, type Project, type Task, type TimeEntry, type TimerStartInput } from './api';
 import type { MessageKey } from './i18n';
 import { scrollToManualEntryForm } from './timeEntryUi';
+import { ProjectBadge } from './projectBadgeUi';
 import { TimerPlayIcon, TimerStopIcon } from './timerIcons';
 
 export type Translator = (key: MessageKey) => string;
@@ -107,10 +108,12 @@ export function TimerCommandRow({
     setClockPopoverOpen(false);
   }, [activeTimer?.id, activeTimer?.startedAt, activeTimer?.description]);
 
-  const filteredTasks = useMemo(
-    () => (form.projectId ? tasks.filter((task) => task.projectId === form.projectId || task.projectId === '') : tasks),
-    [form.projectId, tasks],
-  );
+  const filteredTasks = useMemo(() => {
+    const activeTasks = tasks.filter((task) => !task.archivedAt);
+    return form.projectId
+      ? activeTasks.filter((task) => task.projectId === form.projectId || task.projectId === '')
+      : activeTasks;
+  }, [form.projectId, tasks]);
 
   const startMutation = useMutation({
     mutationFn: startTimer,
@@ -253,12 +256,11 @@ export function TimerCommandRow({
                 value={liveDescription}
               />
               <div className="timer-card-badges">
-                {activeTimer.projectName ? (
-                  <span className="entity-pill">
-                    <span style={{ backgroundColor: activeTimer.projectColor || '#64748b' }} aria-hidden="true" />
-                    {activeTimer.projectName}
-                  </span>
-                ) : null}
+                <ProjectBadge
+                  color={activeTimer.projectColor}
+                  emptyLabel={t('taskProjectOptional')}
+                  name={activeTimer.projectName}
+                />
                 {activeTimer.overlapWarning ? (
                   <span className="status-pill warning-pill">
                     <CircleAlert aria-hidden="true" />
@@ -352,7 +354,7 @@ export function TimerCommandRow({
             value={form.projectId}
           >
             <option value="">{t('taskProjectOptional')}</option>
-            {projects.map((project) => (
+            {projects.filter((project) => !project.archivedAt).map((project) => (
               <option key={project.id} value={project.id}>
                 {project.name}
               </option>

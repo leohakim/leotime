@@ -11,8 +11,10 @@ import {
 } from './api';
 import { formatMonthLabel, startOfMonth, weekdayLabels } from './calendarMonth';
 import {
+  buildDonutSegments,
   currentMonthKey,
-  donutGradient,
+  describeDonutArc,
+  formatWeekdayShort,
   groupHeatmapByWeek,
   isFutureMonth,
   shiftMonthKey,
@@ -21,6 +23,7 @@ import {
   weekChartPeak,
 } from './dashboardHeatmap';
 import { formatMoneyMinor } from './invoiceUi';
+import { ProjectBadge } from './projectBadgeUi';
 import { TimerPlayIcon } from './timerIcons';
 import type { Translator } from './timeEntryUi';
 import { formatDuration } from './timeEntryUi';
@@ -73,14 +76,11 @@ function RecentEntryRow({
       <div>
         <strong>{entry.description || t('noDescription')}</strong>
         <span className="dashboard-recent-project">
-          {entry.projectName ? (
-            <>
-              <span style={{ backgroundColor: entry.projectColor || '#64748b' }} aria-hidden="true" />
-              {entry.projectName}
-            </>
-          ) : (
-            t('taskProjectOptional')
-          )}
+          <ProjectBadge
+            color={entry.projectColor}
+            emptyLabel={t('taskProjectOptional')}
+            name={entry.projectName}
+          />
         </span>
       </div>
       <button
@@ -101,16 +101,82 @@ function LastSevenDaysCard({ days, t }: { days: DashboardDaySummary[]; t: Transl
   const peak = maxSeconds(days.map((day) => day.totalSeconds));
 
   return (
-    <div className="dashboard-card">
+    <div className="dashboard-card dashboard-fill-card">
       <h3>{t('dashboardLastSevenDays')}</h3>
-      <div className="dashboard-seven-list">
-        {days.map((day) => (
-          <div className="dashboard-seven-row" key={day.date}>
-            <span>{daySummaryLabel(day.label, t)}</span>
-            <MiniBar ratio={peak > 0 ? day.totalSeconds / peak : 0} />
-            <strong>{formatDuration(day.totalSeconds)}</strong>
-          </div>
+      <div className="dashboard-card-body">
+        <div className="dashboard-seven-list">
+          {days.map((day) => (
+            <div className="dashboard-seven-row" key={day.date}>
+              <span>{daySummaryLabel(day.label, t)}</span>
+              <MiniBar ratio={peak > 0 ? day.totalSeconds / peak : 0} />
+              <strong>{formatDuration(day.totalSeconds)}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectDonutChart({
+  shares,
+  totalSeconds,
+  t,
+}: {
+  shares: DashboardStats['projectBreakdown'];
+  totalSeconds: number;
+  t: Translator;
+}) {
+  const segments = useMemo(
+    () =>
+      buildDonutSegments(
+        shares.map((share) => ({
+          color: share.projectColor || '#64748b',
+          totalSeconds: share.totalSeconds,
+        })),
+      ),
+    [shares],
+  );
+  const size = 148;
+  const center = size / 2;
+  const radius = 52;
+  const strokeWidth = 17;
+
+  return (
+    <div className="dashboard-donut-chart">
+      <svg aria-hidden="true" className="dashboard-donut-svg" height={size} viewBox={`0 0 ${size} ${size}`} width={size}>
+        <circle
+          cx={center}
+          cy={center}
+          fill="none"
+          r={radius}
+          stroke="rgba(255, 255, 255, 0.06)"
+          strokeWidth={strokeWidth}
+        />
+        {segments.map((segment, index) => (
+          <path
+            d={describeDonutArc(center, radius, segment.startAngle, segment.endAngle)}
+            fill="none"
+            key={`${segment.color}-${index}`}
+            opacity={0.92}
+            stroke={segment.color}
+            strokeLinecap="round"
+            strokeWidth={strokeWidth}
+          />
         ))}
+        <circle
+          cx={center}
+          cy={center}
+          fill="none"
+          opacity={0.35}
+          r={radius - strokeWidth / 2 - 1}
+          stroke="rgba(255, 255, 255, 0.08)"
+          strokeWidth={1}
+        />
+      </svg>
+      <div className="dashboard-donut-center">
+        <strong>{formatDuration(totalSeconds)}</strong>
+        <span>{t('dashboardDonutTotal')}</span>
       </div>
     </div>
   );
@@ -151,7 +217,8 @@ function ActivityGraphCard({
         </div>
       </div>
 
-      <div className="dashboard-heatmap-calendar">
+      <div className="dashboard-card-body">
+        <div className="dashboard-heatmap-calendar">
         <div aria-hidden="true" className="dashboard-heatmap-head">
           {dayNames.map((label) => (
             <span className="dashboard-heatmap-weekday" key={label}>
@@ -185,6 +252,7 @@ function ActivityGraphCard({
           <span className="dashboard-heatmap-cell level-4" />
           <span>{t('dashboardActivityMore')}</span>
         </div>
+        </div>
       </div>
     </div>
   );
@@ -194,16 +262,6 @@ function WeekOverview({ locale, stats, t }: { locale: Locale; stats: DashboardSt
   const peak = maxSeconds(stats.weekDays.map((day) => day.totalSeconds));
   const chartPeak = weekChartPeak(peak);
   const axisTicks = useMemo(() => weekChartAxisTicks(peak), [peak]);
-  const donut = useMemo(
-    () =>
-      donutGradient(
-        stats.projectBreakdown.map((share) => ({
-          color: share.projectColor || '#64748b',
-          totalSeconds: share.totalSeconds,
-        })),
-      ),
-    [stats.projectBreakdown],
-  );
 
   return (
     <div className="dashboard-week-layout">
@@ -224,7 +282,7 @@ function WeekOverview({ locale, stats, t }: { locale: Locale; stats: DashboardSt
                     style={{ height: `${weekBarHeight(day.totalSeconds, chartPeak)}%` }}
                   />
                 </div>
-                <small>{day.weekday}</small>
+                <span className="dashboard-weekday-label">{formatWeekdayShort(day.date, locale)}</span>
               </div>
             ))}
           </div>
@@ -245,14 +303,24 @@ function WeekOverview({ locale, stats, t }: { locale: Locale; stats: DashboardSt
           <strong>{formatMoneyMinor(stats.weekBillableMinor, stats.weekCurrency, locale)}</strong>
         </div>
         <div className="dashboard-donut-wrap">
-          <div aria-hidden="true" className="dashboard-donut" style={{ background: donut }} />
+          <ProjectDonutChart shares={stats.projectBreakdown} totalSeconds={stats.weekSpentSeconds} t={t} />
           <ul className="dashboard-donut-legend">
-            {stats.projectBreakdown.map((share) => (
-              <li key={share.projectId || share.projectName || 'none'}>
-                <span style={{ backgroundColor: share.projectColor || '#64748b' }} />
-                {share.projectName || t('taskProjectOptional')}
-              </li>
-            ))}
+            {stats.projectBreakdown.map((share) => {
+              const shareRatio =
+                stats.weekSpentSeconds > 0 ? Math.round((share.totalSeconds / stats.weekSpentSeconds) * 100) : 0;
+              return (
+                <li key={share.projectId || share.projectName || 'none'}>
+                  <ProjectBadge
+                    color={share.projectColor}
+                    compact
+                    emptyLabel={t('taskProjectOptional')}
+                    name={share.projectName}
+                  />
+                  <span className="dashboard-donut-legend-duration">{formatDuration(share.totalSeconds)}</span>
+                  <span className="dashboard-donut-legend-share">{shareRatio}%</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>
@@ -267,6 +335,7 @@ export function DashboardPanel({ locale, t }: { locale: Locale; t: Translator })
   const statsQuery = useQuery({
     queryKey: ['dashboard-stats', activityMonth],
     queryFn: () => fetchDashboardStats(activityMonth),
+    refetchInterval: 30_000,
     retry: false,
   });
 
@@ -301,23 +370,25 @@ export function DashboardPanel({ locale, t }: { locale: Locale; t: Translator })
       {stats ? (
         <>
           <div className="dashboard-top-grid">
-            <div className="dashboard-card">
+            <div className="dashboard-card dashboard-fill-card">
               <h3>{t('dashboardRecentEntries')}</h3>
-              {stats.recentEntries.length === 0 ? (
-                <p className="empty-state">{t('noTimeEntries')}</p>
-              ) : (
-                <div className="dashboard-recent-list">
-                  {stats.recentEntries.map((entry) => (
-                    <RecentEntryRow
-                      entry={entry}
-                      key={entry.id}
-                      onRestart={(value) => restartMutation.mutate(value)}
-                      pending={restartMutation.isPending}
-                      t={t}
-                    />
-                  ))}
-                </div>
-              )}
+              <div className="dashboard-card-body">
+                {stats.recentEntries.length === 0 ? (
+                  <p className="dashboard-empty-state">{t('noTimeEntries')}</p>
+                ) : (
+                  <div className="dashboard-recent-list">
+                    {stats.recentEntries.map((entry) => (
+                      <RecentEntryRow
+                        entry={entry}
+                        key={entry.id}
+                        onRestart={(value) => restartMutation.mutate(value)}
+                        pending={restartMutation.isPending}
+                        t={t}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <LastSevenDaysCard days={stats.lastSevenDays} t={t} />

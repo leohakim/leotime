@@ -70,6 +70,22 @@ func TestTaskLifecycle(t *testing.T) {
 	if len(allTasks) != 1 || allTasks[0].ArchivedAt == "" {
 		t.Fatalf("expected archived task, got %+v", allTasks)
 	}
+
+	restored, err := st.RestoreTask(ctx, user.ID, task.ID)
+	if err != nil {
+		t.Fatalf("restore task: %v", err)
+	}
+	if restored.ArchivedAt != "" {
+		t.Fatalf("expected restored task without archivedAt, got %+v", restored)
+	}
+
+	activeTasksAfterRestore, err := st.ListTasks(ctx, user.ID, false, "")
+	if err != nil {
+		t.Fatalf("list active tasks after restore: %v", err)
+	}
+	if len(activeTasksAfterRestore) != 1 {
+		t.Fatalf("expected one active task after restore, got %d", len(activeTasksAfterRestore))
+	}
 }
 
 func TestListTasksOrdersByCreatedAtDesc(t *testing.T) {

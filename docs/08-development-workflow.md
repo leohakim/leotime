@@ -52,6 +52,8 @@ They are embedded into the Go binary and applied on startup.
 
 For now migrations are forward-only SQL files. If a migration is wrong during early development, create a new migration that fixes it instead of editing production history.
 
+After changing backend routes or store behavior, restart the Go API process. `go run` does not hot-reload, so an old server can still answer `404 not found` for new endpoints such as `/restore`.
+
 ## Test Workflow
 
 Run backend tests:
