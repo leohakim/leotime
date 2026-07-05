@@ -9,7 +9,6 @@ import {
   CircleAlert,
   CircleCheck,
   CirclePlay,
-  CircleStop,
   Columns3,
   DollarSign,
   EllipsisVertical,
@@ -33,7 +32,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   archiveClient,
   archiveProject,
@@ -49,8 +48,10 @@ import {
   fetchTags,
   fetchTasks,
   fetchTimeEntries,
+  fetchTimers,
   login,
   logout,
+  stopTimer,
   updateClient,
   updateProject,
   updateTag,
@@ -67,7 +68,8 @@ import {
   type TaskInput,
 } from './lib/api';
 import { translate } from './lib/i18n';
-import { ManualTimeEntryPanel, TimeEntriesList, scrollToManualEntryForm } from './lib/timeEntryUi';
+import { ManualTimeEntryPanel, TimeEntriesList } from './lib/timeEntryUi';
+import { SidebarTimer, TimerCommandRow } from './lib/timerUi';
 import { usePersistentState } from './lib/persistentState';
 
 export function App() {
@@ -173,6 +175,21 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
   const tasksQuery = useQuery({ queryKey: ['tasks'], queryFn: fetchTasks });
   const tagsQuery = useQuery({ queryKey: ['tags'], queryFn: fetchTags });
   const timeEntriesQuery = useQuery({ queryKey: ['time-entries'], queryFn: fetchTimeEntries });
+  const timersQuery = useQuery({
+    queryKey: ['timers'],
+    queryFn: fetchTimers,
+    refetchInterval: (query) => ((query.state.data?.timers?.length ?? 0) > 0 ? 30_000 : false),
+  });
+  const openTimers = timersQuery.data?.timers ?? [];
+  const activeTimer = openTimers[0] ?? null;
+  const stopTimerMutation = useMutation({
+    mutationFn: stopTimer,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['timers'] });
+      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+  });
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
@@ -189,15 +206,12 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
           <ChevronDown aria-hidden="true" />
         </div>
 
-        <div className="sidebar-timer">
-          <div>
-            <span>{t('currentTimer')}</span>
-            <strong>00:40:47</strong>
-          </div>
-          <button className="sidebar-stop-button" type="button" title={t('stop')}>
-            <CircleStop aria-hidden="true" />
-          </button>
-        </div>
+        <SidebarTimer
+          activeTimer={activeTimer}
+          onStop={(timeEntryId) => stopTimerMutation.mutate(timeEntryId)}
+          stoppingTimerId={stopTimerMutation.isPending ? (stopTimerMutation.variables ?? null) : null}
+          t={t}
+        />
 
         <nav className="sidebar-nav">
           <a href="#dashboard">
@@ -280,31 +294,21 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
           </div>
         </header>
 
-        <section className="timer-command-row" aria-label={t('currentTimer')}>
-          <div className="active-timer-card">
-            <div className="timer-description">Cropper de Imagenes en todo el BackOffice [Serializers]</div>
-            <EntityPill color="#ff714b" label="RTVE" />
-            <button className="quiet-icon-button" type="button" title={t('tags')}>
-              <Tag aria-hidden="true" />
-            </button>
-            <button className="quiet-icon-button billable" type="button" title={t('billable')}>
-              <DollarSign aria-hidden="true" />
-            </button>
-            <strong className="timer-clock">00:40:47</strong>
-          </div>
-          <button className="stop-timer-button" type="button" title={t('stop')}>
-            <CircleStop aria-hidden="true" />
-          </button>
-          <button className="manual-entry-button" type="button" onClick={() => scrollToManualEntryForm()}>
-            <Plus aria-hidden="true" />
-            {t('manualTimeEntry')}
-          </button>
-        </section>
+        <TimerCommandRow
+          onStop={(timeEntryId) => stopTimerMutation.mutate(timeEntryId)}
+          projects={projectsQuery.data?.projects ?? []}
+          stoppingTimerId={stopTimerMutation.isPending ? (stopTimerMutation.variables ?? null) : null}
+          tasks={tasksQuery.data?.tasks ?? []}
+          timers={openTimers}
+          t={t}
+        />
 
         <TimeEntriesList
           entries={timeEntriesQuery.data?.timeEntries ?? []}
           isLoading={timeEntriesQuery.isLoading}
           locale={locale}
+          projects={projectsQuery.data?.projects ?? []}
+          tasks={tasksQuery.data?.tasks ?? []}
           t={t}
         />
 
@@ -1014,6 +1018,42 @@ function TaskPanel({
     onError: () => setErrors((current) => ({ ...current, form: t('taskSaveFailed') })),
   });
 
+  const inlineUpdateMutation = useMutation({
+    mutationFn: ({ taskId, input }: { taskId: string; input: TaskInput }) => updateTask(taskId, input),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['tasks'], (current: { tasks: Task[] } | undefined) => {
+        if (!current) {
+          return current;
+        }
+        return {
+          tasks: current.tasks.map((item) => (item.id === updated.id ? updated : item)),
+        };
+      });
+      if (editingTaskId === updated.id) {
+        setForm((current) => ({ ...current, name: updated.name }));
+      }
+    },
+    onError: () => setErrors((current) => ({ ...current, form: t('taskSaveFailed') })),
+  });
+
+  const saveInlineTaskName = useCallback(
+    (taskId: string, name: string) => {
+      const task = tasks.find((item) => item.id === taskId);
+      if (!task) {
+        return;
+      }
+      inlineUpdateMutation.mutate({
+        taskId,
+        input: {
+          projectId: task.projectId,
+          name,
+          billable: task.billable,
+        },
+      });
+    },
+    [inlineUpdateMutation, tasks],
+  );
+
   const archiveMutation = useMutation({
     mutationFn: archiveTask,
     onSuccess: () => {
@@ -1113,7 +1153,7 @@ function TaskPanel({
                   )}
                   <div className="client-row-copy">
                     <div className="client-row-title">
-                      <strong>{task.name}</strong>
+                      <TaskInlineNameInput onSave={saveInlineTaskName} t={t} task={task} />
                       <span className="status-pill">
                         <CircleCheck aria-hidden="true" />
                         {t('active')}
@@ -1479,6 +1519,92 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
   );
 }
 
+function TaskInlineNameInput({
+  onSave,
+  t,
+  task,
+}: {
+  onSave: (taskId: string, name: string) => void;
+  t: Translator;
+  task: Task;
+}) {
+  const [liveName, setLiveName] = useState(task.name);
+  const [inlineError, setInlineError] = useState('');
+  const skipSaveRef = useRef(true);
+  const taskRef = useRef(task);
+  taskRef.current = task;
+
+  useEffect(() => {
+    skipSaveRef.current = true;
+    setLiveName(task.name);
+    setInlineError('');
+  }, [task.id]);
+
+  useEffect(() => {
+    const trimmed = liveName.trim();
+    if (skipSaveRef.current) {
+      skipSaveRef.current = false;
+      return;
+    }
+    if (trimmed === taskRef.current.name) {
+      setInlineError('');
+      return;
+    }
+    if (!trimmed) {
+      setInlineError(t('taskNameRequired'));
+      return;
+    }
+    if (trimmed.length < 2) {
+      setInlineError(t('taskNameTooShort'));
+      return;
+    }
+
+    setInlineError('');
+    const handle = window.setTimeout(() => {
+      onSave(taskRef.current.id, trimmed);
+    }, 400);
+
+    return () => window.clearTimeout(handle);
+  }, [liveName, onSave, t]);
+
+  function handleBlur() {
+    const trimmed = liveName.trim();
+    if (!trimmed || trimmed.length < 2) {
+      setLiveName(taskRef.current.name);
+      setInlineError('');
+    }
+  }
+
+  return (
+    <label className="client-row-inline-field">
+      <span className="visually-hidden">{t('taskName')}</span>
+      <input
+        aria-describedby={inlineError ? `task-inline-error-${task.id}` : undefined}
+        aria-invalid={Boolean(inlineError)}
+        aria-label={`${t('taskName')}: ${task.name}`}
+        className={inlineError ? 'client-row-inline-input invalid' : 'client-row-inline-input'}
+        onBlur={handleBlur}
+        onChange={(event) => setLiveName(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.currentTarget.blur();
+          }
+        }}
+        value={liveName}
+      />
+      {inlineError ? (
+        <span className="client-row-inline-error" id={`task-inline-error-${task.id}`} role="alert">
+          {inlineError}
+        </span>
+      ) : null}
+    </label>
+  );
+}
+
+function fieldClass(error?: string) {
+  return error ? 'form-field has-error' : 'form-field';
+}
+
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) {
     return null;
@@ -1488,10 +1614,6 @@ function FieldError({ id, message }: { id: string; message?: string }) {
       {message}
     </span>
   );
-}
-
-function fieldClass(error?: string) {
-  return error ? 'form-field has-error' : 'form-field';
 }
 
 function validateClientForm(form: ClientFormState, t: Translator): ClientFormErrors {

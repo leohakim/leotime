@@ -66,6 +66,11 @@ func NewRouter(cfg config.Config, st *store.Store) http.Handler {
 		r.Get("/time-entries/{timeEntryID}", server.requireUser(server.getTimeEntry))
 		r.Patch("/time-entries/{timeEntryID}", server.requireUser(server.updateTimeEntry))
 		r.Delete("/time-entries/{timeEntryID}", server.requireUser(server.deleteTimeEntry))
+		r.Get("/timers", server.requireUser(server.listTimers))
+		r.Post("/timers", server.requireUser(server.startTimer))
+		r.Patch("/timers/{timeEntryID}", server.requireUser(server.updateTimer))
+		r.Post("/timers/{timeEntryID}/stop", server.requireUser(server.stopTimer))
+		r.Delete("/timers/{timeEntryID}", server.requireUser(server.discardTimer))
 	})
 
 	r.NotFound(server.notFound)

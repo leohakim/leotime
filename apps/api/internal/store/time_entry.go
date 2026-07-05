@@ -277,6 +277,7 @@ func scanTimeEntry(scanner timeEntryScanner) (TimeEntry, error) {
 	var clientID sql.NullString
 	var projectID sql.NullString
 	var taskID sql.NullString
+	var endedAt sql.NullString
 	var billable int
 	var overlapWarning int
 
@@ -291,7 +292,7 @@ func scanTimeEntry(scanner timeEntryScanner) (TimeEntry, error) {
 		&entry.TaskName,
 		&entry.Description,
 		&entry.StartedAt,
-		&entry.EndedAt,
+		&endedAt,
 		&entry.DurationSeconds,
 		&billable,
 		&overlapWarning,
@@ -305,6 +306,7 @@ func scanTimeEntry(scanner timeEntryScanner) (TimeEntry, error) {
 	entry.ClientID = clientID.String
 	entry.ProjectID = projectID.String
 	entry.TaskID = taskID.String
+	entry.EndedAt = endedAt.String
 	entry.Billable = billable != 0
 	entry.OverlapWarning = overlapWarning != 0
 	entry.Tags = []TimeEntryTag{}
@@ -341,59 +343,11 @@ func (s *Store) normalizeTimeEntryInput(ctx context.Context, userID string, time
 		return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: duration must be at least one minute", ErrInvalidTimeEntryInput)
 	}
 
-	if input.ClientID != "" {
-		ok, err := s.activeClientExists(ctx, userID, input.ClientID)
-		if err != nil {
-			return TimeEntryInput{}, time.Time{}, time.Time{}, err
-		}
-		if !ok {
-			return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: clientId must reference an active client", ErrInvalidTimeEntryInput)
-		}
-	}
-
-	if input.TaskID != "" {
-		task, err := s.TaskByID(ctx, userID, input.TaskID)
-		if err != nil {
-			if errors.Is(err, ErrTaskNotFound) {
-				return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: taskId must reference an active task", ErrInvalidTimeEntryInput)
-			}
-			return TimeEntryInput{}, time.Time{}, time.Time{}, err
-		}
-		if task.ArchivedAt != "" {
-			return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: taskId must reference an active task", ErrInvalidTimeEntryInput)
-		}
-		if task.ProjectID != "" {
-			if input.ProjectID == "" {
-				input.ProjectID = task.ProjectID
-			} else if input.ProjectID != task.ProjectID {
-				return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: projectId must match the selected task project", ErrInvalidTimeEntryInput)
-			}
-		}
-	}
-
-	if input.ProjectID != "" {
-		project, err := s.ProjectByID(ctx, userID, input.ProjectID)
-		if err != nil {
-			if errors.Is(err, ErrProjectNotFound) {
-				return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: projectId must reference an active project", ErrInvalidTimeEntryInput)
-			}
-			return TimeEntryInput{}, time.Time{}, time.Time{}, err
-		}
-		if project.ArchivedAt != "" {
-			return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: projectId must reference an active project", ErrInvalidTimeEntryInput)
-		}
-		if project.ClientID != "" {
-			if input.ClientID == "" {
-				input.ClientID = project.ClientID
-			} else if input.ClientID != project.ClientID {
-				return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: clientId must match the selected project client", ErrInvalidTimeEntryInput)
-			}
-		}
-	}
-
-	if err := s.validateTagIDs(ctx, userID, input.TagIDs); err != nil {
+	relations, err := s.normalizeTimeEntryRelations(ctx, userID, input)
+	if err != nil {
 		return TimeEntryInput{}, time.Time{}, time.Time{}, err
 	}
+	input = relations
 
 	return input, startedAt, endedAt, nil
 }

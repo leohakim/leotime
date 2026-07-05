@@ -154,6 +154,19 @@ export type TimeEntriesResponse = {
   timeEntries: TimeEntry[];
 };
 
+export type TimerStartInput = {
+  clientId: string;
+  projectId: string;
+  taskId: string;
+  tagIds: string[];
+  description: string;
+  billable: boolean;
+};
+
+export type TimersResponse = {
+  timers: TimeEntry[];
+};
+
 export async function fetchSession(): Promise<SessionResponse> {
   return apiGet('/api/v1/session');
 }
@@ -180,6 +193,31 @@ export async function fetchTags(): Promise<TagsResponse> {
 
 export async function fetchTimeEntries(): Promise<TimeEntriesResponse> {
   return apiGet('/api/v1/time-entries');
+}
+
+export async function fetchTimers(): Promise<TimersResponse> {
+  return apiGet('/api/v1/timers');
+}
+
+export async function startTimer(input: TimerStartInput): Promise<TimeEntry> {
+  return apiJSON('/api/v1/timers', 'POST', input);
+}
+
+export async function stopTimer(timeEntryId: string): Promise<TimeEntry> {
+  const response = await fetch(`/api/v1/timers/${timeEntryId}/stop`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`request_failed:${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function updateTimer(timeEntryId: string, input: TimerStartInput): Promise<TimeEntry> {
+  return apiJSON(`/api/v1/timers/${timeEntryId}`, 'PATCH', input);
 }
 
 export async function createClient(input: ClientInput): Promise<Client> {

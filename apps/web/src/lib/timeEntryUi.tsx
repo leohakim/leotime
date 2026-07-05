@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, CircleAlert, Clock3, DollarSign, Pencil, Plus, Save, Tag, Trash2, X } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createTimeEntry,
   deleteTimeEntry,
@@ -25,11 +25,15 @@ export function TimeEntriesList({
   entries,
   isLoading,
   locale,
+  projects,
+  tasks,
   t,
 }: {
   entries: TimeEntry[];
   isLoading: boolean;
   locale: Locale;
+  projects: Project[];
+  tasks: Task[];
   t: Translator;
 }) {
   const groupedDays = useMemo(() => groupTimeEntriesByDay(entries, locale), [entries, locale]);
@@ -62,20 +66,7 @@ export function TimeEntriesList({
               <strong>{formatDuration(day.totalSeconds)}</strong>
             </div>
             {day.entries.map((entry) => (
-              <div className="time-entry-row" role="row" key={entry.id}>
-                <span className="entry-checkbox" aria-hidden="true" />
-                <div className="entry-task">
-                  <strong>{entry.description || t('noDescription')}</strong>
-                </div>
-                <EntityPill color={entry.projectColor || '#64748b'} label={entry.projectName || t('taskProjectOptional')} />
-                <div className="entry-flags">
-                  {entry.tags.length > 0 ? <Tag aria-hidden="true" /> : null}
-                  <DollarSign aria-hidden="true" className={entry.billable ? 'billable-on' : undefined} />
-                  {entry.overlapWarning ? <CircleAlert aria-hidden="true" className="overlap-warning-icon" /> : null}
-                </div>
-                <span className="entry-time">{formatTimeRange(entry.startedAt, entry.endedAt, locale)}</span>
-                <strong className="entry-duration">{formatDuration(entry.durationSeconds)}</strong>
-              </div>
+              <TimesheetEntryRow entry={entry} key={entry.id} locale={locale} projects={projects} tasks={tasks} t={t} />
             ))}
           </div>
         ))}
@@ -269,38 +260,31 @@ export function ManualTimeEntryPanel({
               </div>
             ) : null}
             {timeEntries.slice(0, 12).map((entry) => (
-              <article className={editingEntryId === entry.id ? 'client-row selected' : 'client-row'} key={entry.id}>
-                <div className="client-row-main">
-                  <div className="project-color-dot" style={{ backgroundColor: entry.projectColor || '#64748b' }} aria-hidden="true" />
-                  <div className="client-row-copy">
-                    <div className="client-row-title">
-                      <strong>{entry.description || t('noDescription')}</strong>
-                      {entry.overlapWarning ? (
-                        <span className="status-pill warning-pill">
-                          <CircleAlert aria-hidden="true" />
-                          {t('overlapWarning')}
-                        </span>
-                      ) : null}
-                    </div>
-                    <span className="client-contact">
-                      {formatTimeRange(entry.startedAt, entry.endedAt, locale)} · {formatDuration(entry.durationSeconds)}
-                    </span>
-                  </div>
-                </div>
-                <div className="client-row-actions">
-                  <button className="secondary-button icon-button" type="button" onClick={() => startEditing(entry)} title={t('edit')}>
-                    <Pencil aria-hidden="true" />
-                  </button>
-                  <button
-                    className="secondary-button icon-button danger-button"
-                    type="button"
-                    onClick={() => deleteMutation.mutate(entry.id)}
-                    title={t('delete')}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </button>
-                </div>
-              </article>
+              <DirectoryEntryRow
+                entry={entry}
+                isSelected={editingEntryId === entry.id}
+                key={entry.id}
+                locale={locale}
+                onDelete={() => deleteMutation.mutate(entry.id)}
+                onOpenEditor={() => startEditing(entry)}
+                onSynced={(updated) => {
+                  if (editingEntryId === updated.id) {
+                    setForm({
+                      clientId: updated.clientId,
+                      projectId: updated.projectId,
+                      taskId: updated.taskId,
+                      tagIds: updated.tags.map((tag) => tag.id),
+                      description: updated.description,
+                      startedAt: toDateTimeLocalValue(updated.startedAt),
+                      endedAt: toDateTimeLocalValue(updated.endedAt),
+                      billable: updated.billable,
+                    });
+                  }
+                }}
+                projects={projects}
+                tasks={tasks}
+                t={t}
+              />
             ))}
           </div>
         </div>
@@ -437,15 +421,6 @@ export function ManualTimeEntryPanel({
   );
 }
 
-function EntityPill({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="entity-pill">
-      <span style={{ backgroundColor: color }} aria-hidden="true" />
-      {label}
-    </span>
-  );
-}
-
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) {
     return null;
@@ -487,6 +462,342 @@ function validateManualTimeEntryForm(form: ManualTimeEntryFormState, t: Translat
   }
 
   return errors;
+}
+
+function timeEntryToInput(entry: TimeEntry, overrides: Partial<TimeEntryInlineForm>, projects: Project[], tasks: Task[]): TimeEntryInput {
+  const description = overrides.description ?? entry.description;
+  const projectId = overrides.projectId ?? entry.projectId;
+  let taskId = overrides.taskId ?? entry.taskId;
+  const startedAt =
+    overrides.startedAt !== undefined ? fromDateTimeLocalValue(overrides.startedAt) : entry.startedAt;
+  const endedAt = overrides.endedAt !== undefined ? fromDateTimeLocalValue(overrides.endedAt) : entry.endedAt;
+
+  if (projectId && taskId) {
+    const task = tasks.find((item) => item.id === taskId);
+    if (task?.projectId && task.projectId !== projectId) {
+      taskId = '';
+    }
+  }
+
+  const project = projects.find((item) => item.id === projectId);
+
+  return {
+    clientId: project?.clientId ?? entry.clientId,
+    projectId,
+    taskId,
+    tagIds: entry.tags.map((tag) => tag.id),
+    description: description.trim(),
+    startedAt,
+    endedAt,
+    billable: entry.billable,
+  };
+}
+
+type TimeEntryInlineForm = {
+  description: string;
+  projectId: string;
+  taskId: string;
+  startedAt: string;
+  endedAt: string;
+};
+
+function entryToInlineForm(entry: TimeEntry): TimeEntryInlineForm {
+  return {
+    description: entry.description,
+    projectId: entry.projectId,
+    taskId: entry.taskId,
+    startedAt: toDateTimeLocalValue(entry.startedAt),
+    endedAt: toDateTimeLocalValue(entry.endedAt),
+  };
+}
+
+function validateInlineForm(form: TimeEntryInlineForm, t: Translator): string {
+  if (!form.startedAt) {
+    return t('timeEntryStartRequired');
+  }
+  if (!form.endedAt) {
+    return t('timeEntryEndRequired');
+  }
+  const start = new Date(form.startedAt);
+  const end = new Date(form.endedAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return t('timeEntrySaveFailed');
+  }
+  if (end <= start) {
+    return t('timeEntryEndAfterStart');
+  }
+  if (end.getTime() - start.getTime() < 60_000) {
+    return t('timeEntryMinDuration');
+  }
+  return '';
+}
+
+function computeLiveDurationSeconds(form: TimeEntryInlineForm, fallback: number): number {
+  const start = new Date(form.startedAt);
+  const end = new Date(form.endedAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    return fallback;
+  }
+  return Math.floor((end.getTime() - start.getTime()) / 1000);
+}
+
+function useTimeEntryInlineEditor({
+  entry,
+  onSynced,
+  projects,
+  tasks,
+  t,
+}: {
+  entry: TimeEntry;
+  onSynced?: (updated: TimeEntry) => void;
+  projects: Project[];
+  tasks: Task[];
+  t: Translator;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState(() => entryToInlineForm(entry));
+  const [error, setError] = useState('');
+  const skipSaveRef = useRef(true);
+  const entryRef = useRef(entry);
+  entryRef.current = entry;
+
+  const updateMutation = useMutation({
+    mutationFn: ({ timeEntryId, input }: { timeEntryId: string; input: TimeEntryInput }) =>
+      updateTimeEntry(timeEntryId, input),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['time-entries'], (current: { timeEntries: TimeEntry[] } | undefined) => {
+        if (!current) {
+          return current;
+        }
+        return {
+          timeEntries: current.timeEntries.map((item) => (item.id === updated.id ? updated : item)),
+        };
+      });
+      onSynced?.(updated);
+    },
+    onError: () => setError(t('timeEntrySaveFailed')),
+  });
+
+  useEffect(() => {
+    skipSaveRef.current = true;
+    setForm(entryToInlineForm(entry));
+    setError('');
+  }, [entry.id]);
+
+  useEffect(() => {
+    if (skipSaveRef.current) {
+      skipSaveRef.current = false;
+      return;
+    }
+
+    const validationError = validateInlineForm(form, t);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setError('');
+    const handle = window.setTimeout(() => {
+      updateMutation.mutate({
+        timeEntryId: entryRef.current.id,
+        input: timeEntryToInput(entryRef.current, form, projects, tasks),
+      });
+    }, 400);
+
+    return () => window.clearTimeout(handle);
+  }, [form, entry.id, projects, tasks, t, updateMutation]);
+
+  function updateField<K extends keyof TimeEntryInlineForm>(field: K, value: TimeEntryInlineForm[K]) {
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      if (field === 'projectId') {
+        const task = tasks.find((item) => item.id === current.taskId);
+        if (task?.projectId && task.projectId !== value) {
+          next.taskId = '';
+        }
+      }
+      return next;
+    });
+  }
+
+  const project = projects.find((item) => item.id === form.projectId);
+  const liveDuration = computeLiveDurationSeconds(form, entry.durationSeconds);
+
+  return { error, form, liveDuration, project, updateField };
+}
+
+function TimesheetEntryRow({
+  entry,
+  locale,
+  projects,
+  tasks,
+  t,
+}: {
+  entry: TimeEntry;
+  locale: Locale;
+  projects: Project[];
+  tasks: Task[];
+  t: Translator;
+}) {
+  const { error, form, liveDuration, project, updateField } = useTimeEntryInlineEditor({ entry, projects, tasks, t });
+
+  return (
+    <div className="time-entry-row" role="row">
+      <span className="entry-checkbox" aria-hidden="true" />
+      <div className="entry-task">
+        <input
+          aria-label={t('description')}
+          className="client-row-inline-input entry-inline-description"
+          onChange={(event) => updateField('description', event.target.value)}
+          placeholder={t('timeEntryDescriptionPlaceholder')}
+          value={form.description}
+        />
+      </div>
+      <select
+        aria-label={t('taskProject')}
+        className="entry-inline-select"
+        onChange={(event) => updateField('projectId', event.target.value)}
+        value={form.projectId}
+      >
+        <option value="">{t('taskProjectOptional')}</option>
+        {projects.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.name}
+          </option>
+        ))}
+      </select>
+      <div className="entry-flags">
+        {entry.tags.length > 0 ? <Tag aria-hidden="true" /> : null}
+        <DollarSign aria-hidden="true" className={entry.billable ? 'billable-on' : undefined} />
+        {entry.overlapWarning ? <CircleAlert aria-hidden="true" className="overlap-warning-icon" /> : null}
+      </div>
+      <input
+        aria-label={t('startedAt')}
+        className="entry-inline-datetime"
+        onChange={(event) => updateField('startedAt', event.target.value)}
+        type="datetime-local"
+        value={form.startedAt}
+      />
+      <input
+        aria-label={t('endedAt')}
+        className="entry-inline-datetime"
+        onChange={(event) => updateField('endedAt', event.target.value)}
+        type="datetime-local"
+        value={form.endedAt}
+      />
+      <strong className="entry-duration">{formatDuration(liveDuration)}</strong>
+      {error ? (
+        <span className="entry-inline-error" role="alert">
+          {error}
+        </span>
+      ) : null}
+      {project ? <span className="visually-hidden">{project.name}</span> : null}
+      <span className="visually-hidden">{formatTimeRange(entry.startedAt, entry.endedAt, locale)}</span>
+    </div>
+  );
+}
+
+function DirectoryEntryRow({
+  entry,
+  isSelected,
+  locale,
+  onDelete,
+  onOpenEditor,
+  onSynced,
+  projects,
+  tasks,
+  t,
+}: {
+  entry: TimeEntry;
+  isSelected: boolean;
+  locale: Locale;
+  onDelete: () => void;
+  onOpenEditor: () => void;
+  onSynced?: (updated: TimeEntry) => void;
+  projects: Project[];
+  tasks: Task[];
+  t: Translator;
+}) {
+  const { error, form, liveDuration, project, updateField } = useTimeEntryInlineEditor({
+    entry,
+    onSynced,
+    projects,
+    tasks,
+    t,
+  });
+
+  return (
+    <article className={isSelected ? 'client-row selected' : 'client-row'}>
+      <div className="client-row-main">
+        <div
+          className="project-color-dot"
+          style={{ backgroundColor: project?.color || entry.projectColor || '#64748b' }}
+          aria-hidden="true"
+        />
+        <div className="client-row-copy entry-inline-copy">
+          <div className="client-row-title">
+            <input
+              aria-label={t('description')}
+              className="client-row-inline-input entry-inline-description"
+              onChange={(event) => updateField('description', event.target.value)}
+              placeholder={t('noDescription')}
+              value={form.description}
+            />
+            {entry.overlapWarning ? (
+              <span className="status-pill warning-pill">
+                <CircleAlert aria-hidden="true" />
+                {t('overlapWarning')}
+              </span>
+            ) : null}
+          </div>
+          <div className="entry-inline-meta">
+            <select
+              aria-label={t('taskProject')}
+              className="entry-inline-select"
+              onChange={(event) => updateField('projectId', event.target.value)}
+              value={form.projectId}
+            >
+              <option value="">{t('taskProjectOptional')}</option>
+              {projects.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+            <input
+              aria-label={t('startedAt')}
+              className="entry-inline-datetime"
+              onChange={(event) => updateField('startedAt', event.target.value)}
+              type="datetime-local"
+              value={form.startedAt}
+            />
+            <input
+              aria-label={t('endedAt')}
+              className="entry-inline-datetime"
+              onChange={(event) => updateField('endedAt', event.target.value)}
+              type="datetime-local"
+              value={form.endedAt}
+            />
+            <span className="entry-inline-duration">{formatDuration(liveDuration)}</span>
+          </div>
+          {error ? (
+            <span className="entry-inline-error" role="alert">
+              {error}
+            </span>
+          ) : null}
+        </div>
+      </div>
+      <div className="client-row-actions">
+        <button className="secondary-button icon-button" type="button" onClick={onOpenEditor} title={t('edit')}>
+          <Pencil aria-hidden="true" />
+        </button>
+        <button className="secondary-button icon-button danger-button" type="button" onClick={onDelete} title={t('delete')}>
+          <Trash2 aria-hidden="true" />
+        </button>
+      </div>
+      <span className="visually-hidden">{formatTimeRange(entry.startedAt, entry.endedAt, locale)}</span>
+    </article>
+  );
 }
 
 function manualTimeEntryFormToInput(form: ManualTimeEntryFormState): TimeEntryInput {

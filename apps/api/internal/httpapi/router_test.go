@@ -496,6 +496,70 @@ func TestTimeEntryHTTPLifecycle(t *testing.T) {
 	}
 }
 
+func TestTimerHTTPLifecycle(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	startResponse := httptest.NewRecorder()
+	startRequest := httptest.NewRequest(http.MethodPost, "/api/v1/timers", bytes.NewBufferString(`{
+		"description": "Timer work",
+		"billable": true
+	}`))
+	for _, cookie := range cookies {
+		startRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(startResponse, startRequest)
+
+	if startResponse.Code != http.StatusCreated {
+		t.Fatalf("expected start 201, got %d: %s", startResponse.Code, startResponse.Body.String())
+	}
+
+	var started struct {
+		ID      string `json:"id"`
+		Source  string `json:"source"`
+		EndedAt string `json:"endedAt"`
+	}
+	if err := json.Unmarshal(startResponse.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode started timer: %v", err)
+	}
+	if started.ID == "" || started.Source != "timer" || started.EndedAt != "" {
+		t.Fatalf("unexpected started timer: %+v", started)
+	}
+
+	listResponse := httptest.NewRecorder()
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/timers", nil)
+	for _, cookie := range cookies {
+		listRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(listResponse, listRequest)
+
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("expected list 200, got %d: %s", listResponse.Code, listResponse.Body.String())
+	}
+
+	stopResponse := httptest.NewRecorder()
+	stopRequest := httptest.NewRequest(http.MethodPost, "/api/v1/timers/"+started.ID+"/stop", nil)
+	for _, cookie := range cookies {
+		stopRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(stopResponse, stopRequest)
+
+	if stopResponse.Code != http.StatusOK {
+		t.Fatalf("expected stop 200, got %d: %s", stopResponse.Code, stopResponse.Body.String())
+	}
+
+	var stopped struct {
+		EndedAt         string `json:"endedAt"`
+		DurationSeconds int    `json:"durationSeconds"`
+	}
+	if err := json.Unmarshal(stopResponse.Body.Bytes(), &stopped); err != nil {
+		t.Fatalf("decode stopped timer: %v", err)
+	}
+	if stopped.EndedAt == "" || stopped.DurationSeconds < 60 {
+		t.Fatalf("unexpected stopped timer: %+v", stopped)
+	}
+}
+
 func newTestRouter(t *testing.T) http.Handler {
 	t.Helper()
 

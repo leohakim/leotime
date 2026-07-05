@@ -56,6 +56,7 @@ describe('App', () => {
       },
     ];
     timeEntriesMock = [];
+    timersMock = [];
     vi.stubGlobal('fetch', vi.fn(mockFetch));
   });
 
@@ -75,6 +76,8 @@ describe('App', () => {
     expect((await screen.findAllByText('Portal Web')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Refactor API')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Deep Work')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Iniciar timer' })).toBeInTheDocument();
+    expect(screen.getByText('Sin timer activo')).toBeInTheDocument();
   });
 
   test('switches language', async () => {
@@ -175,6 +178,21 @@ describe('App', () => {
     expect(tasksMock).toHaveLength(1);
   });
 
+  test('starts and stops a timer from the dashboard', async () => {
+    renderApp();
+
+    await screen.findByRole('button', { name: 'Iniciar timer' });
+    fireEvent.change(screen.getByPlaceholderText('Que estas haciendo?'), { target: { value: 'Trabajo en vivo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar timer' }));
+
+    await waitFor(() => expect(timersMock).toHaveLength(1));
+    expect(screen.getAllByText('Trabajo en vivo').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByTitle('Parar')[0]);
+    await waitFor(() => expect(timersMock).toHaveLength(0));
+    expect(timeEntriesMock).toHaveLength(1);
+  });
+
   test('creates a manual time entry from the dashboard', async () => {
     renderApp();
 
@@ -185,7 +203,7 @@ describe('App', () => {
     fireEvent.click(manualPanel.getByRole('button', { name: 'Crear entrada' }));
 
     await waitFor(() => expect(timeEntriesMock).toHaveLength(1));
-    expect(manualPanel.getByText('Trabajo manual')).toBeInTheDocument();
+    expect(manualPanel.getByDisplayValue('Trabajo manual')).toBeInTheDocument();
   });
 
   test('creates a tag from the dashboard', async () => {
@@ -296,6 +314,27 @@ let timeEntriesMock: Array<{
   updatedAt: string;
 }> = [];
 
+let timersMock: Array<{
+  id: string;
+  clientId: string;
+  clientName: string;
+  projectId: string;
+  projectName: string;
+  projectColor: string;
+  taskId: string;
+  taskName: string;
+  description: string;
+  startedAt: string;
+  endedAt: string;
+  durationSeconds: number;
+  billable: boolean;
+  overlapWarning: boolean;
+  source: string;
+  tags: Array<{ id: string; name: string; color: string }>;
+  createdAt: string;
+  updatedAt: string;
+}> = [];
+
 async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
   const url = String(input);
   if (url.endsWith('/api/v1/session')) {
@@ -319,7 +358,7 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
       tagsTotal: tagsMock.length,
       timeEntriesTotal: timeEntriesMock.length,
       invoicesTotal: 6,
-      openTimers: 0,
+      openTimers: timersMock.length,
     });
   }
 
@@ -389,6 +428,27 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     return jsonResponse(task, 201);
   }
 
+  if (url.includes('/api/v1/tasks/') && init?.method === 'PATCH') {
+    const taskId = url.split('/api/v1/tasks/')[1] ?? '';
+    const body = JSON.parse(String(init.body));
+    const index = tasksMock.findIndex((item) => item.id === taskId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    const project = projectsMock.find((item) => item.id === body.projectId);
+    const updated = {
+      ...tasksMock[index],
+      projectId: body.projectId,
+      projectName: project?.name ?? '',
+      projectColor: project?.color ?? '',
+      name: body.name,
+      billable: body.billable,
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    tasksMock = tasksMock.map((item) => (item.id === taskId ? updated : item));
+    return jsonResponse(updated);
+  }
+
   if (url.endsWith('/api/v1/tags') && (!init?.method || init.method === 'GET')) {
     return jsonResponse({ tags: tagsMock });
   }
@@ -418,33 +478,131 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     const startedAt = body.startedAt;
     const endedAt = body.endedAt;
     const durationSeconds = Math.max(60, Math.floor((Date.parse(endedAt) - Date.parse(startedAt)) / 1000));
-    const entry = {
-      id: `ten_${timeEntriesMock.length + 1}`,
-      clientId: body.clientId ?? '',
-      clientName: client?.name ?? '',
-      projectId: body.projectId ?? '',
-      projectName: project?.name ?? '',
-      projectColor: project?.color ?? '#64748b',
-      taskId: body.taskId ?? '',
-      taskName: task?.name ?? '',
-      description: body.description ?? '',
+    const entry = buildTimeEntryMock(`ten_${timeEntriesMock.length + 1}`, body, {
+      client,
+      project,
+      task,
       startedAt,
       endedAt,
       durationSeconds,
-      billable: body.billable ?? true,
-      overlapWarning: false,
       source: 'manual',
-      tags: (body.tagIds ?? [])
-        .map((tagId: string) => tagsMock.find((item) => item.id === tagId))
-        .filter(Boolean),
-      createdAt: '2026-01-01T00:00:00Z',
-      updatedAt: '2026-01-01T00:00:00Z',
-    };
+    });
     timeEntriesMock = [...timeEntriesMock, entry];
     return jsonResponse(entry, 201);
   }
 
+  if (url.includes('/api/v1/time-entries/') && init?.method === 'PATCH') {
+    const timeEntryId = url.split('/api/v1/time-entries/')[1] ?? '';
+    const body = JSON.parse(String(init.body));
+    const index = timeEntriesMock.findIndex((item) => item.id === timeEntryId);
+    if (index === -1) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    const client = clientsMock.find((item) => item.id === body.clientId);
+    const project = projectsMock.find((item) => item.id === body.projectId);
+    const task = tasksMock.find((item) => item.id === body.taskId);
+    const startedAt = body.startedAt;
+    const endedAt = body.endedAt;
+    const durationSeconds = Math.max(60, Math.floor((Date.parse(endedAt) - Date.parse(startedAt)) / 1000));
+    const updated = buildTimeEntryMock(timeEntryId, body, {
+      client,
+      project,
+      task,
+      startedAt,
+      endedAt,
+      durationSeconds,
+      source: timeEntriesMock[index].source,
+    });
+    timeEntriesMock = timeEntriesMock.map((item) => (item.id === timeEntryId ? updated : item));
+    return jsonResponse(updated);
+  }
+
+  if (url.endsWith('/api/v1/timers') && (!init?.method || init.method === 'GET')) {
+    return jsonResponse({ timers: timersMock });
+  }
+
+  if (url.endsWith('/api/v1/timers') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    const client = clientsMock.find((item) => item.id === body.clientId);
+    const project = projectsMock.find((item) => item.id === body.projectId);
+    const task = tasksMock.find((item) => item.id === body.taskId);
+    const startedAt = new Date().toISOString();
+    const entry = buildTimeEntryMock(`ten_timer_${timersMock.length + 1}`, body, {
+      client,
+      project,
+      task,
+      startedAt,
+      endedAt: '',
+      durationSeconds: 0,
+      source: 'timer',
+    });
+    timersMock = [...timersMock, entry];
+    return jsonResponse(entry, 201);
+  }
+
+  if (url.includes('/api/v1/timers/') && url.endsWith('/stop') && init?.method === 'POST') {
+    const timeEntryId = url.split('/api/v1/timers/')[1]?.replace('/stop', '') ?? '';
+    const timer = timersMock.find((item) => item.id === timeEntryId);
+    if (!timer) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    const endedAt = new Date().toISOString();
+    const durationSeconds = Math.max(60, Math.floor((Date.parse(endedAt) - Date.parse(timer.startedAt)) / 1000));
+    const finalized = {
+      ...timer,
+      endedAt,
+      durationSeconds,
+    };
+    timersMock = timersMock.filter((item) => item.id !== timeEntryId);
+    timeEntriesMock = [...timeEntriesMock, finalized];
+    return jsonResponse(finalized);
+  }
+
   return jsonResponse({}, 404);
+}
+
+function buildTimeEntryMock(
+  id: string,
+  body: {
+    clientId?: string;
+    projectId?: string;
+    taskId?: string;
+    tagIds?: string[];
+    description?: string;
+    billable?: boolean;
+  },
+  context: {
+    client?: (typeof clientsMock)[number];
+    project?: (typeof projectsMock)[number];
+    task?: (typeof tasksMock)[number];
+    startedAt: string;
+    endedAt: string;
+    durationSeconds: number;
+    source: string;
+  },
+) {
+  return {
+    id,
+    clientId: body.clientId ?? '',
+    clientName: context.client?.name ?? '',
+    projectId: body.projectId ?? '',
+    projectName: context.project?.name ?? '',
+    projectColor: context.project?.color ?? '#64748b',
+    taskId: body.taskId ?? '',
+    taskName: context.task?.name ?? '',
+    description: body.description ?? '',
+    startedAt: context.startedAt,
+    endedAt: context.endedAt,
+    durationSeconds: context.durationSeconds,
+    billable: body.billable ?? true,
+    overlapWarning: false,
+    source: context.source,
+    tags: (body.tagIds ?? [])
+      .map((tagId: string) => tagsMock.find((item) => item.id === tagId))
+      .filter(Boolean),
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  };
 }
 
 function jsonResponse(body: unknown, status = 200) {
