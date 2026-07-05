@@ -33,13 +33,24 @@ make import-solidtime-dry ZIP=<path-to-export.zip>
 
 ## Commit Style
 
-Use small commits with clear messages:
+Use small commits with clear messages following [Conventional Commits](https://www.conventionalcommits.org/):
 
 - `chore:` for repo/tooling/docs setup.
 - `feat:` for product capabilities.
 - `fix:` for bug fixes.
 - `test:` for test-only changes.
 - `docs:` for documentation-only changes.
+
+After every change set, propose an explicit commit message to the user (subject + short body when useful). Describe what capability, fix, or documentation was introduced. Do not run `git commit` unless the user asks.
+
+Example:
+
+```text
+feat: add tasks CRUD with API, UI panel, and integration tests
+
+Expose authenticated /api/v1/tasks endpoints, a TaskPanel in the dashboard,
+store and HTTP lifecycle tests, and Spanish API docs in docs/16-tasks-api.md.
+```
 
 ## Architecture Expectations
 

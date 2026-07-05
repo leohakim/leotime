@@ -33,6 +33,19 @@ describe('App', () => {
         updatedAt: '2026-01-01T00:00:00Z',
       },
     ];
+    tasksMock = [
+      {
+        id: 'tsk_1',
+        projectId: 'prj_1',
+        projectName: 'Portal Web',
+        projectColor: '#2563eb',
+        name: 'Refactor API',
+        billable: true,
+        archivedAt: '',
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ];
     vi.stubGlobal('fetch', vi.fn(mockFetch));
   });
 
@@ -49,7 +62,8 @@ describe('App', () => {
     expect(screen.getByRole('table', { name: 'Timesheet' })).toBeInTheDocument();
     expect(screen.getAllByText('Cropper de Imagenes en todo el BackOffice [Serializers]')).toHaveLength(2);
     expect((await screen.findAllByText('Osoigo SL')).length).toBeGreaterThan(0);
-    expect(await screen.findByText('Portal Web')).toBeInTheDocument();
+    expect((await screen.findAllByText('Portal Web')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('Refactor API')).toBeInTheDocument();
   });
 
   test('switches language', async () => {
@@ -95,20 +109,21 @@ describe('App', () => {
   test('creates a project from the dashboard', async () => {
     renderApp();
 
-    await screen.findByText('Portal Web');
+    await screen.findAllByText('Portal Web');
     fireEvent.change(screen.getByPlaceholderText('Ej. Rediseño web'), { target: { value: 'Nuevo Proyecto' } });
     fireEvent.change(screen.getByLabelText('Cliente'), { target: { value: 'cli_1' } });
     fireEvent.change(screen.getByPlaceholderText('#2563eb'), { target: { value: '#0f7a5b' } });
     fireEvent.change(screen.getAllByPlaceholderText('75.00')[1], { target: { value: '91.25' } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear proyecto' }));
 
-    await waitFor(() => expect(screen.getByText('Nuevo Proyecto')).toBeInTheDocument());
+    await waitFor(() => expect(projectsMock).toHaveLength(2));
+    expect(screen.getAllByText('Nuevo Proyecto').length).toBeGreaterThan(0);
   });
 
   test('validates the project form before submitting', async () => {
     renderApp();
 
-    await screen.findByText('Portal Web');
+    await screen.findAllByText('Portal Web');
     fireEvent.click(screen.getByRole('button', { name: 'Crear proyecto' }));
 
     expect(await screen.findByText('El nombre del proyecto es obligatorio.')).toBeInTheDocument();
@@ -120,6 +135,33 @@ describe('App', () => {
 
     expect(await screen.findByText('Usa un color hex valido, por ejemplo #2563eb.')).toBeInTheDocument();
     expect(projectsMock).toHaveLength(1);
+  });
+
+  test('creates a task from the dashboard', async () => {
+    renderApp();
+
+    await screen.findByText('Refactor API');
+    fireEvent.change(screen.getByPlaceholderText('Ej. Refactor API'), { target: { value: 'Nueva Tarea' } });
+    fireEvent.change(screen.getByLabelText('Proyecto'), { target: { value: 'prj_1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear tarea' }));
+
+    await waitFor(() => expect(screen.getByText('Nueva Tarea')).toBeInTheDocument());
+  });
+
+  test('validates the task form before submitting', async () => {
+    renderApp();
+
+    await screen.findByText('Refactor API');
+    fireEvent.click(screen.getByRole('button', { name: 'Crear tarea' }));
+
+    expect(await screen.findByText('El nombre de la tarea es obligatorio.')).toBeInTheDocument();
+    expect(tasksMock).toHaveLength(1);
+
+    fireEvent.change(screen.getByPlaceholderText('Ej. Refactor API'), { target: { value: 'A' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear tarea' }));
+
+    expect(await screen.findByText('La tarea debe tener al menos 2 caracteres.')).toBeInTheDocument();
+    expect(tasksMock).toHaveLength(1);
   });
 });
 
@@ -162,6 +204,18 @@ let projectsMock: Array<{
   updatedAt: string;
 }> = [];
 
+let tasksMock: Array<{
+  id: string;
+  projectId: string;
+  projectName: string;
+  projectColor: string;
+  name: string;
+  billable: boolean;
+  archivedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}> = [];
+
 async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
   const url = String(input);
   if (url.endsWith('/api/v1/session')) {
@@ -181,7 +235,7 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     return jsonResponse({
       clientsTotal: clientsMock.length,
       projectsTotal: projectsMock.length,
-      tasksTotal: 3,
+      tasksTotal: tasksMock.length,
       tagsTotal: 4,
       timeEntriesTotal: 5,
       invoicesTotal: 6,
@@ -231,6 +285,28 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     };
     projectsMock = [...projectsMock, project];
     return jsonResponse(project, 201);
+  }
+
+  if (url.endsWith('/api/v1/tasks') && (!init?.method || init.method === 'GET')) {
+    return jsonResponse({ tasks: tasksMock });
+  }
+
+  if (url.endsWith('/api/v1/tasks') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    const project = projectsMock.find((item) => item.id === body.projectId);
+    const task = {
+      id: `tsk_${tasksMock.length + 1}`,
+      projectId: body.projectId,
+      projectName: project?.name ?? '',
+      projectColor: project?.color ?? '',
+      name: body.name,
+      billable: body.billable,
+      archivedAt: '',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    tasksMock = [...tasksMock, task];
+    return jsonResponse(task, 201);
   }
 
   return jsonResponse({}, 404);

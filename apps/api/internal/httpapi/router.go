@@ -51,6 +51,11 @@ func NewRouter(cfg config.Config, st *store.Store) http.Handler {
 		r.Get("/projects/{projectID}", server.requireUser(server.getProject))
 		r.Patch("/projects/{projectID}", server.requireUser(server.updateProject))
 		r.Delete("/projects/{projectID}", server.requireUser(server.archiveProject))
+		r.Get("/tasks", server.requireUser(server.listTasks))
+		r.Post("/tasks", server.requireUser(server.createTask))
+		r.Get("/tasks/{taskID}", server.requireUser(server.getTask))
+		r.Patch("/tasks/{taskID}", server.requireUser(server.updateTask))
+		r.Delete("/tasks/{taskID}", server.requireUser(server.archiveTask))
 	})
 
 	r.NotFound(server.notFound)

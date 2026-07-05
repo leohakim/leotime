@@ -1,0 +1,46 @@
+---
+description: Proponer mensaje de commit conventional commits al finalizar cada cambio
+alwaysApply: true
+---
+
+# Mensajes de commit obligatorios
+
+Al terminar cualquier cambio en el repositorio, incluye siempre en la respuesta al usuario un mensaje de commit listo para usar.
+
+## Formato
+
+Usa [Conventional Commits](https://www.conventionalcommits.org/):
+
+```text
+tipo: resumen imperativo en presente
+
+Cuerpo con el listado detallado de cambios separado por saltos de linea y usando el formato:
+- <tipo>: <descripcion>
+- <tipo>: <descripcion>
+
+y al final opcionalmente una aclaracion general sobre el cambio.
+```
+
+## Tipos permitidos en leotime
+
+- `feat:` capacidad de producto nueva o ampliacion visible
+- `fix:` correccion de comportamiento roto
+- `test:` solo tests
+- `docs:` solo documentacion
+- `chore:` tooling, CI, dependencias, refactors sin cambio funcional
+
+## Reglas
+
+- El resumen debe ser explicito: no "update files" sino "add tasks CRUD API and dashboard panel".
+- Describe el impacto en backend, frontend, tests o docs cuando aplique.
+- No ejecutes `git commit` salvo que el usuario lo pida.
+- Si el cambio mezcla tipos (p. ej. feat + docs), prioriza `feat:` o `fix:` y menciona docs/tests en el cuerpo.
+
+## Ejemplo
+
+```text
+feat: add tasks CRUD with API, UI panel, and integration tests
+
+Expose authenticated /api/v1/tasks endpoints, a TaskPanel in the dashboard,
+store and HTTP lifecycle tests, and Spanish API docs in docs/16-tasks-api.md.
+```

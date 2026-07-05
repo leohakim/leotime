@@ -73,6 +73,28 @@ export type ProjectsResponse = {
   projects: Project[];
 };
 
+export type Task = {
+  id: string;
+  projectId: string;
+  projectName: string;
+  projectColor: string;
+  name: string;
+  billable: boolean;
+  archivedAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TaskInput = {
+  projectId: string;
+  name: string;
+  billable: boolean;
+};
+
+export type TasksResponse = {
+  tasks: Task[];
+};
+
 export async function fetchSession(): Promise<SessionResponse> {
   return apiGet('/api/v1/session');
 }
@@ -87,6 +109,10 @@ export async function fetchClients(): Promise<ClientsResponse> {
 
 export async function fetchProjects(): Promise<ProjectsResponse> {
   return apiGet('/api/v1/projects');
+}
+
+export async function fetchTasks(): Promise<TasksResponse> {
+  return apiGet('/api/v1/tasks');
 }
 
 export async function createClient(input: ClientInput): Promise<Client> {
@@ -118,6 +144,25 @@ export async function updateProject(projectId: string, input: ProjectInput): Pro
 
 export async function archiveProject(projectId: string): Promise<void> {
   const response = await fetch(`/api/v1/projects/${projectId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`request_failed:${response.status}`);
+  }
+}
+
+export async function createTask(input: TaskInput): Promise<Task> {
+  return apiJSON('/api/v1/tasks', 'POST', input);
+}
+
+export async function updateTask(taskId: string, input: TaskInput): Promise<Task> {
+  return apiJSON(`/api/v1/tasks/${taskId}`, 'PATCH', input);
+}
+
+export async function archiveTask(taskId: string): Promise<void> {
+  const response = await fetch(`/api/v1/tasks/${taskId}`, {
     method: 'DELETE',
     credentials: 'include',
   });

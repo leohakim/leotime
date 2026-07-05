@@ -88,4 +88,5 @@ Change them with `LEOTIME_BOOTSTRAP_EMAIL` and `LEOTIME_BOOTSTRAP_PASSWORD`.
 13. [Backlog](docs/13-backlog.md)
 14. [Projects API](docs/14-projects-api.md)
 15. [Solidtime-like UI theme](docs/15-solidtime-theme.md)
-16. [ADR 0001: Stack decision](docs/adr/0001-stack-go-sqlite-react.md)
+16. [Tasks API](docs/16-tasks-api.md)
+17. [ADR 0001: Stack decision](docs/adr/0001-stack-go-sqlite-react.md)

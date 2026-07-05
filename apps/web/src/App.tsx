@@ -18,6 +18,7 @@ import {
   Import,
   Languages,
   LayoutDashboard,
+  ListTodo,
   LogOut,
   Mail,
   Minimize2,
@@ -36,21 +37,27 @@ import { FormEvent, useMemo, useState } from 'react';
 import {
   archiveClient,
   archiveProject,
+  archiveTask,
   createClient,
   createProject,
+  createTask,
   fetchClients,
   fetchProjects,
   fetchSession,
+  fetchTasks,
   login,
   logout,
   updateClient,
   updateProject,
+  updateTask,
   type Client,
   type ClientInput,
   type LayoutMode,
   type Locale,
   type Project,
   type ProjectInput,
+  type Task,
+  type TaskInput,
 } from './lib/api';
 import { translate } from './lib/i18n';
 import { usePersistentState } from './lib/persistentState';
@@ -155,6 +162,7 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
   const queryClient = useQueryClient();
   const clientsQuery = useQuery({ queryKey: ['clients'], queryFn: fetchClients });
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: fetchProjects });
+  const tasksQuery = useQuery({ queryKey: ['tasks'], queryFn: fetchTasks });
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
@@ -205,6 +213,10 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
           <a href="#projects">
             <FolderKanban aria-hidden="true" />
             {t('projects')}
+          </a>
+          <a href="#tasks">
+            <ListTodo aria-hidden="true" />
+            {t('tasks')}
           </a>
           <a href="#clients">
             <Building2 aria-hidden="true" />
@@ -287,6 +299,12 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
             clients={clientsQuery.data?.clients ?? []}
             isLoading={projectsQuery.isLoading}
             projects={projectsQuery.data?.projects ?? []}
+            t={t}
+          />
+          <TaskPanel
+            isLoading={tasksQuery.isLoading}
+            projects={projectsQuery.data?.projects ?? []}
+            tasks={tasksQuery.data?.tasks ?? []}
             t={t}
           />
         </section>
@@ -1141,6 +1159,278 @@ function ProjectPanel({
   );
 }
 
+type TaskFormState = {
+  projectId: string;
+  name: string;
+  billable: boolean;
+};
+
+type TaskFormErrors = Partial<Record<keyof TaskFormState | 'form', string>>;
+
+const emptyTaskForm: TaskFormState = {
+  projectId: '',
+  name: '',
+  billable: true,
+};
+
+function TaskPanel({
+  isLoading,
+  projects,
+  tasks,
+  t,
+}: {
+  isLoading: boolean;
+  projects: Project[];
+  tasks: Task[];
+  t: Translator;
+}) {
+  const queryClient = useQueryClient();
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [form, setForm] = useState<TaskFormState>(emptyTaskForm);
+  const [errors, setErrors] = useState<TaskFormErrors>({});
+
+  const createMutation = useMutation({
+    mutationFn: createTask,
+    onSuccess: () => {
+      setForm(emptyTaskForm);
+      setErrors({});
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+    onError: () => setErrors((current) => ({ ...current, form: t('taskSaveFailed') })),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ taskId, input }: { taskId: string; input: TaskInput }) => updateTask(taskId, input),
+    onSuccess: () => {
+      setEditingTaskId(null);
+      setForm(emptyTaskForm);
+      setErrors({});
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+    onError: () => setErrors((current) => ({ ...current, form: t('taskSaveFailed') })),
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: archiveTask,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+    onError: () => setErrors((current) => ({ ...current, form: t('taskArchiveFailed') })),
+  });
+
+  function submitTask(event: FormEvent) {
+    event.preventDefault();
+    const validation = validateTaskForm(form, t);
+    setErrors(validation);
+    if (hasErrors(validation)) {
+      return;
+    }
+
+    const input = taskFormToInput(form);
+    if (editingTaskId) {
+      updateMutation.mutate({ taskId: editingTaskId, input });
+      return;
+    }
+    createMutation.mutate(input);
+  }
+
+  function updateField<K extends keyof TaskFormState>(field: K, value: TaskFormState[K]) {
+    const next = { ...form, [field]: value };
+    setForm(next);
+    if (hasErrors(errors)) {
+      setErrors(validateTaskForm(next, t));
+    }
+  }
+
+  function startEditing(task: Task) {
+    setEditingTaskId(task.id);
+    setErrors({});
+    setForm({
+      projectId: task.projectId,
+      name: task.name,
+      billable: task.billable,
+    });
+  }
+
+  function cancelEditing() {
+    setEditingTaskId(null);
+    setForm(emptyTaskForm);
+    setErrors({});
+  }
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <section className="clients-section tasks-section" id="tasks" aria-labelledby="tasks-title">
+      <div className="clients-heading">
+        <div className="section-title-group">
+          <span className="section-kicker">
+            <ListTodo aria-hidden="true" />
+            {t('tasks')}
+          </span>
+          <h2 id="tasks-title">{t('taskDirectory')}</h2>
+          <p>{t('taskPanelSubtitle')}</p>
+        </div>
+        <button className="secondary-button" type="button" onClick={cancelEditing}>
+          <Plus aria-hidden="true" />
+          {t('newTask')}
+        </button>
+      </div>
+
+      <div className="clients-workbench">
+        <div className="client-directory">
+          <div className="directory-toolbar">
+            <div>
+              <span>{t('activeTasks')}</span>
+              <strong>{tasks.length}</strong>
+            </div>
+            {isLoading ? (
+              <span className="sync-pill">{t('loading')}</span>
+            ) : (
+              <span className="sync-pill">{t('synced')}</span>
+            )}
+          </div>
+
+          <div className="client-list" aria-busy={isLoading}>
+            {tasks.length === 0 ? (
+              <div className="empty-state">
+                <ListTodo aria-hidden="true" />
+                <p>{t('noTasks')}</p>
+              </div>
+            ) : null}
+            {tasks.map((task) => (
+              <article className={editingTaskId === task.id ? 'client-row selected' : 'client-row'} key={task.id}>
+                <div className="client-row-main">
+                  {task.projectColor ? (
+                    <div className="project-color-dot" style={{ backgroundColor: task.projectColor }} aria-hidden="true" />
+                  ) : (
+                    <div className="project-color-dot" style={{ backgroundColor: '#64748b' }} aria-hidden="true" />
+                  )}
+                  <div className="client-row-copy">
+                    <div className="client-row-title">
+                      <strong>{task.name}</strong>
+                      <span className="status-pill">
+                        <CircleCheck aria-hidden="true" />
+                        {t('active')}
+                      </span>
+                    </div>
+                    <span className="client-contact">
+                      <FolderKanban aria-hidden="true" />
+                      {task.projectName || t('taskProjectOptional')}
+                    </span>
+                  </div>
+                </div>
+                <div className="client-row-meta">
+                  <span className={task.billable ? 'rate-pill billable-on' : 'rate-pill'}>
+                    <DollarSign aria-hidden="true" />
+                    {task.billable ? t('billable') : t('nonBillable')}
+                  </span>
+                </div>
+                <div className="client-row-actions">
+                  <button
+                    className="secondary-button icon-button"
+                    type="button"
+                    onClick={() => startEditing(task)}
+                    title={t('edit')}
+                  >
+                    <Pencil aria-hidden="true" />
+                  </button>
+                  <button
+                    className="secondary-button icon-button danger-button"
+                    type="button"
+                    onClick={() => archiveMutation.mutate(task.id)}
+                    title={t('archive')}
+                  >
+                    <Trash2 aria-hidden="true" />
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <form className="client-editor" noValidate onSubmit={submitTask}>
+          <div className="editor-header">
+            <div>
+              <span>{editingTaskId ? t('editingTask') : t('createTask')}</span>
+              <h3>{editingTaskId ? t('taskFormEdit') : t('taskFormCreate')}</h3>
+            </div>
+            {editingTaskId ? (
+              <button className="ghost-button icon-button" type="button" onClick={cancelEditing} title={t('cancel')}>
+                <X aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+
+          {errors.form ? (
+            <div className="form-alert" role="alert">
+              <CircleAlert aria-hidden="true" />
+              {errors.form}
+            </div>
+          ) : null}
+
+          <div className="client-form-grid">
+            <label className={fieldClass(errors.name)} htmlFor="task-name">
+              <span>
+                {t('name')} <em>{t('required')}</em>
+              </span>
+              <input
+                aria-describedby={errors.name ? 'task-name-error' : undefined}
+                aria-invalid={Boolean(errors.name)}
+                id="task-name"
+                onChange={(event) => updateField('name', event.target.value)}
+                placeholder={t('taskNamePlaceholder')}
+                value={form.name}
+              />
+              <FieldError id="task-name-error" message={errors.name} />
+            </label>
+
+            <label className="form-field" htmlFor="task-project">
+              <span>{t('taskProject')}</span>
+              <select
+                id="task-project"
+                onChange={(event) => updateField('projectId', event.target.value)}
+                value={form.projectId}
+              >
+                <option value="">{t('taskProjectOptional')}</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="form-field checkbox-field" htmlFor="task-billable">
+              <span>{t('billable')}</span>
+              <input
+                checked={form.billable}
+                id="task-billable"
+                onChange={(event) => updateField('billable', event.target.checked)}
+                type="checkbox"
+              />
+            </label>
+          </div>
+
+          <div className="client-form-actions">
+            <button type="submit" disabled={isSaving}>
+              {editingTaskId ? <Save aria-hidden="true" /> : <Plus aria-hidden="true" />}
+              {editingTaskId ? t('updateTask') : t('createTask')}
+            </button>
+            <button className="secondary-button" type="button" onClick={cancelEditing}>
+              <X aria-hidden="true" />
+              {t('cleanForm')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  );
+}
+
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) {
     return null;
@@ -1207,6 +1497,19 @@ function validateProjectForm(form: ProjectFormState, t: Translator): ProjectForm
   return errors;
 }
 
+function validateTaskForm(form: TaskFormState, t: Translator): TaskFormErrors {
+  const errors: TaskFormErrors = {};
+  const name = form.name.trim();
+
+  if (!name) {
+    errors.name = t('taskNameRequired');
+  } else if (name.length < 2) {
+    errors.name = t('taskNameTooShort');
+  }
+
+  return errors;
+}
+
 function hasErrors(errors: Record<string, string | undefined>) {
   return Object.values(errors).some(Boolean);
 }
@@ -1228,6 +1531,14 @@ function projectFormToInput(form: ProjectFormState): ProjectInput {
     name: form.name.trim(),
     color: form.color.trim() || '#2563eb',
     defaultHourlyRateMinor: form.hourlyRate.trim() ? rateToMinor(form.hourlyRate) : null,
+  };
+}
+
+function taskFormToInput(form: TaskFormState): TaskInput {
+  return {
+    projectId: form.projectId,
+    name: form.name.trim(),
+    billable: form.billable,
   };
 }
 
