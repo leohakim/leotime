@@ -11,6 +11,7 @@ import {
   Columns3,
   DollarSign,
   EllipsisVertical,
+  FileText,
   Pencil,
   FolderKanban,
   Import,
@@ -69,7 +70,9 @@ import {
 import { translate } from './lib/i18n';
 import { sortTasksByNewest } from './lib/taskSort';
 import { CalendarPanel } from './lib/calendarUi';
+import { InvoicePanel } from './lib/invoiceUi';
 import { addMonths, endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './lib/calendarMonth';
+import { TimeReportPanel } from './lib/reportUi';
 import { ManualTimeEntryPanel, TimeEntriesList } from './lib/timeEntryUi';
 import { SidebarTimer, TimerCommandRow } from './lib/timerUi';
 import { addWeeks, startOfWeek, toWeekQueryFrom, toWeekQueryTo } from './lib/timesheetWeek';
@@ -301,6 +304,10 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
             <Import aria-hidden="true" />
             {t('importExport')}
           </a>
+          <a href="#invoices">
+            <FileText aria-hidden="true" />
+            {t('invoices')}
+          </a>
           <a href="#settings">
             <Settings aria-hidden="true" />
             {t('settings')}
@@ -386,6 +393,8 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
         )}
 
         <section className="management-surface" aria-label={t('manage')}>
+          <TimeReportPanel locale={locale} t={t} />
+          <InvoicePanel clients={clientsQuery.data?.clients ?? []} locale={locale} t={t} userName={userName} />
           <ManualTimeEntryPanel
             clients={clientsQuery.data?.clients ?? []}
             isLoading={timeEntriesQuery.isLoading}

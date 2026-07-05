@@ -94,6 +94,22 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Esta semana')).toBeInTheDocument());
   });
 
+  test('renders the time report panel', async () => {
+    renderApp();
+
+    expect(await screen.findByRole('heading', { name: 'Resumen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Descargar CSV' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Descargar JSON' })).toBeInTheDocument();
+  });
+
+  test('renders the invoice panel', async () => {
+    renderApp();
+
+    expect(await screen.findByRole('heading', { name: 'Facturas' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Crear borrador' })).toBeInTheDocument();
+    expect(await screen.findByText('INV-2026-001')).toBeInTheDocument();
+  });
+
   test('opens the calendar view', async () => {
     renderApp();
 
@@ -338,6 +354,74 @@ let timeEntriesMock: Array<{
   updatedAt: string;
 }> = [];
 
+let invoicesMock: Array<{
+  id: string;
+  clientId: string;
+  invoiceNumber: string;
+  status: 'draft' | 'issued' | 'paid' | 'cancelled';
+  currency: string;
+  issuedAt: string;
+  dueAt: string;
+  sellerName: string;
+  sellerTaxId: string;
+  sellerAddress: string;
+  clientName: string;
+  clientTaxId: string;
+  clientAddress: string;
+  subtotalMinor: number;
+  taxMinor: number;
+  withholdingMinor: number;
+  totalMinor: number;
+  notes: string;
+  lines: Array<{
+    id: string;
+    timeEntryId: string;
+    description: string;
+    quantityMinutes: number;
+    unitRateMinor: number;
+    subtotalMinor: number;
+    taxRateBasisPoints: number;
+    createdAt: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}> = [
+  {
+    id: 'inv_1',
+    clientId: 'cli_1',
+    invoiceNumber: 'INV-2026-001',
+    status: 'draft',
+    currency: 'EUR',
+    issuedAt: '',
+    dueAt: '',
+    sellerName: 'Administrador',
+    sellerTaxId: '',
+    sellerAddress: '',
+    clientName: 'Osoigo SL',
+    clientTaxId: '',
+    clientAddress: '',
+    subtotalMinor: 12000,
+    taxMinor: 2520,
+    withholdingMinor: 0,
+    totalMinor: 14520,
+    notes: '',
+    lines: [
+      {
+        id: 'inl_1',
+        timeEntryId: 'ten_1',
+        description: 'Portal Web — Support',
+        quantityMinutes: 60,
+        unitRateMinor: 12000,
+        subtotalMinor: 12000,
+        taxRateBasisPoints: 2100,
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  },
+];
+
 let timersMock: Array<{
   id: string;
   clientId: string;
@@ -488,6 +572,61 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     };
     tagsMock = [...tagsMock, tag];
     return jsonResponse(tag, 201);
+  }
+
+  if (url.endsWith('/api/v1/invoices') && (!init?.method || init.method === 'GET')) {
+    return jsonResponse({ invoices: invoicesMock });
+  }
+
+  if (url.includes('/api/v1/invoices/') && (!init?.method || init.method === 'GET') && !url.includes('/export')) {
+    const invoiceId = url.split('/api/v1/invoices/')[1]?.split('?')[0] ?? '';
+    const invoice = invoicesMock.find((item) => item.id === invoiceId);
+    if (!invoice) {
+      return jsonResponse({ error: 'not found' }, 404);
+    }
+    return jsonResponse(invoice);
+  }
+
+  if (url.includes('/api/v1/reports/time') && (!init?.method || init.method === 'GET')) {
+    const parsed = new URL(url, 'http://localhost');
+    const includeTimestamps = parsed.searchParams.get('includeTimestamps') === 'true';
+    const billableOnly = parsed.searchParams.get('billableOnly') === 'true';
+    const entries = timeEntriesMock.filter((entry) => {
+      if (billableOnly && !entry.billable) {
+        return false;
+      }
+      return true;
+    });
+    const totalSeconds = entries.reduce((sum, entry) => sum + entry.durationSeconds, 0);
+    if (includeTimestamps) {
+      return jsonResponse({
+        from: parsed.searchParams.get('from') ?? '',
+        to: parsed.searchParams.get('to') ?? '',
+        groupBy: 'project',
+        includeTimestamps: true,
+        billableOnly,
+        totalSeconds,
+        entryCount: entries.length,
+        entries,
+      });
+    }
+    return jsonResponse({
+      from: parsed.searchParams.get('from') ?? '',
+      to: parsed.searchParams.get('to') ?? '',
+      groupBy: parsed.searchParams.get('groupBy') ?? 'project',
+      includeTimestamps: false,
+      billableOnly,
+      totalSeconds,
+      entryCount: entries.length,
+      groups: [
+        {
+          key: 'prj_1',
+          label: 'Portal Web',
+          totalSeconds,
+          entryCount: entries.length,
+        },
+      ],
+    });
   }
 
   if (url.includes('/api/v1/time-entries') && (!init?.method || init.method === 'GET') && !url.includes('/api/v1/time-entries/')) {

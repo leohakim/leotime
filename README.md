@@ -100,4 +100,6 @@ Change them with `LEOTIME_BOOTSTRAP_EMAIL` and `LEOTIME_BOOTSTRAP_PASSWORD`.
 19. [Timers API](docs/19-timers-api.md)
 20. [Weekly timesheet](docs/20-weekly-timesheet.md)
 21. [Calendar view](docs/21-calendar-view.md)
+22. [Reports API](docs/22-reports-api.md)
+23. [Invoices API](docs/23-invoices-api.md)
 18. [ADR 0001: Stack decision](docs/adr/0001-stack-go-sqlite-react.md)

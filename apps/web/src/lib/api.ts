@@ -169,6 +169,103 @@ export type TimersResponse = {
   timers: TimeEntry[];
 };
 
+export type TimeReportGroupBy = 'day' | 'client' | 'project' | 'task';
+
+export type TimeReportParams = {
+  billableOnly?: boolean;
+  from: string;
+  groupBy?: TimeReportGroupBy;
+  includeTimestamps?: boolean;
+  to: string;
+};
+
+export type TimeReportGroup = {
+  key: string;
+  label: string;
+  totalSeconds: number;
+  entryCount: number;
+};
+
+export type TimeReport = {
+  from: string;
+  to: string;
+  groupBy: TimeReportGroupBy;
+  includeTimestamps: boolean;
+  billableOnly: boolean;
+  totalSeconds: number;
+  entryCount: number;
+  groups?: TimeReportGroup[];
+  entries?: TimeEntry[];
+};
+
+export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'cancelled';
+
+export type InvoiceLine = {
+  id: string;
+  timeEntryId: string;
+  description: string;
+  quantityMinutes: number;
+  unitRateMinor: number;
+  subtotalMinor: number;
+  taxRateBasisPoints: number;
+  createdAt: string;
+};
+
+export type Invoice = {
+  id: string;
+  clientId: string;
+  invoiceNumber: string;
+  status: InvoiceStatus;
+  currency: string;
+  issuedAt: string;
+  dueAt: string;
+  sellerName: string;
+  sellerTaxId: string;
+  sellerAddress: string;
+  clientName: string;
+  clientTaxId: string;
+  clientAddress: string;
+  subtotalMinor: number;
+  taxMinor: number;
+  withholdingMinor: number;
+  totalMinor: number;
+  notes: string;
+  lines: InvoiceLine[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InvoicesResponse = {
+  invoices: Invoice[];
+};
+
+export type InvoiceDraftFromTimeInput = {
+  clientId: string;
+  from: string;
+  to: string;
+  sellerName?: string;
+  sellerTaxId?: string;
+  sellerAddress?: string;
+  taxRateBasisPoints?: number;
+  withholdingMinor?: number;
+  notes?: string;
+  dueAt?: string;
+};
+
+export type InvoiceUpdateInput = {
+  dueAt?: string;
+  issuedAt?: string;
+  sellerName?: string;
+  sellerTaxId?: string;
+  sellerAddress?: string;
+  clientName?: string;
+  clientTaxId?: string;
+  clientAddress?: string;
+  withholdingMinor?: number;
+  notes?: string;
+  taxRateBasisPoints?: number;
+};
+
 export async function fetchSession(): Promise<SessionResponse> {
   return apiGet('/api/v1/session');
 }
@@ -401,4 +498,82 @@ async function apiJSON<T>(path: string, method: 'POST' | 'PATCH', body: unknown)
   }
 
   return response.json();
+}
+
+function buildTimeReportSearch(params: TimeReportParams & { format?: 'csv' | 'json' }) {
+  const search = new URLSearchParams();
+  search.set('from', params.from);
+  search.set('to', params.to);
+  if (params.groupBy) {
+    search.set('groupBy', params.groupBy);
+  }
+  if (params.includeTimestamps) {
+    search.set('includeTimestamps', 'true');
+  }
+  if (params.billableOnly) {
+    search.set('billableOnly', 'true');
+  }
+  if (params.format) {
+    search.set('format', params.format);
+  }
+  return search.toString();
+}
+
+export async function fetchTimeReport(params: TimeReportParams): Promise<TimeReport> {
+  return apiGet(`/api/v1/reports/time?${buildTimeReportSearch(params)}`);
+}
+
+export async function downloadTimeReportExport(params: TimeReportParams, format: 'csv' | 'json'): Promise<Blob> {
+  const response = await fetch(`/api/v1/reports/time/export?${buildTimeReportSearch({ ...params, format })}`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`request_failed:${response.status}`);
+  }
+
+  return response.blob();
+}
+
+export async function fetchInvoices(): Promise<InvoicesResponse> {
+  return apiGet('/api/v1/invoices');
+}
+
+export async function fetchInvoice(invoiceId: string): Promise<Invoice> {
+  return apiGet(`/api/v1/invoices/${invoiceId}`);
+}
+
+export async function createInvoiceDraftFromTime(input: InvoiceDraftFromTimeInput): Promise<Invoice> {
+  return apiJSON('/api/v1/invoices/draft-from-time', 'POST', input);
+}
+
+export async function updateInvoice(invoiceId: string, input: InvoiceUpdateInput): Promise<Invoice> {
+  return apiJSON(`/api/v1/invoices/${invoiceId}`, 'PATCH', input);
+}
+
+export async function updateInvoiceStatus(invoiceId: string, status: InvoiceStatus): Promise<Invoice> {
+  return apiJSON(`/api/v1/invoices/${invoiceId}/status`, 'POST', { status });
+}
+
+export async function deleteInvoice(invoiceId: string): Promise<void> {
+  const response = await fetch(`/api/v1/invoices/${invoiceId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`request_failed:${response.status}`);
+  }
+}
+
+export async function downloadInvoiceExport(invoiceId: string, format: 'html' | 'csv' | 'json'): Promise<Blob> {
+  const response = await fetch(`/api/v1/invoices/${invoiceId}/export?format=${format}`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`request_failed:${response.status}`);
+  }
+
+  return response.blob();
 }

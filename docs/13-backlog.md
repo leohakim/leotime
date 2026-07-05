@@ -26,8 +26,11 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Timer workflow | Start/stop, open timer, overlap awareness. |
 | Done | Weekly timesheet | Editable weekly grid, week navigation, grouped totals. |
 | Done | Calendar view | Monthly grid, day selection, inline editing. |
-| Next | Reports/export | CSV/JSON, grouped totals, optional timestamp hiding. |
-| Backlog | Invoices | Draft/issued/paid/cancelled, PDF/export, multi-currency. |
+| Done | Reports/export | CSV/JSON, grouped totals, optional timestamp hiding. |
+| Done | Invoices | Draft/issued/paid/cancelled, HTML/CSV/JSON export, multi-currency. |
+| Next | Dashboard UI Solidtime compatibility | Recent time entries/las 7 days/Activity graph/This week's bar graph / spent time / billable time / billable amount / pie chart. |
+| Backlog | Theme selector | Solidtime default, light, dark, minimal, etc. |
+| Backlog | Profile Settings | Change password, email, name, timezone, currency, theme, etc. |
 | Backlog | Offline queue MVP | Create/edit offline and sync when online. |
 | Later | Tauri desktop app | Desktop packaging after web MVP works. |
 | Later | Idle detection | Helpful but not needed for first deployable MVP. |
@@ -62,5 +65,6 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Tags API | `docs/17-tags-api.md`. |
 | Done | Time entries API | `docs/18-time-entries-api.md`. |
 | Done | Timers API | `docs/19-timers-api.md`. |
+| Done | Invoices API | `docs/23-invoices-api.md`. |
 | Backlog | API reference index | One index linking each resource doc. |
 | Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers. |

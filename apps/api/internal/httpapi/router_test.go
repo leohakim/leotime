@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -557,6 +558,153 @@ func TestTimerHTTPLifecycle(t *testing.T) {
 	}
 	if stopped.EndedAt == "" || stopped.DurationSeconds < 60 {
 		t.Fatalf("unexpected stopped timer: %+v", stopped)
+	}
+}
+
+func TestTimeReportExport(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	createResponse := httptest.NewRecorder()
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/time-entries", bytes.NewBufferString(`{
+		"description": "Report work",
+		"startedAt": "2026-07-01T08:00:00Z",
+		"endedAt": "2026-07-01T09:00:00Z",
+		"billable": true
+	}`))
+	for _, cookie := range cookies {
+		createRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(createResponse, createRequest)
+	if createResponse.Code != http.StatusCreated {
+		t.Fatalf("expected create 201, got %d: %s", createResponse.Code, createResponse.Body.String())
+	}
+
+	summaryResponse := httptest.NewRecorder()
+	summaryRequest := httptest.NewRequest(http.MethodGet, "/api/v1/reports/time?from=2026-07-01T00:00:00Z&to=2026-07-31T23:59:59Z&groupBy=day", nil)
+	for _, cookie := range cookies {
+		summaryRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(summaryResponse, summaryRequest)
+	if summaryResponse.Code != http.StatusOK {
+		t.Fatalf("expected summary 200, got %d: %s", summaryResponse.Code, summaryResponse.Body.String())
+	}
+
+	csvResponse := httptest.NewRecorder()
+	csvRequest := httptest.NewRequest(http.MethodGet, "/api/v1/reports/time/export?format=csv&from=2026-07-01T00:00:00Z&to=2026-07-31T23:59:59Z&includeTimestamps=true", nil)
+	for _, cookie := range cookies {
+		csvRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(csvResponse, csvRequest)
+	if csvResponse.Code != http.StatusOK {
+		t.Fatalf("expected csv 200, got %d: %s", csvResponse.Code, csvResponse.Body.String())
+	}
+	if !strings.Contains(csvResponse.Body.String(), "started_at") || !strings.Contains(csvResponse.Body.String(), "Report work") {
+		t.Fatalf("unexpected csv body: %s", csvResponse.Body.String())
+	}
+}
+
+func TestInvoiceDraftFromTimeAndExport(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	clientResponse := httptest.NewRecorder()
+	clientRequest := httptest.NewRequest(http.MethodPost, "/api/v1/clients", bytes.NewBufferString(`{
+		"name": "Invoice Client",
+		"defaultCurrency": "EUR",
+		"defaultHourlyRateMinor": 12000
+	}`))
+	for _, cookie := range cookies {
+		clientRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(clientResponse, clientRequest)
+	if clientResponse.Code != http.StatusCreated {
+		t.Fatalf("expected client 201, got %d: %s", clientResponse.Code, clientResponse.Body.String())
+	}
+
+	var client struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(clientResponse.Body.Bytes(), &client); err != nil {
+		t.Fatalf("decode client: %v", err)
+	}
+
+	entryResponse := httptest.NewRecorder()
+	entryRequest := httptest.NewRequest(http.MethodPost, "/api/v1/time-entries", bytes.NewBufferString(`{
+		"clientId": "`+client.ID+`",
+		"description": "Invoiceable work",
+		"startedAt": "2026-07-04T09:00:00Z",
+		"endedAt": "2026-07-04T11:00:00Z",
+		"billable": true
+	}`))
+	for _, cookie := range cookies {
+		entryRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(entryResponse, entryRequest)
+	if entryResponse.Code != http.StatusCreated {
+		t.Fatalf("expected entry 201, got %d: %s", entryResponse.Code, entryResponse.Body.String())
+	}
+
+	draftResponse := httptest.NewRecorder()
+	draftRequest := httptest.NewRequest(http.MethodPost, "/api/v1/invoices/draft-from-time", bytes.NewBufferString(`{
+		"clientId": "`+client.ID+`",
+		"from": "2026-07-01T00:00:00Z",
+		"to": "2026-07-31T23:59:59Z",
+		"taxRateBasisPoints": 2100
+	}`))
+	for _, cookie := range cookies {
+		draftRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(draftResponse, draftRequest)
+	if draftResponse.Code != http.StatusCreated {
+		t.Fatalf("expected draft 201, got %d: %s", draftResponse.Code, draftResponse.Body.String())
+	}
+
+	var invoice struct {
+		ID            string `json:"id"`
+		InvoiceNumber string `json:"invoiceNumber"`
+		Lines         []struct {
+			QuantityMinutes int `json:"quantityMinutes"`
+		} `json:"lines"`
+	}
+	if err := json.Unmarshal(draftResponse.Body.Bytes(), &invoice); err != nil {
+		t.Fatalf("decode invoice: %v", err)
+	}
+	if invoice.ID == "" || invoice.InvoiceNumber == "" || len(invoice.Lines) != 1 || invoice.Lines[0].QuantityMinutes != 120 {
+		t.Fatalf("unexpected invoice payload: %+v", invoice)
+	}
+
+	listResponse := httptest.NewRecorder()
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/invoices", nil)
+	for _, cookie := range cookies {
+		listRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(listResponse, listRequest)
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("expected list 200, got %d: %s", listResponse.Code, listResponse.Body.String())
+	}
+
+	htmlResponse := httptest.NewRecorder()
+	htmlRequest := httptest.NewRequest(http.MethodGet, "/api/v1/invoices/"+invoice.ID+"/export?format=html", nil)
+	for _, cookie := range cookies {
+		htmlRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(htmlResponse, htmlRequest)
+	if htmlResponse.Code != http.StatusOK {
+		t.Fatalf("expected html export 200, got %d: %s", htmlResponse.Code, htmlResponse.Body.String())
+	}
+	if !strings.Contains(htmlResponse.Body.String(), invoice.InvoiceNumber) {
+		t.Fatalf("expected html export to contain invoice number")
+	}
+
+	statusResponse := httptest.NewRecorder()
+	statusRequest := httptest.NewRequest(http.MethodPost, "/api/v1/invoices/"+invoice.ID+"/status", bytes.NewBufferString(`{"status":"issued"}`))
+	for _, cookie := range cookies {
+		statusRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(statusResponse, statusRequest)
+	if statusResponse.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", statusResponse.Code, statusResponse.Body.String())
 	}
 }
 

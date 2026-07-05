@@ -29,18 +29,21 @@ Every product slice should include:
 - Timer workflow with start/stop, multiple open timers, overlap warnings, live clock UI, tests, and docs.
 - Weekly timesheet with 7-day grid, week navigation, API date filters, inline editing, tests, and docs.
 - Calendar view with monthly grid, day selection, month navigation, inline editing, tests, and docs.
+- Reports and exports with grouped totals, CSV/JSON export, optional timestamps, tests, and docs.
+- Invoices with draft-from-time, frozen client fields, tax/withholding, status workflow, HTML/CSV/JSON export, tests, and docs.
 
 ## MVP Delivery Slices
 
-1. **Reports And Exports**
-   - CSV and JSON exports.
-   - Hide start/end timestamps when the report is configured to show only totals.
+1. **Dashboard UI Solidtime compatibility**
+   - Recent time entries/las 7 days/Activity graph/This week's bar graph / spent time / billable time / billable amount / pie chart.
 
-2. **Invoices**
-   - Draft invoices from billable time.
-   - Multi-currency, frozen client fields, line items, tax/withholding fields, and PDF/export.
+2. Theme selector with solidtime default, light, dark, minimal, etc.
+   - Theme selector with solidtime default, light, dark, minimal, etc.
 
-3. **Offline Queue MVP**
+3. **Profile Settings**
+   - Change password, email, name, timezone, currency, theme, etc.
+
+4. **Offline Queue MVP**
    - Offline creation/edit queue for the core daily workflow.
    - Syncs when connectivity returns.
 
@@ -72,4 +75,4 @@ When port `8080` is already occupied by a local process without static assets, r
 
 ## Current Next Task
 
-The next implementation slice is **Reports And Exports**.
+The next implementation slice is **Dashboard UI Solidtime compatibility**.
