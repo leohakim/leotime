@@ -441,6 +441,61 @@ func TestTagHTTPLifecycle(t *testing.T) {
 	}
 }
 
+func TestTimeEntryHTTPLifecycle(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	createResponse := httptest.NewRecorder()
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/time-entries", bytes.NewBufferString(`{
+		"description": "Manual work",
+		"startedAt": "2026-06-29T08:04:00Z",
+		"endedAt": "2026-06-29T10:55:00Z",
+		"billable": true
+	}`))
+	for _, cookie := range cookies {
+		createRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(createResponse, createRequest)
+
+	if createResponse.Code != http.StatusCreated {
+		t.Fatalf("expected create 201, got %d: %s", createResponse.Code, createResponse.Body.String())
+	}
+
+	var created struct {
+		ID              string `json:"id"`
+		DurationSeconds int    `json:"durationSeconds"`
+		Source          string `json:"source"`
+	}
+	if err := json.Unmarshal(createResponse.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created time entry: %v", err)
+	}
+	if created.ID == "" || created.DurationSeconds != 10260 || created.Source != "manual" {
+		t.Fatalf("unexpected created time entry: %+v", created)
+	}
+
+	listResponse := httptest.NewRecorder()
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/v1/time-entries", nil)
+	for _, cookie := range cookies {
+		listRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(listResponse, listRequest)
+
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("expected list 200, got %d: %s", listResponse.Code, listResponse.Body.String())
+	}
+
+	deleteResponse := httptest.NewRecorder()
+	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/time-entries/"+created.ID, nil)
+	for _, cookie := range cookies {
+		deleteRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(deleteResponse, deleteRequest)
+
+	if deleteResponse.Code != http.StatusNoContent {
+		t.Fatalf("expected delete 204, got %d: %s", deleteResponse.Code, deleteResponse.Body.String())
+	}
+}
+
 func newTestRouter(t *testing.T) http.Handler {
 	t.Helper()
 

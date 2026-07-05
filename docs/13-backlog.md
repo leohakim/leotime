@@ -22,8 +22,8 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Projects CRUD | Optional client assignment, color, hourly rate, archive. |
 | Done | Tasks CRUD | Optional project assignment, billable default, archive. |
 | Done | Tags CRUD | Unique names, colors, time-entry tagging. |
-| Next | Manual time entries | One-minute precision, billable, overlap warning. |
-| Backlog | Timer workflow | Start/stop, open timer, overlap awareness. |
+| Done | Manual time entries | One-minute precision, billable, overlap warning. |
+| Next | Timer workflow | Start/stop, open timer, overlap awareness. |
 | Backlog | Weekly timesheet | Editable weekly grid and grouped totals. |
 | Backlog | Calendar view | Calendar inspection/editing of entries. |
 | Backlog | Reports/export | CSV/JSON, grouped totals, optional timestamp hiding. |
@@ -60,5 +60,6 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Projects API | `docs/14-projects-api.md`. |
 | Done | Tasks API | `docs/16-tasks-api.md`. |
 | Done | Tags API | `docs/17-tags-api.md`. |
+| Done | Time entries API | `docs/18-time-entries-api.md`. |
 | Backlog | API reference index | One index linking each resource doc. |
 | Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers. |

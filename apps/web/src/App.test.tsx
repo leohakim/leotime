@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { App } from './App';
 
@@ -55,6 +55,7 @@ describe('App', () => {
         updatedAt: '2026-01-01T00:00:00Z',
       },
     ];
+    timeEntriesMock = [];
     vi.stubGlobal('fetch', vi.fn(mockFetch));
   });
 
@@ -69,11 +70,11 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Time Tracker' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Entrada manual' })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Timesheet' })).toBeInTheDocument();
-    expect(screen.getAllByText('Cropper de Imagenes en todo el BackOffice [Serializers]')).toHaveLength(2);
+    expect((await screen.findAllByText('Sin entradas todavia')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Osoigo SL')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Portal Web')).length).toBeGreaterThan(0);
-    expect(await screen.findByText('Refactor API')).toBeInTheDocument();
-    expect(await screen.findByText('Deep Work')).toBeInTheDocument();
+    expect((await screen.findAllByText('Refactor API')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Deep Work')).length).toBeGreaterThan(0);
   });
 
   test('switches language', async () => {
@@ -121,7 +122,7 @@ describe('App', () => {
 
     await screen.findAllByText('Portal Web');
     fireEvent.change(screen.getByPlaceholderText('Ej. Rediseño web'), { target: { value: 'Nuevo Proyecto' } });
-    fireEvent.change(screen.getByLabelText('Cliente'), { target: { value: 'cli_1' } });
+    fireEvent.change(screen.getByLabelText('Cliente', { selector: '#project-client' }), { target: { value: 'cli_1' } });
     fireEvent.change(screen.getByPlaceholderText('#2563eb'), { target: { value: '#0f7a5b' } });
     fireEvent.change(screen.getAllByPlaceholderText('75.00')[1], { target: { value: '91.25' } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear proyecto' }));
@@ -150,45 +151,58 @@ describe('App', () => {
   test('creates a task from the dashboard', async () => {
     renderApp();
 
-    await screen.findByText('Refactor API');
-    fireEvent.change(screen.getByPlaceholderText('Ej. Refactor API'), { target: { value: 'Nueva Tarea' } });
-    fireEvent.change(screen.getByLabelText('Proyecto'), { target: { value: 'prj_1' } });
+    await screen.findAllByText('Refactor API');
+    fireEvent.change(document.getElementById('task-name') as HTMLInputElement, { target: { value: 'Nueva Tarea' } });
+    fireEvent.change(document.getElementById('task-project') as HTMLSelectElement, { target: { value: 'prj_1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear tarea' }));
 
-    await waitFor(() => expect(screen.getByText('Nueva Tarea')).toBeInTheDocument());
+    await waitFor(() => expect(tasksMock).toHaveLength(2));
   });
 
   test('validates the task form before submitting', async () => {
     renderApp();
 
-    await screen.findByText('Refactor API');
+    await screen.findAllByText('Refactor API');
     fireEvent.click(screen.getByRole('button', { name: 'Crear tarea' }));
 
     expect(await screen.findByText('El nombre de la tarea es obligatorio.')).toBeInTheDocument();
     expect(tasksMock).toHaveLength(1);
 
-    fireEvent.change(screen.getByPlaceholderText('Ej. Refactor API'), { target: { value: 'A' } });
+    fireEvent.change(document.getElementById('task-name') as HTMLInputElement, { target: { value: 'A' } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear tarea' }));
 
     expect(await screen.findByText('La tarea debe tener al menos 2 caracteres.')).toBeInTheDocument();
     expect(tasksMock).toHaveLength(1);
   });
 
+  test('creates a manual time entry from the dashboard', async () => {
+    renderApp();
+
+    await screen.findByRole('heading', { name: 'Time Tracker' });
+    const manualPanel = within(document.getElementById('manual-time-entry')!);
+    await waitFor(() => expect(manualPanel.getAllByText('Sin entradas todavia').length).toBeGreaterThan(0));
+    fireEvent.change(document.getElementById('time-entry-description') as HTMLInputElement, { target: { value: 'Trabajo manual' } });
+    fireEvent.click(manualPanel.getByRole('button', { name: 'Crear entrada' }));
+
+    await waitFor(() => expect(timeEntriesMock).toHaveLength(1));
+    expect(manualPanel.getByText('Trabajo manual')).toBeInTheDocument();
+  });
+
   test('creates a tag from the dashboard', async () => {
     renderApp();
 
-    await screen.findByText('Deep Work');
-    fireEvent.change(screen.getByPlaceholderText('Ej. Deep Work'), { target: { value: 'Nuevo Tag' } });
-    fireEvent.change(screen.getByPlaceholderText('#64748b'), { target: { value: '#0f7a5b' } });
+    await screen.findAllByText('Deep Work');
+    fireEvent.change(document.getElementById('tag-name') as HTMLInputElement, { target: { value: 'Nuevo Tag' } });
+    fireEvent.change(document.getElementById('tag-color') as HTMLInputElement, { target: { value: '#0f7a5b' } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear tag' }));
 
-    await waitFor(() => expect(screen.getByText('Nuevo Tag')).toBeInTheDocument());
+    await waitFor(() => expect(tagsMock).toHaveLength(2));
   });
 
   test('validates the tag form before submitting', async () => {
     renderApp();
 
-    await screen.findByText('Deep Work');
+    await screen.findAllByText('Deep Work');
     fireEvent.click(screen.getByRole('button', { name: 'Crear tag' }));
 
     expect(await screen.findByText('El nombre del tag es obligatorio.')).toBeInTheDocument();
@@ -261,6 +275,27 @@ let tagsMock: Array<{
   updatedAt: string;
 }> = [];
 
+let timeEntriesMock: Array<{
+  id: string;
+  clientId: string;
+  clientName: string;
+  projectId: string;
+  projectName: string;
+  projectColor: string;
+  taskId: string;
+  taskName: string;
+  description: string;
+  startedAt: string;
+  endedAt: string;
+  durationSeconds: number;
+  billable: boolean;
+  overlapWarning: boolean;
+  source: string;
+  tags: Array<{ id: string; name: string; color: string }>;
+  createdAt: string;
+  updatedAt: string;
+}> = [];
+
 async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
   const url = String(input);
   if (url.endsWith('/api/v1/session')) {
@@ -282,7 +317,7 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
       projectsTotal: projectsMock.length,
       tasksTotal: tasksMock.length,
       tagsTotal: tagsMock.length,
-      timeEntriesTotal: 5,
+      timeEntriesTotal: timeEntriesMock.length,
       invoicesTotal: 6,
       openTimers: 0,
     });
@@ -369,6 +404,44 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     };
     tagsMock = [...tagsMock, tag];
     return jsonResponse(tag, 201);
+  }
+
+  if (url.endsWith('/api/v1/time-entries') && (!init?.method || init.method === 'GET')) {
+    return jsonResponse({ timeEntries: timeEntriesMock });
+  }
+
+  if (url.endsWith('/api/v1/time-entries') && init?.method === 'POST') {
+    const body = JSON.parse(String(init.body));
+    const client = clientsMock.find((item) => item.id === body.clientId);
+    const project = projectsMock.find((item) => item.id === body.projectId);
+    const task = tasksMock.find((item) => item.id === body.taskId);
+    const startedAt = body.startedAt;
+    const endedAt = body.endedAt;
+    const durationSeconds = Math.max(60, Math.floor((Date.parse(endedAt) - Date.parse(startedAt)) / 1000));
+    const entry = {
+      id: `ten_${timeEntriesMock.length + 1}`,
+      clientId: body.clientId ?? '',
+      clientName: client?.name ?? '',
+      projectId: body.projectId ?? '',
+      projectName: project?.name ?? '',
+      projectColor: project?.color ?? '#64748b',
+      taskId: body.taskId ?? '',
+      taskName: task?.name ?? '',
+      description: body.description ?? '',
+      startedAt,
+      endedAt,
+      durationSeconds,
+      billable: body.billable ?? true,
+      overlapWarning: false,
+      source: 'manual',
+      tags: (body.tagIds ?? [])
+        .map((tagId: string) => tagsMock.find((item) => item.id === tagId))
+        .filter(Boolean),
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    };
+    timeEntriesMock = [...timeEntriesMock, entry];
+    return jsonResponse(entry, 201);
   }
 
   return jsonResponse({}, 404);

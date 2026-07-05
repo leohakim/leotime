@@ -112,6 +112,48 @@ export type TagsResponse = {
   tags: Tag[];
 };
 
+export type TimeEntryTag = {
+  id: string;
+  name: string;
+  color: string;
+};
+
+export type TimeEntry = {
+  id: string;
+  clientId: string;
+  clientName: string;
+  projectId: string;
+  projectName: string;
+  projectColor: string;
+  taskId: string;
+  taskName: string;
+  description: string;
+  startedAt: string;
+  endedAt: string;
+  durationSeconds: number;
+  billable: boolean;
+  overlapWarning: boolean;
+  source: string;
+  tags: TimeEntryTag[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TimeEntryInput = {
+  clientId: string;
+  projectId: string;
+  taskId: string;
+  tagIds: string[];
+  description: string;
+  startedAt: string;
+  endedAt: string;
+  billable: boolean;
+};
+
+export type TimeEntriesResponse = {
+  timeEntries: TimeEntry[];
+};
+
 export async function fetchSession(): Promise<SessionResponse> {
   return apiGet('/api/v1/session');
 }
@@ -134,6 +176,10 @@ export async function fetchTasks(): Promise<TasksResponse> {
 
 export async function fetchTags(): Promise<TagsResponse> {
   return apiGet('/api/v1/tags');
+}
+
+export async function fetchTimeEntries(): Promise<TimeEntriesResponse> {
+  return apiGet('/api/v1/time-entries');
 }
 
 export async function createClient(input: ClientInput): Promise<Client> {
@@ -203,6 +249,25 @@ export async function updateTag(tagId: string, input: TagInput): Promise<Tag> {
 
 export async function deleteTag(tagId: string): Promise<void> {
   const response = await fetch(`/api/v1/tags/${tagId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`request_failed:${response.status}`);
+  }
+}
+
+export async function createTimeEntry(input: TimeEntryInput): Promise<TimeEntry> {
+  return apiJSON('/api/v1/time-entries', 'POST', input);
+}
+
+export async function updateTimeEntry(timeEntryId: string, input: TimeEntryInput): Promise<TimeEntry> {
+  return apiJSON(`/api/v1/time-entries/${timeEntryId}`, 'PATCH', input);
+}
+
+export async function deleteTimeEntry(timeEntryId: string): Promise<void> {
+  const response = await fetch(`/api/v1/time-entries/${timeEntryId}`, {
     method: 'DELETE',
     credentials: 'include',
   });

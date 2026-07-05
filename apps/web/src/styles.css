@@ -890,6 +890,45 @@ a:focus-visible {
   width: 14px;
 }
 
+.warning-pill {
+  background: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+}
+
+.overlap-warning-icon {
+  color: #f59e0b;
+  height: 16px;
+  width: 16px;
+}
+
+.tag-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-picker label {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+.tag-picker input {
+  accent-color: var(--green);
+}
+
+.tag-picker-field span {
+  display: block;
+  margin-bottom: 8px;
+}
+
 .client-list {
   display: grid;
 }

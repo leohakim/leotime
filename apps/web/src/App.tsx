@@ -48,6 +48,7 @@ import {
   fetchSession,
   fetchTags,
   fetchTasks,
+  fetchTimeEntries,
   login,
   logout,
   updateClient,
@@ -66,6 +67,7 @@ import {
   type TaskInput,
 } from './lib/api';
 import { translate } from './lib/i18n';
+import { ManualTimeEntryPanel, TimeEntriesList, scrollToManualEntryForm } from './lib/timeEntryUi';
 import { usePersistentState } from './lib/persistentState';
 
 export function App() {
@@ -170,6 +172,7 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: fetchProjects });
   const tasksQuery = useQuery({ queryKey: ['tasks'], queryFn: fetchTasks });
   const tagsQuery = useQuery({ queryKey: ['tags'], queryFn: fetchTags });
+  const timeEntriesQuery = useQuery({ queryKey: ['time-entries'], queryFn: fetchTimeEntries });
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
@@ -292,15 +295,30 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
           <button className="stop-timer-button" type="button" title={t('stop')}>
             <CircleStop aria-hidden="true" />
           </button>
-          <button className="manual-entry-button" type="button">
+          <button className="manual-entry-button" type="button" onClick={() => scrollToManualEntryForm()}>
             <Plus aria-hidden="true" />
             {t('manualTimeEntry')}
           </button>
         </section>
 
-        <TimeEntriesPreview t={t} />
+        <TimeEntriesList
+          entries={timeEntriesQuery.data?.timeEntries ?? []}
+          isLoading={timeEntriesQuery.isLoading}
+          locale={locale}
+          t={t}
+        />
 
         <section className="management-surface" aria-label={t('manage')}>
+          <ManualTimeEntryPanel
+            clients={clientsQuery.data?.clients ?? []}
+            isLoading={timeEntriesQuery.isLoading}
+            locale={locale}
+            projects={projectsQuery.data?.projects ?? []}
+            tags={tagsQuery.data?.tags ?? []}
+            tasks={tasksQuery.data?.tasks ?? []}
+            t={t}
+            timeEntries={timeEntriesQuery.data?.timeEntries ?? []}
+          />
           <ClientPanel clients={clientsQuery.data?.clients ?? []} isLoading={clientsQuery.isLoading} t={t} />
           <ProjectPanel
             clients={clientsQuery.data?.clients ?? []}
@@ -318,230 +336,6 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, t, userName }
         </section>
       </main>
     </div>
-  );
-}
-
-type TimeEntryPreviewItem = {
-  billable?: boolean;
-  color: string;
-  count?: number;
-  description: string;
-  duration: string;
-  id: string;
-  project: string;
-  selected?: boolean;
-  timeRange: string;
-};
-
-type TimeEntryPreviewDay = {
-  date: string;
-  day: string;
-  entries: TimeEntryPreviewItem[];
-  total: string;
-};
-
-const timePreviewDays: TimeEntryPreviewDay[] = [
-  {
-    day: 'Monday',
-    date: '2026-06-29',
-    total: '9h 09min',
-    entries: [
-      {
-        id: 'mon-1',
-        description: 'Cropper de Imagenes en todo el BackOffice [Serializers]',
-        project: 'RTVE',
-        color: '#ff714b',
-        timeRange: '16:41 - 19:33',
-        duration: '2h 51min',
-      },
-      {
-        id: 'mon-2',
-        description: 'Meet [tech]',
-        project: 'Meet / Mails / Catch up',
-        color: '#fff15c',
-        timeRange: '15:30 - 16:41',
-        duration: '1h 11min',
-        billable: true,
-      },
-      {
-        id: 'mon-3',
-        description: 'Refactor Quiz [Endpoint rapido con respuestas codificadas como ENACT, participacion anonima]',
-        project: 'RTVE',
-        color: '#ff714b',
-        count: 2,
-        timeRange: '08:04 - 15:30',
-        duration: '5h 06min',
-        selected: true,
-      },
-    ],
-  },
-  {
-    day: 'Friday',
-    date: '2026-06-26',
-    total: '6h 00min',
-    entries: [
-      {
-        id: 'fri-1',
-        description: 'Porto General Assembly',
-        project: 'ENACT',
-        color: '#45aaf2',
-        timeRange: '09:00 - 15:00',
-        duration: '6h 00min',
-      },
-    ],
-  },
-  {
-    day: 'Thursday',
-    date: '2026-06-25',
-    total: '8h 00min',
-    entries: [
-      {
-        id: 'thu-1',
-        description: 'Porto General Assembly',
-        project: 'ENACT',
-        color: '#45aaf2',
-        timeRange: '09:00 - 17:00',
-        duration: '8h 00min',
-      },
-    ],
-  },
-  {
-    day: 'Wednesday',
-    date: '2026-06-24',
-    total: '1h 56min',
-    entries: [
-      {
-        id: 'wed-1',
-        description: 'Reunion Ari + Correcciones',
-        project: 'Atempora.app',
-        color: '#ffb02e',
-        timeRange: '18:00 - 19:57',
-        duration: '1h 56min',
-      },
-    ],
-  },
-  {
-    day: 'Tuesday',
-    date: '2026-06-23',
-    total: '7h 09min',
-    entries: [
-      {
-        id: 'tue-1',
-        description: 'Alignment Meeting for the Porto General Assembly [Docs] + Tests de stress nuevos',
-        project: 'ENACT',
-        color: '#45aaf2',
-        count: 2,
-        timeRange: '09:04 - 15:10',
-        duration: '4h 26min',
-      },
-      {
-        id: 'tue-2',
-        description: 'Reunion de seguimiento',
-        project: 'RTVE',
-        color: '#ff714b',
-        timeRange: '12:26 - 14:05',
-        duration: '1h 39min',
-      },
-      {
-        id: 'tue-3',
-        description: 'Visibility Results en PRE [Correcciones]',
-        project: 'RTVE',
-        color: '#ff714b',
-        timeRange: '08:00 - 09:04',
-        duration: '1h 04min',
-      },
-    ],
-  },
-  {
-    day: 'Monday',
-    date: '2026-06-22',
-    total: '9h 09min',
-    entries: [
-      {
-        id: 'mon-prev-1',
-        description: 'Reu Nico Visibility Results',
-        project: 'RTVE',
-        color: '#ff714b',
-        count: 2,
-        timeRange: '14:09 - 17:49',
-        duration: '2h 13min',
-      },
-      {
-        id: 'mon-prev-2',
-        description: 'Meet [tech]',
-        project: 'Meet / Mails / Catch up',
-        color: '#fff15c',
-        timeRange: '15:30 - 15:59',
-        duration: '0h 29min',
-        billable: true,
-      },
-      {
-        id: 'mon-prev-3',
-        description: 'Visibility Results',
-        project: 'RTVE',
-        color: '#ff714b',
-        timeRange: '15:05 - 15:30',
-        duration: '0h 25min',
-      },
-      {
-        id: 'mon-prev-4',
-        description: 'Alignment Meeting for the Porto General Assembly [Docs] + Tests de stress nuevos',
-        project: 'ENACT',
-        color: '#45aaf2',
-        timeRange: '08:07 - 14:09',
-        duration: '6h 01min',
-      },
-    ],
-  },
-];
-
-function TimeEntriesPreview({ t }: { t: Translator }) {
-  return (
-    <section className="time-list-panel" id="timesheet" aria-labelledby="timesheet-title">
-      <div className="time-list-toolbar">
-        <label className="select-all-control">
-          <span className="entry-checkbox" aria-hidden="true" />
-          {t('selectAll')}
-        </label>
-        <strong id="timesheet-title">{t('timesheet')}</strong>
-      </div>
-      <div className="time-entry-list" role="table" aria-label={t('timesheet')}>
-        {timePreviewDays.map((day) => (
-          <div className="time-day-group" role="rowgroup" key={`${day.day}-${day.date}`}>
-            <div className="day-group-header" role="row">
-              <div>
-                <CalendarDays aria-hidden="true" />
-                <strong>{day.day}</strong>
-                <span>{day.date}</span>
-              </div>
-              <strong>{day.total}</strong>
-            </div>
-            {day.entries.map((entry) => (
-              <div className={entry.selected ? 'time-entry-row selected' : 'time-entry-row'} role="row" key={entry.id}>
-                <span className="entry-checkbox" aria-hidden="true" />
-                <div className="entry-task">
-                  {entry.count ? <span className="entry-count">{entry.count}</span> : null}
-                  <strong>{entry.description}</strong>
-                </div>
-                <EntityPill color={entry.color} label={entry.project} />
-                <div className="entry-flags">
-                  <Tag aria-hidden="true" />
-                  <DollarSign aria-hidden="true" className={entry.billable ? 'billable-on' : undefined} />
-                </div>
-                <span className="entry-time">{entry.timeRange}</span>
-                <strong className="entry-duration">{entry.duration}</strong>
-                <button className={entry.selected ? 'play-entry-button active' : 'play-entry-button'} type="button">
-                  <CirclePlay aria-hidden="true" />
-                </button>
-                <button className="more-entry-button" type="button" title={t('moreActions')}>
-                  <EllipsisVertical aria-hidden="true" />
-                </button>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 
