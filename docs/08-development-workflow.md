@@ -104,3 +104,40 @@ change-me-now
 
 Change them before exposing the app to the internet.
 
+## Git Hooks
+
+Install the repository pre-commit hook:
+
+```bash
+make setup-hooks
+```
+
+`make setup` also installs hooks automatically after `npm install`.
+
+Before each commit, the hook runs:
+
+```bash
+make pre-commit
+```
+
+That gate verifies:
+
+- Go formatting with `gofmt`.
+- Go static analysis with `go vet`.
+- Backend tests with `go test ./...`.
+- Frontend unit tests with Vitest.
+- Frontend production build with TypeScript and Vite.
+
+Run the same gate manually at any time:
+
+```bash
+make pre-commit
+```
+
+For full delivery checks after larger changes, also run:
+
+```bash
+make smoke
+make deploy-check
+```
+

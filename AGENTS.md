@@ -31,6 +31,8 @@ make bench
 make import-solidtime-dry ZIP=<path-to-export.zip>
 ```
 
+Install git hooks once per clone with `make setup-hooks` (included in `make setup`). Every commit runs `make pre-commit`: gofmt, go vet, backend tests, frontend tests, and web build.
+
 ## Commit Style
 
 Use small commits with clear messages following [Conventional Commits](https://www.conventionalcommits.org/):

@@ -64,6 +64,12 @@ Docker:
 docker compose up --build
 ```
 
+Install git hooks (recommended after clone):
+
+```bash
+make setup-hooks
+```
+
 The default bootstrap credentials are development-only:
 
 - Email: `admin@example.com`

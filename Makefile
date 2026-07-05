@@ -7,7 +7,7 @@ K6_BASE_URL ?= http://leotime:8080
 K6_VUS ?= 10
 K6_DURATION ?= 30s
 
-.PHONY: help setup dev dev-api dev-web up down logs migrate test test-api test-web test-e2e build-web smoke bench stress metrics docker-build deploy-check import-solidtime import-solidtime-dry
+.PHONY: help setup setup-hooks pre-commit fmt-check test-api-vet dev dev-api dev-web up down logs migrate test test-api test-web test-e2e build-web smoke bench stress metrics docker-build deploy-check import-solidtime import-solidtime-dry
 
 help: ## 🧭 Show available commands
 	@printf "\n🕒 leotime developer commands\n\n"
@@ -17,7 +17,30 @@ help: ## 🧭 Show available commands
 setup: ## 🧰 Install local dependencies
 	@printf "🧰 Installing web dependencies...\n"
 	npm install
+	@$(MAKE) setup-hooks
 	@printf "✅ Setup complete\n"
+
+setup-hooks: ## 🪝 Install git hooks from .githooks
+	@printf "🪝 Installing git hooks...\n"
+	@chmod +x .githooks/pre-commit scripts/git/pre-commit.sh
+	@git config core.hooksPath .githooks
+	@printf "✅ Git hooks installed (core.hooksPath=.githooks)\n"
+
+pre-commit: fmt-check test-api-vet test-api test-web build-web ## 🛡️ Run local commit quality gate
+	@printf "✅ Pre-commit gate passed\n"
+
+fmt-check: ## 🧹 Verify Go files are gofmt-clean
+	@printf "🧹 Checking gofmt...\n"
+	@unformatted=$$(gofmt -l apps/api); \
+	if [ -n "$$unformatted" ]; then \
+		printf '❌ Go files need gofmt:\n%s\n' "$$unformatted"; \
+		printf 'Run: gofmt -w %s\n' "$$unformatted"; \
+		exit 1; \
+	fi
+
+test-api-vet: ## 🔍 Run go vet on the API module
+	@printf "🔍 Running go vet...\n"
+	cd apps/api && go vet ./...
 
 dev: ## 🚀 Run API and web dev servers in parallel
 	@printf "🚀 Starting API and web dev servers...\n"
