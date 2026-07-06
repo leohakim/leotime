@@ -12,6 +12,40 @@ export type User = {
   layoutMode: LayoutMode;
 };
 
+export type AppSettings = {
+  taskProjectRequired: boolean;
+  defaultCurrency: string;
+  timezone: string;
+  themeMode: ThemeMode;
+};
+
+export type Profile = {
+  id: string;
+  email: string;
+  name: string;
+  locale: Locale;
+  layoutMode: LayoutMode;
+  settings: AppSettings;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProfileUpdateInput = {
+  name: string;
+  email: string;
+  locale: Locale;
+  layoutMode: LayoutMode;
+  taskProjectRequired: boolean;
+  defaultCurrency: string;
+  timezone: string;
+  themeMode: ThemeMode;
+};
+
+export type ChangePasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+};
+
 export type SessionResponse = {
   authenticated: boolean;
   user: User | null;
@@ -324,6 +358,29 @@ export type InvoiceUpdateInput = {
 
 export async function fetchSession(): Promise<SessionResponse> {
   return apiGet('/api/v1/session');
+}
+
+export async function fetchProfile(): Promise<Profile> {
+  return apiGet('/api/v1/profile');
+}
+
+export async function updateProfile(input: ProfileUpdateInput): Promise<Profile> {
+  return apiJSON('/api/v1/profile', 'PATCH', input);
+}
+
+export async function changePassword(input: ChangePasswordInput): Promise<void> {
+  const response = await fetch('/api/v1/profile/change-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(`request_failed:${response.status}`);
+  }
 }
 
 export async function fetchOverview(): Promise<Overview> {

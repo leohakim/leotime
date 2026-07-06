@@ -72,8 +72,10 @@ import {
   type TagInput,
   type Task,
   type TaskInput,
+  type User,
 } from './lib/api';
 import { translate } from './lib/i18n';
+import { ProfileSettingsPanel } from './lib/profileSettingsUi';
 import { sortTasksByNewest } from './lib/taskSort';
 import { ProjectBadge } from './lib/projectBadgeUi';
 import { CalendarPanel } from './lib/calendarUi';
@@ -118,6 +120,7 @@ export function App() {
       setThemeMode={setThemeMode}
       themeMode={themeMode}
       t={t}
+      user={sessionQuery.data.user}
       userName={sessionQuery.data.user.name}
     />
   );
@@ -186,12 +189,13 @@ type DashboardProps = {
   setThemeMode: (themeMode: ThemeMode) => void;
   themeMode: ThemeMode;
   t: Translator;
+  user: User;
   userName: string;
 };
 
 type TimeView = 'timesheet' | 'calendar';
 
-function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode, themeMode, t, userName }: DashboardProps) {
+function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode, themeMode, t, user, userName }: DashboardProps) {
   const queryClient = useQueryClient();
   const [timeView, setTimeView] = usePersistentState<TimeView>('leotime.timeView', 'timesheet');
   const [weekAnchorIso, setWeekAnchorIso] = usePersistentState('leotime.timesheetWeek', new Date().toISOString().slice(0, 10));
@@ -450,6 +454,14 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
             t={t}
           />
           <TagPanel isLoading={tagsQuery.isLoading} tags={tagsQuery.data?.tags ?? []} t={t} />
+          <ProfileSettingsPanel
+            setLayoutMode={setLayoutMode}
+            setLocale={setLocale}
+            setThemeMode={setThemeMode}
+            t={t}
+            themeMode={themeMode}
+            user={user}
+          />
         </section>
       </main>
     </div>

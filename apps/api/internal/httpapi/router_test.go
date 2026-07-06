@@ -112,6 +112,53 @@ func TestTagsRequireAuthentication(t *testing.T) {
 	}
 }
 
+func TestProfileHTTPLifecycle(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	getResponse := httptest.NewRecorder()
+	getRequest := httptest.NewRequest(http.MethodGet, "/api/v1/profile", nil)
+	for _, cookie := range cookies {
+		getRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(getResponse, getRequest)
+	if getResponse.Code != http.StatusOK {
+		t.Fatalf("expected profile 200, got %d: %s", getResponse.Code, getResponse.Body.String())
+	}
+
+	patchResponse := httptest.NewRecorder()
+	patchRequest := httptest.NewRequest(http.MethodPatch, "/api/v1/profile", bytes.NewBufferString(`{
+		"name":"Leo",
+		"email":"leo@example.com",
+		"locale":"en",
+		"layoutMode":"compact",
+		"taskProjectRequired":true,
+		"defaultCurrency":"USD",
+		"timezone":"America/New_York",
+		"themeMode":"dark"
+	}`))
+	for _, cookie := range cookies {
+		patchRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(patchResponse, patchRequest)
+	if patchResponse.Code != http.StatusOK {
+		t.Fatalf("expected profile patch 200, got %d: %s", patchResponse.Code, patchResponse.Body.String())
+	}
+
+	passwordResponse := httptest.NewRecorder()
+	passwordRequest := httptest.NewRequest(http.MethodPost, "/api/v1/profile/change-password", bytes.NewBufferString(`{
+		"currentPassword":"change-me-now",
+		"newPassword":"new-password-123"
+	}`))
+	for _, cookie := range cookies {
+		passwordRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(passwordResponse, passwordRequest)
+	if passwordResponse.Code != http.StatusNoContent {
+		t.Fatalf("expected password change 204, got %d: %s", passwordResponse.Code, passwordResponse.Body.String())
+	}
+}
+
 func TestClientHTTPLifecycle(t *testing.T) {
 	router := newTestRouter(t)
 	cookies := loginCookies(t, router)

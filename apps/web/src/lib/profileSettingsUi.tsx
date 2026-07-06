@@ -1,0 +1,479 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { CircleAlert, CircleCheck, Save, Settings, UserRound } from 'lucide-react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import {
+  changePassword,
+  fetchProfile,
+  updateProfile,
+  type ChangePasswordInput,
+  type LayoutMode,
+  type Locale,
+  type Profile,
+  type ProfileUpdateInput,
+  type SessionResponse,
+  type ThemeMode,
+  type User,
+} from './api';
+import type { MessageKey } from './i18n';
+
+export type Translator = (key: MessageKey) => string;
+
+const TIMEZONES = [
+  'Europe/Madrid',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Argentina/Buenos_Aires',
+  'America/Mexico_City',
+  'America/Sao_Paulo',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+];
+
+const CURRENCIES = ['EUR', 'USD', 'GBP', 'ARS', 'MXN', 'BRL', 'CHF', 'CAD'];
+
+type ProfileFormState = ProfileUpdateInput;
+
+type PasswordFormState = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+type ProfileFormErrors = Partial<Record<keyof ProfileFormState | 'form', string>>;
+type PasswordFormErrors = Partial<Record<keyof PasswordFormState | 'form', string>>;
+
+function buildFormFromProfile(profile: Profile): ProfileFormState {
+  return {
+    name: profile.name,
+    email: profile.email,
+    locale: profile.locale,
+    layoutMode: profile.layoutMode,
+    taskProjectRequired: profile.settings.taskProjectRequired,
+    defaultCurrency: profile.settings.defaultCurrency,
+    timezone: profile.settings.timezone,
+    themeMode: profile.settings.themeMode,
+  };
+}
+
+function buildFormFromUser(user: User, themeMode: ThemeMode): ProfileFormState {
+  return {
+    name: user.name,
+    email: user.email,
+    locale: user.locale,
+    layoutMode: user.layoutMode,
+    taskProjectRequired: false,
+    defaultCurrency: 'EUR',
+    timezone: 'Europe/Madrid',
+    themeMode,
+  };
+}
+
+function fieldClass(error?: string) {
+  return error ? 'form-field has-error' : 'form-field';
+}
+
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) {
+    return null;
+  }
+  return (
+    <span className="field-message" id={id} role="alert">
+      {message}
+    </span>
+  );
+}
+
+export function ProfileSettingsPanel({
+  setLayoutMode,
+  setLocale,
+  setThemeMode,
+  t,
+  themeMode,
+  user,
+}: {
+  setLayoutMode: (layoutMode: LayoutMode) => void;
+  setLocale: (locale: Locale) => void;
+  setThemeMode: (themeMode: ThemeMode) => void;
+  t: Translator;
+  themeMode: ThemeMode;
+  user: User;
+}) {
+  const queryClient = useQueryClient();
+  const profileQuery = useQuery({
+    queryKey: ['profile'],
+    queryFn: fetchProfile,
+    retry: false,
+  });
+  const serverHydratedRef = useRef(false);
+  const [form, setForm] = useState<ProfileFormState>(() => buildFormFromUser(user, themeMode));
+  const [errors, setErrors] = useState<ProfileFormErrors>({});
+  const [passwordForm, setPasswordForm] = useState<PasswordFormState>({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordErrors, setPasswordErrors] = useState<PasswordFormErrors>({});
+  const [savedMessage, setSavedMessage] = useState('');
+  const [passwordSavedMessage, setPasswordSavedMessage] = useState('');
+
+  useEffect(() => {
+    if (!profileQuery.data || serverHydratedRef.current) {
+      return;
+    }
+    serverHydratedRef.current = true;
+    setForm(buildFormFromProfile(profileQuery.data));
+    setLocale(profileQuery.data.locale);
+    setLayoutMode(profileQuery.data.layoutMode);
+    setThemeMode(profileQuery.data.settings.themeMode);
+  }, [profileQuery.data, setLayoutMode, setLocale, setThemeMode]);
+
+  const updateMutation = useMutation({
+    mutationFn: updateProfile,
+    onSuccess: (profile) => {
+      queryClient.setQueryData(['profile'], profile);
+      queryClient.setQueryData(['session'], (current: SessionResponse | undefined) => {
+        if (!current?.user) {
+          return current;
+        }
+        return {
+          ...current,
+          user: {
+            ...current.user,
+            name: profile.name,
+            email: profile.email,
+            locale: profile.locale,
+            layoutMode: profile.layoutMode,
+          },
+        };
+      });
+      setForm(buildFormFromProfile(profile));
+      setLocale(profile.locale);
+      setLayoutMode(profile.layoutMode);
+      setThemeMode(profile.settings.themeMode);
+      setErrors({});
+      setSavedMessage(t('profileSaved'));
+      window.setTimeout(() => setSavedMessage(''), 2500);
+    },
+    onError: () => setErrors({ form: t('profileSaveFailed') }),
+  });
+
+  const passwordMutation = useMutation({
+    mutationFn: changePassword,
+    onSuccess: () => {
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setPasswordErrors({});
+      setPasswordSavedMessage(t('passwordChanged'));
+      window.setTimeout(() => setPasswordSavedMessage(''), 2500);
+    },
+    onError: () => setPasswordErrors({ form: t('passwordChangeFailed') }),
+  });
+
+  function updateField<K extends keyof ProfileFormState>(key: K, value: ProfileFormState[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+    setErrors((current) => ({ ...current, [key]: undefined, form: undefined }));
+  }
+
+  function updatePasswordField<K extends keyof PasswordFormState>(key: K, value: PasswordFormState[K]) {
+    setPasswordForm((current) => ({ ...current, [key]: value }));
+    setPasswordErrors((current) => ({ ...current, [key]: undefined, form: undefined }));
+  }
+
+  function validateProfile(next: ProfileFormState): ProfileFormErrors {
+    const nextErrors: ProfileFormErrors = {};
+    if (next.name.trim().length < 2) {
+      nextErrors.name = t('profileNameRequired');
+    }
+    if (!next.email.trim()) {
+      nextErrors.email = t('profileEmailRequired');
+    }
+    if (!/^[A-Z]{3}$/.test(next.defaultCurrency.trim().toUpperCase())) {
+      nextErrors.defaultCurrency = t('profileCurrencyInvalid');
+    }
+    return nextErrors;
+  }
+
+  function validatePassword(next: PasswordFormState): PasswordFormErrors {
+    const nextErrors: PasswordFormErrors = {};
+    if (!next.currentPassword) {
+      nextErrors.currentPassword = t('profileCurrentPasswordRequired');
+    }
+    if (next.newPassword.length < 8) {
+      nextErrors.newPassword = t('profileNewPasswordRequired');
+    }
+    if (next.newPassword !== next.confirmPassword) {
+      nextErrors.confirmPassword = t('profilePasswordMismatch');
+    }
+    return nextErrors;
+  }
+
+  function submitProfile(event: FormEvent) {
+    event.preventDefault();
+    const nextErrors = validateProfile(form);
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+    updateMutation.mutate({
+      ...form,
+      name: form.name.trim(),
+      email: form.email.trim(),
+      defaultCurrency: form.defaultCurrency.trim().toUpperCase(),
+    });
+  }
+
+  function submitPassword(event: FormEvent) {
+    event.preventDefault();
+    const nextErrors = validatePassword(passwordForm);
+    if (Object.keys(nextErrors).length > 0) {
+      setPasswordErrors(nextErrors);
+      return;
+    }
+    passwordMutation.mutate({
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+    });
+  }
+
+  return (
+    <section className="clients-section profile-settings-section" id="profile" aria-labelledby="profile-title">
+      <div className="clients-heading">
+        <div className="section-title-group">
+          <span className="section-kicker">
+            <UserRound aria-hidden="true" />
+            {t('profileSettings')}
+          </span>
+          <h2 id="profile-title">{t('profilePanelTitle')}</h2>
+          <p>{t('profilePanelSubtitle')}</p>
+        </div>
+        {savedMessage ? (
+          <span className="sync-pill success-pill">
+            <CircleCheck aria-hidden="true" />
+            {savedMessage}
+          </span>
+        ) : profileQuery.isLoading ? (
+          <span className="sync-pill">{t('loading')}</span>
+        ) : profileQuery.isError ? (
+          <span className="sync-pill warning-pill">{t('profileLoadDegraded')}</span>
+        ) : (
+          <span className="sync-pill">{t('synced')}</span>
+        )}
+      </div>
+
+      {profileQuery.isError ? (
+        <div className="form-alert profile-settings-alert" role="alert">
+          <CircleAlert aria-hidden="true" />
+          {t('profileLoadFailedHint')}
+        </div>
+      ) : null}
+
+      <div className="profile-settings-grid">
+        <form className="client-editor profile-settings-form" noValidate onSubmit={submitProfile}>
+          <div className="editor-header">
+            <div>
+              <span>{t('profileAccountSection')}</span>
+              <h3>{t('profileAccountHeading')}</h3>
+            </div>
+          </div>
+
+          {errors.form ? (
+            <div className="form-alert" role="alert">
+              <CircleAlert aria-hidden="true" />
+              {errors.form}
+            </div>
+          ) : null}
+
+          <div className="client-form-grid profile-account-grid">
+            <label className={fieldClass(errors.name)} htmlFor="profile-name">
+              <span>
+                {t('name')} <em>{t('required')}</em>
+              </span>
+              <input
+                aria-describedby={errors.name ? 'profile-name-error' : undefined}
+                id="profile-name"
+                onChange={(event) => updateField('name', event.target.value)}
+                value={form.name}
+              />
+              <FieldError id="profile-name-error" message={errors.name} />
+            </label>
+
+            <label className={fieldClass(errors.email)} htmlFor="profile-email">
+              <span>
+                {t('email')} <em>{t('required')}</em>
+              </span>
+              <input
+                aria-describedby={errors.email ? 'profile-email-error' : undefined}
+                id="profile-email"
+                onChange={(event) => updateField('email', event.target.value)}
+                type="email"
+                value={form.email}
+              />
+              <FieldError id="profile-email-error" message={errors.email} />
+            </label>
+          </div>
+
+          <div className="profile-settings-divider" id="settings" />
+
+          <div className="editor-header">
+            <div>
+              <span className="section-kicker">
+                <Settings aria-hidden="true" />
+                {t('settings')}
+              </span>
+              <h3>{t('profilePreferencesHeading')}</h3>
+            </div>
+          </div>
+
+          <div className="client-form-grid profile-preferences-grid">
+            <label className="form-field" htmlFor="profile-locale">
+              <span>{t('language')}</span>
+              <select id="profile-locale" onChange={(event) => updateField('locale', event.target.value as Locale)} value={form.locale}>
+                <option value="es">{t('languageEs')}</option>
+                <option value="en">{t('languageEn')}</option>
+              </select>
+            </label>
+
+            <label className="form-field" htmlFor="profile-layout">
+              <span>{t('layout')}</span>
+              <select
+                id="profile-layout"
+                onChange={(event) => updateField('layoutMode', event.target.value as LayoutMode)}
+                value={form.layoutMode}
+              >
+                <option value="solid">{t('solid')}</option>
+                <option value="minimal">{t('minimal')}</option>
+                <option value="compact">{t('compact')}</option>
+              </select>
+            </label>
+
+            <label className="form-field" htmlFor="profile-theme">
+              <span>{t('theme')}</span>
+              <select id="profile-theme" onChange={(event) => updateField('themeMode', event.target.value as ThemeMode)} value={form.themeMode}>
+                <option value="solid">{t('themeSolid')}</option>
+                <option value="light">{t('themeLight')}</option>
+                <option value="dark">{t('themeDark')}</option>
+                <option value="minimal">{t('themeMinimal')}</option>
+              </select>
+            </label>
+
+            <label className={fieldClass(errors.defaultCurrency)} htmlFor="profile-currency">
+              <span>{t('defaultCurrency')}</span>
+              <select
+                id="profile-currency"
+                onChange={(event) => updateField('defaultCurrency', event.target.value)}
+                value={form.defaultCurrency}
+              >
+                {CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </select>
+              <FieldError id="profile-currency-error" message={errors.defaultCurrency} />
+            </label>
+
+            <label className="form-field profile-timezone-field" htmlFor="profile-timezone">
+              <span>{t('timezone')}</span>
+              <select id="profile-timezone" onChange={(event) => updateField('timezone', event.target.value)} value={form.timezone}>
+                {TIMEZONES.map((timezone) => (
+                  <option key={timezone} value={timezone}>
+                    {timezone}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="form-field profile-checkbox-field" htmlFor="profile-task-project-required">
+              <input
+                checked={form.taskProjectRequired}
+                id="profile-task-project-required"
+                onChange={(event) => updateField('taskProjectRequired', event.target.checked)}
+                type="checkbox"
+              />
+              <span>{t('profileTaskProjectRequired')}</span>
+            </label>
+          </div>
+
+          <div className="client-form-actions">
+            <button disabled={updateMutation.isPending} type="submit">
+              <Save aria-hidden="true" />
+              {updateMutation.isPending ? t('loading') : t('saveProfile')}
+            </button>
+          </div>
+        </form>
+
+        <form className="client-editor profile-password-form" noValidate onSubmit={submitPassword}>
+          <div className="editor-header">
+            <div>
+              <span>{t('profilePasswordSection')}</span>
+              <h3>{t('profilePasswordHeading')}</h3>
+            </div>
+            {passwordSavedMessage ? (
+              <span className="sync-pill success-pill">
+                <CircleCheck aria-hidden="true" />
+                {passwordSavedMessage}
+              </span>
+            ) : null}
+          </div>
+
+          {passwordErrors.form ? (
+            <div className="form-alert" role="alert">
+              <CircleAlert aria-hidden="true" />
+              {passwordErrors.form}
+            </div>
+          ) : null}
+
+          <div className="client-form-grid profile-password-grid">
+            <label className={fieldClass(passwordErrors.currentPassword)} htmlFor="profile-current-password">
+              <span>{t('profileCurrentPassword')}</span>
+              <input
+                autoComplete="current-password"
+                id="profile-current-password"
+                onChange={(event) => updatePasswordField('currentPassword', event.target.value)}
+                type="password"
+                value={passwordForm.currentPassword}
+              />
+              <FieldError id="profile-current-password-error" message={passwordErrors.currentPassword} />
+            </label>
+
+            <label className={fieldClass(passwordErrors.newPassword)} htmlFor="profile-new-password">
+              <span>{t('profileNewPassword')}</span>
+              <input
+                autoComplete="new-password"
+                id="profile-new-password"
+                onChange={(event) => updatePasswordField('newPassword', event.target.value)}
+                type="password"
+                value={passwordForm.newPassword}
+              />
+              <FieldError id="profile-new-password-error" message={passwordErrors.newPassword} />
+            </label>
+
+            <label className={fieldClass(passwordErrors.confirmPassword)} htmlFor="profile-confirm-password">
+              <span>{t('profileConfirmPassword')}</span>
+              <input
+                autoComplete="new-password"
+                id="profile-confirm-password"
+                onChange={(event) => updatePasswordField('confirmPassword', event.target.value)}
+                type="password"
+                value={passwordForm.confirmPassword}
+              />
+              <FieldError id="profile-confirm-password-error" message={passwordErrors.confirmPassword} />
+            </label>
+          </div>
+
+          <div className="client-form-actions">
+            <button disabled={passwordMutation.isPending} type="submit">
+              <Save aria-hidden="true" />
+              {passwordMutation.isPending ? t('loading') : t('changePassword')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  );
+}
