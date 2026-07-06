@@ -6,8 +6,11 @@ BASE_URL ?= http://127.0.0.1:8080
 K6_BASE_URL ?= http://leotime:8080
 K6_VUS ?= 10
 K6_DURATION ?= 30s
+SAMPLE_SECONDS ?= 60
+SAMPLE_INTERVAL ?= 5
+WITH_LOAD ?= 0
 
-.PHONY: help setup setup-hooks pre-commit fmt-check test-api-vet dev dev-api dev-web up down logs migrate test test-api test-web test-e2e build-web smoke bench stress metrics docker-build deploy-check import-solidtime import-solidtime-dry
+.PHONY: help setup setup-hooks pre-commit fmt-check test-api-vet dev dev-api dev-web up down logs migrate test test-api test-web test-e2e build-web smoke bench stress metrics resources docker-build deploy-check import-solidtime import-solidtime-dry
 
 help: ## 🧭 Show available commands
 	@printf "\n🕒 leotime developer commands\n\n"
@@ -113,6 +116,11 @@ metrics: ## 📈 Start Prometheus and Grafana profile
 	docker compose --profile observability up -d prometheus grafana
 	@printf "✅ Prometheus: http://127.0.0.1:9090\n"
 	@printf "✅ Grafana:    http://127.0.0.1:3001\n"
+
+resources: ## 📊 Sample Docker CPU/RAM for the running app
+	@printf "📊 Measuring container resources...\n"
+	@chmod +x scripts/measure-resources.sh
+	@BASE_URL="$(BASE_URL)" SAMPLE_SECONDS="$(SAMPLE_SECONDS)" SAMPLE_INTERVAL="$(SAMPLE_INTERVAL)" WITH_LOAD="$(WITH_LOAD)" K6_VUS="$(K6_VUS)" K6_DURATION="$(K6_DURATION)" ./scripts/measure-resources.sh
 
 docker-build: ## 🏗️ Build production Docker image
 	@printf "🏗️ Building Docker image...\n"

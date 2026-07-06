@@ -13,6 +13,7 @@ make up
 make smoke
 make logs
 make down
+make resources
 ```
 
 ## Docker Stack
@@ -79,6 +80,119 @@ admin
 ```
 
 Change those before exposing the observability profile outside a local network.
+
+## Resource Measurement
+
+Compare leotime against Solidtime with the same workload shape, not just idle containers.
+
+### Quick measurement
+
+With Docker running:
+
+```bash
+make up
+make resources
+```
+
+Under load:
+
+```bash
+make resources WITH_LOAD=1 K6_VUS=10 K6_DURATION=30s
+```
+
+Longer idle window:
+
+```bash
+make resources SAMPLE_SECONDS=300
+```
+
+The script samples `docker stats`, prints average/peak CPU and RAM for the `leotime` container, and reads `/metrics` for Go process memory.
+
+### What leotime runs today
+
+Default Compose starts **one** service:
+
+| Service | Role |
+| --- | --- |
+| `leotime` | Go API, embedded SQLite, built static web |
+
+Prometheus and Grafana are optional (`make metrics`) and should not be counted in product footprint unless you deploy them.
+
+### Solidtime reference footprint
+
+Example snapshot from a VPS running official Solidtime:
+
+| Container | RAM |
+| --- | ---: |
+| queue | ~171 MiB |
+| scheduler | ~37 MiB |
+| app | ~558 MiB |
+| database | ~51 MiB |
+| **Total** | **~817 MiB** |
+
+That stack also runs background workers for queues, schedules, and mail. leotime does **not** include those yet.
+
+### Fair comparison notes
+
+Measure leotime after importing a representative Solidtime ZIP and using the app normally (timer, timesheet, reports). Compare:
+
+1. **Total RAM across containers** (Solidtime) vs **single `leotime` container**.
+2. **Idle vs active** usage. Timer polling and report exports change CPU slightly.
+3. **Missing features that will add cost later**:
+   - outbound email (password reset, reminders such as a timer left running 8+ hours)
+   - background queue worker if email or imports move async
+   - scheduler/cron for digest and reminder jobs
+
+When those arrive, budget roughly one small worker process or a second lightweight container, not a full Solidtime-style stack, unless traffic demands it.
+
+### Measured baseline (2026-07-06)
+
+First local measurement on the production Docker image (`make up`), empty bootstrap database (`leotime.db` ≈ 0.17 MiB), single owner, no Solidtime import loaded yet.
+
+Commands:
+
+```bash
+make resources SAMPLE_SECONDS=120
+SAMPLE_SECONDS=300 WITH_LOAD=1 make resources
+```
+
+| Scenario | Sample window | Avg RAM | Peak RAM | Avg CPU | Peak CPU | PIDs |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Idle | 120s / 5s (20 samples) | 21.9 MiB | 22.6 MiB | 0.00% | 0.00% | 13 |
+| k6 load (10 VUs, 30s) | 300s / 5s (50 samples) | 22.4 MiB | 24.8 MiB | 0.14% | 1.84% | 13 |
+
+Prometheus snapshot after idle run:
+
+| Metric | Value |
+| --- | ---: |
+| `process_resident_memory_bytes` | 28.4 MiB |
+| `go_memstats_heap_inuse_bytes` | 2.7 MiB |
+| `go_goroutines` | 10 |
+
+Comparison against the Solidtime VPS snapshot documented above:
+
+| Stack | Containers | Peak RAM |
+| --- | ---: | ---: |
+| Solidtime (queue + scheduler + app + database) | 4 | ~817 MiB |
+| leotime (this baseline) | 1 | ~25 MiB |
+
+That is roughly **33× less peak RAM** in this empty-stack scenario. It is not a full product parity test yet: Solidtime was measured with real production traffic/data, while this leotime baseline has almost no imported time entries and no mail or background workers.
+
+Re-run after importing a representative Solidtime ZIP and during normal daily use (timer running, timesheet edits, report export) before treating these numbers as deployment guidance.
+
+### Prometheus metrics useful for memory
+
+```text
+process_resident_memory_bytes
+go_memstats_heap_inuse_bytes
+go_goroutines
+```
+
+Scrape locally:
+
+```bash
+curl -s http://127.0.0.1:8080/metrics | rg 'process_resident_memory_bytes|go_memstats_heap_inuse_bytes|go_goroutines'
+```
 
 ## Stress Tests
 
