@@ -50,8 +50,19 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function TimeReportPanel({ locale, t }: { locale: Locale; t: Translator }) {
-  const [form, setForm] = useState<ReportFormState>(defaultReportForm);
+export function TimeReportPanel({
+  locale,
+  t,
+  detailed = false,
+}: {
+  locale: Locale;
+  t: Translator;
+  detailed?: boolean;
+}) {
+  const [form, setForm] = useState<ReportFormState>(() => ({
+    ...defaultReportForm(),
+    includeTimestamps: detailed,
+  }));
   const [applied, setApplied] = useState<TimeReportParams | null>(null);
   const [exportError, setExportError] = useState('');
 

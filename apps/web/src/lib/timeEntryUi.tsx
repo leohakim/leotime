@@ -24,11 +24,12 @@ import {
   sumWeekSeconds,
   type TimesheetDayGroup,
 } from './timesheetWeek';
+import { navigateTo } from './appRoutes';
 
 export type Translator = (key: MessageKey) => string;
 
 export function scrollToManualEntryForm() {
-  document.getElementById('manual-time-entry')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  navigateTo('manual-time-entry');
 }
 
 export function TimeEntriesList({

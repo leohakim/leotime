@@ -6,6 +6,7 @@ import { patchTimersCache, refreshOverviewIfOnline } from './offline/cache';
 import { useOfflineStatus } from './offline/offlineContext';
 import { isLocalId, startTimer, updateTimer } from './offline/mutations';
 import type { MessageKey } from './i18n';
+import { navigateTo } from './appRoutes';
 import { scrollToManualEntryForm } from './timeEntryUi';
 import { TimerPlayIcon, TimerStopIcon } from './timerIcons';
 import { TimerBillableToggle, TimerProjectPicker, TimerTagPicker, type TimerMetaSelection } from './timerPickerUi';
@@ -449,7 +450,7 @@ function buildTimerInput(
 }
 
 function scrollToProjectsPanel() {
-  document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  navigateTo('projects');
 }
 
 function timerStartParts(iso: string): { date: string; time: string } {

@@ -7,6 +7,7 @@ import { OfflineProvider } from './lib/offline/offlineContext';
 describe('App', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.location.hash = '';
     clientsMock = [
       {
         id: 'cli_1',
@@ -74,11 +75,6 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Entrada manual' })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Timesheet' })).toBeInTheDocument();
     expect(await screen.findByText('Esta semana')).toBeInTheDocument();
-    expect((await screen.findAllByText('Total semana')).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('Osoigo SL')).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('Portal Web')).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('Refactor API')).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('Deep Work')).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Iniciar timer' })).toBeInTheDocument();
     expect(screen.getByText('Sin timer activo')).toBeInTheDocument();
   });
@@ -98,6 +94,7 @@ describe('App', () => {
 
   test('renders dashboard stats widgets', async () => {
     renderApp();
+    await goTo('dashboard');
 
     expect(await screen.findByText('Entradas recientes')).toBeInTheDocument();
     expect(screen.getByText('Ultimos 7 dias')).toBeInTheDocument();
@@ -120,25 +117,23 @@ describe('App', () => {
 
   test('renders the time report panel', async () => {
     renderApp();
+    await goTo('overview');
 
-    expect(await screen.findByRole('heading', { name: 'Resumen' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Descargar CSV' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Descargar CSV' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Descargar JSON' })).toBeInTheDocument();
   });
 
   test('renders the invoice panel', async () => {
     renderApp();
+    await goTo('invoices');
 
-    expect(await screen.findByRole('heading', { name: 'Facturas' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Crear borrador' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Crear borrador' })).toBeInTheDocument();
     expect(await screen.findByText('INV-2026-001')).toBeInTheDocument();
   });
 
   test('opens the calendar view', async () => {
     renderApp();
-
-    await screen.findByText('Esta semana');
-    fireEvent.click(screen.getByRole('tab', { name: 'Calendario' }));
+    await goTo('calendar');
 
     expect(await screen.findByText('Este mes')).toBeInTheDocument();
     expect(screen.getByRole('grid', { name: 'Calendario' })).toBeInTheDocument();
@@ -155,6 +150,7 @@ describe('App', () => {
 
   test('creates a client from the dashboard', async () => {
     renderApp();
+    await goTo('clients');
 
     await screen.findAllByText('Osoigo SL');
     fireEvent.change(screen.getByPlaceholderText('Ej. Cliente ACME'), { target: { value: 'Nuevo Cliente' } });
@@ -169,6 +165,7 @@ describe('App', () => {
 
   test('validates the client form before submitting', async () => {
     renderApp();
+    await goTo('clients');
 
     await screen.findAllByText('Osoigo SL');
     fireEvent.click(screen.getByRole('button', { name: 'Crear cliente' }));
@@ -186,6 +183,7 @@ describe('App', () => {
 
   test('deactivates a client from the edit form', async () => {
     renderApp();
+    await goTo('clients');
 
     await screen.findAllByText('Osoigo SL');
     fireEvent.click(screen.getAllByTitle('Editar')[0]);
@@ -202,6 +200,7 @@ describe('App', () => {
     );
 
     renderApp();
+    await goTo('clients');
 
     await screen.findByText('Inactivos');
     fireEvent.click(screen.getAllByTitle('Reactivar')[0]);
@@ -211,9 +210,10 @@ describe('App', () => {
 
   test('deactivates a project from the edit form', async () => {
     renderApp();
+    await goTo('projects');
 
     await screen.findAllByText('Portal Web');
-    fireEvent.click(screen.getAllByTitle('Editar')[1]);
+    fireEvent.click(screen.getAllByTitle('Editar')[0]);
     fireEvent.click(screen.getByLabelText('Proyecto activo'));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
@@ -223,12 +223,13 @@ describe('App', () => {
 
   test('creates a project from the dashboard', async () => {
     renderApp();
+    await goTo('projects');
 
     await screen.findAllByText('Portal Web');
     fireEvent.change(screen.getByPlaceholderText('Ej. Rediseño web'), { target: { value: 'Nuevo Proyecto' } });
     fireEvent.change(screen.getByLabelText('Cliente', { selector: '#project-client' }), { target: { value: 'cli_1' } });
     fireEvent.change(screen.getByPlaceholderText('#2563eb'), { target: { value: '#0f7a5b' } });
-    fireEvent.change(screen.getAllByPlaceholderText('75.00')[1], { target: { value: '91.25' } });
+    fireEvent.change(screen.getAllByPlaceholderText('75.00')[0], { target: { value: '91.25' } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear proyecto' }));
 
     await waitFor(() => expect(projectsMock).toHaveLength(2));
@@ -237,6 +238,7 @@ describe('App', () => {
 
   test('validates the project form before submitting', async () => {
     renderApp();
+    await goTo('projects');
 
     await screen.findAllByText('Portal Web');
     fireEvent.click(screen.getByRole('button', { name: 'Crear proyecto' }));
@@ -254,9 +256,10 @@ describe('App', () => {
 
   test('deactivates a task from the edit form', async () => {
     renderApp();
+    await goTo('tasks');
 
-    await screen.findAllByText('Refactor API');
-    fireEvent.click(screen.getAllByTitle('Editar')[2]);
+    await screen.findByDisplayValue('Refactor API');
+    fireEvent.click(screen.getAllByTitle('Editar')[0]);
     fireEvent.click(screen.getByLabelText('Tarea activa'));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
@@ -266,8 +269,9 @@ describe('App', () => {
 
   test('creates a task from the dashboard', async () => {
     renderApp();
+    await goTo('tasks');
 
-    await screen.findAllByText('Refactor API');
+    await screen.findByDisplayValue('Refactor API');
     fireEvent.change(document.getElementById('task-name') as HTMLInputElement, { target: { value: 'Nueva Tarea' } });
     fireEvent.change(document.getElementById('task-project') as HTMLSelectElement, { target: { value: 'prj_1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Crear tarea' }));
@@ -277,8 +281,9 @@ describe('App', () => {
 
   test('validates the task form before submitting', async () => {
     renderApp();
+    await goTo('tasks');
 
-    await screen.findAllByText('Refactor API');
+    await screen.findByDisplayValue('Refactor API');
     fireEvent.click(screen.getByRole('button', { name: 'Crear tarea' }));
 
     expect(await screen.findByText('El nombre de la tarea es obligatorio.')).toBeInTheDocument();
@@ -331,7 +336,9 @@ describe('App', () => {
     renderApp();
 
     await screen.findByRole('heading', { name: 'Time Tracker' });
-    const manualPanel = within(document.getElementById('manual-time-entry')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Entrada manual' }));
+
+    const manualPanel = within(await screen.findByRole('region', { name: 'Entradas manuales' }));
     await waitFor(() => expect(manualPanel.getAllByText('Sin entradas todavia').length).toBeGreaterThan(0));
     fireEvent.change(document.getElementById('time-entry-description') as HTMLInputElement, { target: { value: 'Trabajo manual' } });
     fireEvent.click(manualPanel.getByRole('button', { name: 'Crear entrada' }));
@@ -342,9 +349,10 @@ describe('App', () => {
 
   test('deactivates a tag from the edit form', async () => {
     renderApp();
+    await goTo('tags');
 
     await screen.findAllByText('Deep Work');
-    fireEvent.click(screen.getAllByTitle('Editar')[3]);
+    fireEvent.click(screen.getAllByTitle('Editar')[0]);
     fireEvent.click(screen.getByLabelText('Tag activo'));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
@@ -354,6 +362,7 @@ describe('App', () => {
 
   test('creates a tag from the dashboard', async () => {
     renderApp();
+    await goTo('tags');
 
     await screen.findAllByText('Deep Work');
     fireEvent.change(document.getElementById('tag-name') as HTMLInputElement, { target: { value: 'Nuevo Tag' } });
@@ -365,6 +374,7 @@ describe('App', () => {
 
   test('validates the tag form before submitting', async () => {
     renderApp();
+    await goTo('tags');
 
     await screen.findAllByText('Deep Work');
     fireEvent.click(screen.getByRole('button', { name: 'Crear tag' }));
@@ -379,6 +389,47 @@ describe('App', () => {
     expect(tagsMock).toHaveLength(1);
   });
 });
+
+async function goTo(route: string) {
+  const normalized = route.startsWith('#') ? route.slice(1) : route;
+  await screen.findByRole('heading');
+
+  if (normalized === 'manual-time-entry') {
+    window.location.hash = normalized;
+    fireEvent(window, new HashChangeEvent('hashchange'));
+    await screen.findByRole('region', { name: /Entradas manuales|Manual entries/i });
+    return;
+  }
+
+  const link = document.querySelector(
+    `.sidebar-nav a[href="#${normalized}"], .sidebar-footer a[href="#${normalized}"]`,
+  );
+  expect(link).toBeTruthy();
+  fireEvent.click(link!);
+
+  const pageTitles: Record<string, RegExp> = {
+    dashboard: /^Panel$/i,
+    timesheet: /^Time Tracker$/i,
+    calendar: /^Calendario$/i,
+    overview: /^Resumen$/i,
+    detailed: /^Detallado$/i,
+    shared: /^Compartidos$/i,
+    projects: /^Proyectos$/i,
+    tasks: /^Tareas$/i,
+    clients: /^Clientes$/i,
+    members: /^Miembros$/i,
+    tags: /^Tags$/i,
+    'import-export': /^Importar \/ Exportar$/i,
+    invoices: /^Facturas$/i,
+    settings: /^Ajustes$/i,
+    profile: /^Perfil$/i,
+  };
+
+  const titlePattern = pageTitles[normalized];
+  if (titlePattern) {
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleName(titlePattern));
+  }
+}
 
 function renderApp() {
   const queryClient = new QueryClient({

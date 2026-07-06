@@ -69,7 +69,10 @@ import {
   type TaskInput,
   type User,
 } from './lib/api';
+import { LeotimeLogo, LeotimeMark } from './lib/leotimeLogo';
 import { translate } from './lib/i18n';
+import { AppRoute, routeHref, routeShowsTimerBar, routeUsesTimeEntries, useAppRoute } from './lib/appRoutes';
+import { PlaceholderPage } from './lib/placeholderPageUi';
 import { ProfileSettingsPanel } from './lib/profileSettingsUi';
 import {
   patchClientsCache,
@@ -115,7 +118,7 @@ export function App() {
   if (sessionQuery.isLoading) {
     return (
       <main className="boot-screen">
-        <Clock3 aria-hidden="true" />
+        <LeotimeMark className="boot-logo" size={36} title="leotime" />
         <span>{t('appName')}</span>
       </main>
     );
@@ -167,10 +170,7 @@ function LoginScreen({ locale, setLocale, t }: LoginScreenProps) {
   return (
     <main className="login-screen">
       <section className="login-panel" aria-labelledby="login-title">
-        <div className="brand-row">
-          <Clock3 aria-hidden="true" />
-          <span>{t('appName')}</span>
-        </div>
+        <LeotimeLogo className="brand-row" markSize={28} />
         <h1 id="login-title">{t('welcome')}</h1>
         <form onSubmit={onSubmit} className="login-form">
           <label>
@@ -209,9 +209,52 @@ type DashboardProps = {
 
 type TimeView = 'timesheet' | 'calendar';
 
+function routePageTitle(route: AppRoute, t: Translator): string {
+  switch (route) {
+    case 'dashboard':
+      return t('dashboard');
+    case 'timesheet':
+    case 'manual-time-entry':
+      return t('timeTracker');
+    case 'calendar':
+      return t('calendar');
+    case 'overview':
+      return t('overview');
+    case 'detailed':
+      return t('detailed');
+    case 'shared':
+      return t('shared');
+    case 'projects':
+      return t('projects');
+    case 'tasks':
+      return t('tasks');
+    case 'clients':
+      return t('clients');
+    case 'members':
+      return t('members');
+    case 'tags':
+      return t('tags');
+    case 'import-export':
+      return t('importExport');
+    case 'invoices':
+      return t('invoices');
+    case 'settings':
+      return t('settings');
+    case 'profile':
+      return t('profileSettings');
+    default:
+      return t('timeTracker');
+  }
+}
+
+function isReportingRoute(route: AppRoute): boolean {
+  return route === 'overview' || route === 'detailed' || route === 'shared';
+}
+
 function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode, themeMode, t, user, userName }: DashboardProps) {
   const queryClient = useQueryClient();
   const { refreshPendingCount } = useOfflineStatus();
+  const [route, navigate] = useAppRoute();
   const [timeView, setTimeView] = usePersistentState<TimeView>('leotime.timeView', 'timesheet');
   const [weekAnchorIso, setWeekAnchorIso] = usePersistentState('leotime.timesheetWeek', new Date().toISOString().slice(0, 10));
   const [monthAnchorIso, setMonthAnchorIso] = usePersistentState(
@@ -232,6 +275,17 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
   const weekQueryKey = weekStart.toISOString().slice(0, 10);
   const monthQueryKey = `${monthStart.getFullYear()}-${monthStart.getMonth()}`;
 
+  useEffect(() => {
+    if (route === 'calendar') {
+      setTimeView('calendar');
+    } else if (route === 'timesheet') {
+      setTimeView('timesheet');
+    }
+  }, [route, setTimeView]);
+
+  const needsTimeEntries = routeUsesTimeEntries(route);
+  const activeTimeView: TimeView = route === 'calendar' ? 'calendar' : 'timesheet';
+
   const clientsQuery = useQuery({
     queryKey: ['clients'],
     queryFn: () => fetchClients({ includeArchived: true }),
@@ -249,9 +303,9 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
     queryFn: () => fetchTags({ includeArchived: true }),
   });
   const timeEntriesQuery = useQuery({
-    queryKey: ['time-entries', timeView, timeView === 'timesheet' ? weekQueryKey : monthQueryKey],
+    queryKey: ['time-entries', activeTimeView, activeTimeView === 'timesheet' ? weekQueryKey : monthQueryKey],
     queryFn: () =>
-      timeView === 'timesheet'
+      activeTimeView === 'timesheet'
         ? fetchTimeEntries({
             from: toWeekQueryFrom(weekStart),
             to: toWeekQueryTo(weekEnd),
@@ -260,6 +314,7 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
             from: toMonthQueryFrom(monthStart),
             to: toMonthQueryTo(monthEnd),
           }),
+    enabled: needsTimeEntries,
   });
   const timersQuery = useQuery({
     queryKey: ['timers'],
@@ -296,9 +351,7 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
     <div className={`app-shell layout-${layoutMode}`}>
       <aside className="sidebar" aria-label="Primary">
         <div className="org-switcher">
-          <div className="org-avatar" aria-hidden="true">
-            L
-          </div>
+          <LeotimeMark className="org-avatar-logo" size={30} title="leotime" />
           <span>{t('organizationName')}</span>
           <ChevronDown aria-hidden="true" />
         </div>
@@ -311,61 +364,67 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
         />
 
         <nav className="sidebar-nav">
-          <a href="#dashboard">
+          <a className={route === 'dashboard' ? 'active' : ''} href={routeHref('dashboard')} onClick={(event) => { event.preventDefault(); navigate('dashboard'); }}>
             <LayoutDashboard aria-hidden="true" />
             {t('dashboard')}
           </a>
-          <a className={timeView === 'timesheet' ? 'active' : ''} href="#timesheet" onClick={() => setTimeView('timesheet')}>
+          <a className={route === 'timesheet' ? 'active' : ''} href={routeHref('timesheet')} onClick={(event) => { event.preventDefault(); navigate('timesheet'); }}>
             <Clock3 aria-hidden="true" />
             {t('time')}
           </a>
-          <a className={timeView === 'calendar' ? 'active' : ''} href="#calendar" onClick={() => setTimeView('calendar')}>
+          <a className={route === 'calendar' ? 'active' : ''} href={routeHref('calendar')} onClick={(event) => { event.preventDefault(); navigate('calendar'); }}>
             <CalendarDays aria-hidden="true" />
             {t('calendar')}
           </a>
-          <a className="nav-parent" href="#reports">
+          <a className={`nav-parent${isReportingRoute(route) ? ' active' : ''}`} href={routeHref('overview')} onClick={(event) => { event.preventDefault(); navigate('overview'); }}>
             <BarChart3 aria-hidden="true" />
             {t('reporting')}
             <ChevronDown aria-hidden="true" />
           </a>
           <div className="nav-children" aria-label={t('reporting')}>
-            <a href="#overview">{t('overview')}</a>
-            <a href="#detailed">{t('detailed')}</a>
-            <a href="#shared">{t('shared')}</a>
+            <a className={route === 'overview' ? 'active' : ''} href={routeHref('overview')} onClick={(event) => { event.preventDefault(); navigate('overview'); }}>
+              {t('overview')}
+            </a>
+            <a className={route === 'detailed' ? 'active' : ''} href={routeHref('detailed')} onClick={(event) => { event.preventDefault(); navigate('detailed'); }}>
+              {t('detailed')}
+            </a>
+            <a className={route === 'shared' ? 'active' : ''} href={routeHref('shared')} onClick={(event) => { event.preventDefault(); navigate('shared'); }}>
+              {t('shared')}
+            </a>
           </div>
 
           <span className="nav-section-label">{t('manage')}</span>
-          <a href="#projects">
+          <a className={route === 'projects' ? 'active' : ''} href={routeHref('projects')} onClick={(event) => { event.preventDefault(); navigate('projects'); }}>
             <FolderKanban aria-hidden="true" />
             {t('projects')}
           </a>
-          <a href="#tasks">
+          <a className={route === 'tasks' ? 'active' : ''} href={routeHref('tasks')} onClick={(event) => { event.preventDefault(); navigate('tasks'); }}>
             <ListTodo aria-hidden="true" />
             {t('tasks')}
           </a>
-          <a href="#clients">
+          <a className={route === 'clients' ? 'active' : ''} href={routeHref('clients')} onClick={(event) => { event.preventDefault(); navigate('clients'); }}>
             <Building2 aria-hidden="true" />
             {t('clients')}
           </a>
-          <a href="#members">
+          <a className={route === 'members' ? 'active' : ''} href={routeHref('members')} onClick={(event) => { event.preventDefault(); navigate('members'); }}>
             <Users aria-hidden="true" />
             {t('members')}
           </a>
-          <a href="#tags">
+          <a className={route === 'tags' ? 'active' : ''} href={routeHref('tags')} onClick={(event) => { event.preventDefault(); navigate('tags'); }}>
             <Tags aria-hidden="true" />
             {t('tags')}
           </a>
 
           <span className="nav-section-label">{t('admin')}</span>
-          <a href="#import-export">
+          <a className={route === 'import-export' ? 'active' : ''} href={routeHref('import-export')} onClick={(event) => { event.preventDefault(); navigate('import-export'); }}>
             <Import aria-hidden="true" />
             {t('importExport')}
           </a>
-          <a href="#invoices">
+          <a className={route === 'invoices' ? 'active' : ''} href={routeHref('invoices')} onClick={(event) => { event.preventDefault(); navigate('invoices'); }}>
             <FileText aria-hidden="true" />
             {t('invoices')}
           </a>
-          <a href="#settings">
+          <a className={route === 'settings' ? 'active' : ''} href={routeHref('settings')} onClick={(event) => { event.preventDefault(); navigate('settings'); }}>
             <Settings aria-hidden="true" />
             {t('settings')}
           </a>
@@ -375,7 +434,7 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
           <button type="button" title={t('language')} onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}>
             <Languages aria-hidden="true" />
           </button>
-          <a href="#profile">
+          <a className={route === 'profile' ? 'active' : ''} href={routeHref('profile')} onClick={(event) => { event.preventDefault(); navigate('profile'); }}>
             <Settings aria-hidden="true" />
             {t('profileSettings')}
           </a>
@@ -388,8 +447,8 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
       <main className="workspace">
         <header className="tracker-topbar">
           <div className="tracker-title">
-            <Clock3 aria-hidden="true" />
-            <h1>{t('timeTracker')}</h1>
+            <LeotimeMark size={18} />
+            <h1>{routePageTitle(route, t)}</h1>
           </div>
           <div className="toolbar">
             <OfflineStatusPill t={t} />
@@ -401,95 +460,117 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
           </div>
         </header>
 
-        <TimerCommandRow
-          onStop={(timeEntryId) => stopTimerMutation.mutate(timeEntryId)}
-          projects={projectsQuery.data?.projects ?? []}
-          stoppingTimerId={stopTimerMutation.isPending ? (stopTimerMutation.variables ?? null) : null}
-          tags={tagsQuery.data?.tags ?? []}
-          tasks={tasksQuery.data?.tasks ?? []}
-          timers={openTimers}
-          t={t}
-        />
+        <div className="page-content">
+          {routeShowsTimerBar(route) ? (
+            <TimerCommandRow
+              onStop={(timeEntryId) => stopTimerMutation.mutate(timeEntryId)}
+              projects={projectsQuery.data?.projects ?? []}
+              stoppingTimerId={stopTimerMutation.isPending ? (stopTimerMutation.variables ?? null) : null}
+              tags={tagsQuery.data?.tags ?? []}
+              tasks={tasksQuery.data?.tasks ?? []}
+              timers={openTimers}
+              t={t}
+            />
+          ) : null}
 
-        <DashboardPanel locale={locale} t={t} />
+          {route === 'dashboard' ? <DashboardPanel locale={locale} t={t} /> : null}
 
-        <TimeViewSwitcher setTimeView={setTimeView} t={t} timeView={timeView} />
+          {route === 'timesheet' || route === 'calendar' ? (
+            <TimeViewSwitcher navigate={navigate} t={t} timeView={activeTimeView} />
+          ) : null}
 
-        {timeView === 'timesheet' ? (
-          <TimeEntriesList
-            entries={timeEntriesQuery.data?.timeEntries ?? []}
-            isLoading={timeEntriesQuery.isLoading}
-            locale={locale}
-            onNextWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, 1).toISOString().slice(0, 10))}
-            onPreviousWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, -1).toISOString().slice(0, 10))}
-            onTodayWeek={() => setWeekAnchorIso(new Date().toISOString().slice(0, 10))}
-            projects={projectsQuery.data?.projects ?? []}
-            tasks={tasksQuery.data?.tasks ?? []}
-            t={t}
-            weekAnchor={weekAnchor}
-          />
-        ) : (
-          <CalendarPanel
-            entries={timeEntriesQuery.data?.timeEntries ?? []}
-            isLoading={timeEntriesQuery.isLoading}
-            locale={locale}
-            monthAnchor={monthAnchor}
-            onNextMonth={() => {
-              const next = addMonths(monthStart, 1);
-              setMonthAnchorIso(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-01`);
-            }}
-            onPreviousMonth={() => {
-              const previous = addMonths(monthStart, -1);
-              setMonthAnchorIso(`${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}-01`);
-            }}
-            onSelectDay={setSelectedCalendarDay}
-            onTodayMonth={() => {
-              const today = new Date();
-              setMonthAnchorIso(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`);
-            }}
-            projects={projectsQuery.data?.projects ?? []}
-            selectedDay={selectedCalendarDay}
-            tasks={tasksQuery.data?.tasks ?? []}
-            t={t}
-          />
-        )}
+          {route === 'timesheet' ? (
+            <TimeEntriesList
+              entries={timeEntriesQuery.data?.timeEntries ?? []}
+              isLoading={timeEntriesQuery.isLoading}
+              locale={locale}
+              onNextWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, 1).toISOString().slice(0, 10))}
+              onPreviousWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, -1).toISOString().slice(0, 10))}
+              onTodayWeek={() => setWeekAnchorIso(new Date().toISOString().slice(0, 10))}
+              projects={projectsQuery.data?.projects ?? []}
+              tasks={tasksQuery.data?.tasks ?? []}
+              t={t}
+              weekAnchor={weekAnchor}
+            />
+          ) : null}
 
-        <section className="management-surface" aria-label={t('manage')}>
-          <TimeReportPanel locale={locale} t={t} />
-          <InvoicePanel clients={clientsQuery.data?.clients ?? []} locale={locale} t={t} userName={userName} />
-          <ManualTimeEntryPanel
-            clients={clientsQuery.data?.clients ?? []}
-            isLoading={timeEntriesQuery.isLoading}
-            locale={locale}
-            projects={projectsQuery.data?.projects ?? []}
-            tags={tagsQuery.data?.tags ?? []}
-            tasks={tasksQuery.data?.tasks ?? []}
-            t={t}
-            timeEntries={timeEntriesQuery.data?.timeEntries ?? []}
-          />
-          <ClientPanel clients={clientsQuery.data?.clients ?? []} isLoading={clientsQuery.isLoading} t={t} />
-          <ProjectPanel
-            clients={clientsQuery.data?.clients ?? []}
-            isLoading={projectsQuery.isLoading}
-            projects={projectsQuery.data?.projects ?? []}
-            t={t}
-          />
-          <TaskPanel
-            isLoading={tasksQuery.isLoading}
-            projects={projectsQuery.data?.projects ?? []}
-            tasks={tasksQuery.data?.tasks ?? []}
-            t={t}
-          />
-          <TagPanel isLoading={tagsQuery.isLoading} tags={tagsQuery.data?.tags ?? []} t={t} />
-          <ProfileSettingsPanel
-            setLayoutMode={setLayoutMode}
-            setLocale={setLocale}
-            setThemeMode={setThemeMode}
-            t={t}
-            themeMode={themeMode}
-            user={user}
-          />
-        </section>
+          {route === 'calendar' ? (
+            <CalendarPanel
+              entries={timeEntriesQuery.data?.timeEntries ?? []}
+              isLoading={timeEntriesQuery.isLoading}
+              locale={locale}
+              monthAnchor={monthAnchor}
+              onNextMonth={() => {
+                const next = addMonths(monthStart, 1);
+                setMonthAnchorIso(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-01`);
+              }}
+              onPreviousMonth={() => {
+                const previous = addMonths(monthStart, -1);
+                setMonthAnchorIso(`${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}-01`);
+              }}
+              onSelectDay={setSelectedCalendarDay}
+              onTodayMonth={() => {
+                const today = new Date();
+                setMonthAnchorIso(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`);
+              }}
+              projects={projectsQuery.data?.projects ?? []}
+              selectedDay={selectedCalendarDay}
+              tasks={tasksQuery.data?.tasks ?? []}
+              t={t}
+            />
+          ) : null}
+
+          {route === 'overview' ? <TimeReportPanel locale={locale} t={t} /> : null}
+          {route === 'detailed' ? <TimeReportPanel detailed locale={locale} t={t} /> : null}
+          {route === 'shared' ? <PlaceholderPage titleKey="shared" t={t} /> : null}
+
+          {route === 'invoices' ? <InvoicePanel clients={clientsQuery.data?.clients ?? []} locale={locale} t={t} userName={userName} /> : null}
+
+          {route === 'manual-time-entry' ? (
+            <ManualTimeEntryPanel
+              clients={clientsQuery.data?.clients ?? []}
+              isLoading={timeEntriesQuery.isLoading}
+              locale={locale}
+              projects={projectsQuery.data?.projects ?? []}
+              tags={tagsQuery.data?.tags ?? []}
+              tasks={tasksQuery.data?.tasks ?? []}
+              t={t}
+              timeEntries={timeEntriesQuery.data?.timeEntries ?? []}
+            />
+          ) : null}
+
+          {route === 'clients' ? <ClientPanel clients={clientsQuery.data?.clients ?? []} isLoading={clientsQuery.isLoading} t={t} /> : null}
+
+          {route === 'projects' ? (
+            <ProjectPanel
+              clients={clientsQuery.data?.clients ?? []}
+              isLoading={projectsQuery.isLoading}
+              projects={projectsQuery.data?.projects ?? []}
+              t={t}
+            />
+          ) : null}
+
+          {route === 'tasks' ? (
+            <TaskPanel isLoading={tasksQuery.isLoading} projects={projectsQuery.data?.projects ?? []} tasks={tasksQuery.data?.tasks ?? []} t={t} />
+          ) : null}
+
+          {route === 'tags' ? <TagPanel isLoading={tagsQuery.isLoading} tags={tagsQuery.data?.tags ?? []} t={t} /> : null}
+
+          {route === 'members' ? <PlaceholderPage titleKey="members" t={t} /> : null}
+          {route === 'import-export' ? <PlaceholderPage titleKey="importExport" t={t} /> : null}
+
+          {route === 'settings' || route === 'profile' ? (
+            <ProfileSettingsPanel
+              focusSection={route === 'settings' ? 'settings' : undefined}
+              setLayoutMode={setLayoutMode}
+              setLocale={setLocale}
+              setThemeMode={setThemeMode}
+              t={t}
+              themeMode={themeMode}
+              user={user}
+            />
+          ) : null}
+        </div>
       </main>
     </div>
   );
@@ -497,11 +578,11 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
 
 function TimeViewSwitcher({
   timeView,
-  setTimeView,
+  navigate,
   t,
 }: {
   timeView: TimeView;
-  setTimeView: (view: TimeView) => void;
+  navigate: (route: AppRoute) => void;
   t: Translator;
 }) {
   return (
@@ -510,7 +591,7 @@ function TimeViewSwitcher({
         <button
           aria-selected={timeView === 'timesheet'}
           className={timeView === 'timesheet' ? 'selected' : undefined}
-          onClick={() => setTimeView('timesheet')}
+          onClick={() => navigate('timesheet')}
           role="tab"
           type="button"
         >
@@ -519,7 +600,7 @@ function TimeViewSwitcher({
         <button
           aria-selected={timeView === 'calendar'}
           className={timeView === 'calendar' ? 'selected' : undefined}
-          onClick={() => setTimeView('calendar')}
+          onClick={() => navigate('calendar')}
           role="tab"
           type="button"
         >

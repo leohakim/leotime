@@ -90,6 +90,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 export function ProfileSettingsPanel({
+  focusSection,
   setLayoutMode,
   setLocale,
   setThemeMode,
@@ -97,6 +98,7 @@ export function ProfileSettingsPanel({
   themeMode,
   user,
 }: {
+  focusSection?: 'settings';
   setLayoutMode: (layoutMode: LayoutMode) => void;
   setLocale: (locale: Locale) => void;
   setThemeMode: (themeMode: ThemeMode) => void;
@@ -121,6 +123,12 @@ export function ProfileSettingsPanel({
   const [passwordErrors, setPasswordErrors] = useState<PasswordFormErrors>({});
   const [savedMessage, setSavedMessage] = useState('');
   const [passwordSavedMessage, setPasswordSavedMessage] = useState('');
+
+  useEffect(() => {
+    if (focusSection === 'settings') {
+      document.getElementById('settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [focusSection]);
 
   useEffect(() => {
     if (!profileQuery.data || serverHydratedRef.current) {
