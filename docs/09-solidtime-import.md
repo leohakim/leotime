@@ -1,8 +1,29 @@
 # Solidtime Import Compatibility
 
-`leotime` supports a first import path for Solidtime ZIP exports. The import is CLI-first so compatibility can be validated with tests before adding a browser upload flow.
+`leotime` supports Solidtime ZIP imports through the web app and the CLI.
 
-## Command
+## Web UI
+
+Open **Import / Export** in the sidebar (`#/import-export`).
+
+1. Choose a Solidtime `version: 1.0` ZIP export.
+2. Keep **Validate only (dry-run)** checked to preview counts without writing.
+3. Uncheck dry-run and upload again to import into the signed-in account.
+
+The page also exports time data as CSV or JSON for the selected date range.
+
+## HTTP API
+
+```http
+POST /api/v1/imports/solidtime?dryRun=true
+Content-Type: multipart/form-data
+
+file=<solidtime-export.zip>
+```
+
+The response body includes a JSON `summary` with created, updated, skipped, warning, and error counts. Authentication is required.
+
+## CLI
 
 Dry-run:
 
@@ -86,7 +107,6 @@ Tests use synthetic ZIP fixtures generated in memory.
 
 ## Current Limitations
 
-- Import is CLI/service only; no browser upload UI yet.
 - Solidtime organization invitations and project members are validated for file shape but not imported into first-class tables.
 - The importer targets the current single-owner model.
 - Failed import runs are not persisted yet because imports run inside one transaction.

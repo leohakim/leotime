@@ -131,6 +131,15 @@ describe('App', () => {
     expect(await screen.findByText('INV-2026-001')).toBeInTheDocument();
   });
 
+  test('renders the import export panel', async () => {
+    renderApp();
+    await goTo('import-export');
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Importar / Exportar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Validar export' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Descargar CSV' })).toBeInTheDocument();
+  });
+
   test('opens the calendar view', async () => {
     renderApp();
     await goTo('calendar');
@@ -417,7 +426,6 @@ async function goTo(route: string) {
     projects: /^Proyectos$/i,
     tasks: /^Tareas$/i,
     clients: /^Clientes$/i,
-    members: /^Miembros$/i,
     tags: /^Tags$/i,
     'import-export': /^Importar \/ Exportar$/i,
     invoices: /^Facturas$/i,

@@ -72,6 +72,8 @@ func (i *Importer) Import(ctx context.Context, export *Export, opts Options) (Su
 			ExportID: export.Meta.ID,
 			Version:  export.Meta.Version,
 			DryRun:   opts.DryRun,
+			Warnings: []string{},
+			Errors:   []string{},
 		},
 		userID:   userID,
 		currency: exportCurrency(export),

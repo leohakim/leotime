@@ -30,7 +30,6 @@ import {
   Tag,
   Tags,
   Trash2,
-  Users,
   X,
 } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -97,6 +96,7 @@ import { sortTasksByNewest } from './lib/taskSort';
 import { ProjectBadge } from './lib/projectBadgeUi';
 import { CalendarPanel } from './lib/calendarUi';
 import { DashboardPanel } from './lib/dashboardUi';
+import { ImportExportPanel } from './lib/importExportUi';
 import { InvoicePanel } from './lib/invoiceUi';
 import { addMonths, endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './lib/calendarMonth';
 import { TimeReportPanel } from './lib/reportUi';
@@ -230,8 +230,6 @@ function routePageTitle(route: AppRoute, t: Translator): string {
       return t('tasks');
     case 'clients':
       return t('clients');
-    case 'members':
-      return t('members');
     case 'tags':
       return t('tags');
     case 'import-export':
@@ -406,10 +404,6 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
             <Building2 aria-hidden="true" />
             {t('clients')}
           </a>
-          <a className={route === 'members' ? 'active' : ''} href={routeHref('members')} onClick={(event) => { event.preventDefault(); navigate('members'); }}>
-            <Users aria-hidden="true" />
-            {t('members')}
-          </a>
           <a className={route === 'tags' ? 'active' : ''} href={routeHref('tags')} onClick={(event) => { event.preventDefault(); navigate('tags'); }}>
             <Tags aria-hidden="true" />
             {t('tags')}
@@ -556,8 +550,7 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
 
           {route === 'tags' ? <TagPanel isLoading={tagsQuery.isLoading} tags={tagsQuery.data?.tags ?? []} t={t} /> : null}
 
-          {route === 'members' ? <PlaceholderPage titleKey="members" t={t} /> : null}
-          {route === 'import-export' ? <PlaceholderPage titleKey="importExport" t={t} /> : null}
+          {route === 'import-export' ? <ImportExportPanel t={t} /> : null}
 
           {route === 'settings' || route === 'profile' ? (
             <ProfileSettingsPanel

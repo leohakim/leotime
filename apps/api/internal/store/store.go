@@ -45,6 +45,10 @@ func New(db *sql.DB) *Store {
 	return &Store{db: db}
 }
 
+func (s *Store) DB() *sql.DB {
+	return s.db
+}
+
 func (s *Store) BootstrapAdmin(ctx context.Context, email string, password string) error {
 	email = strings.TrimSpace(strings.ToLower(email))
 	if email == "" {

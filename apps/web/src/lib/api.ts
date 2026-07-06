@@ -715,3 +715,84 @@ export async function downloadInvoiceExport(invoiceId: string, format: 'html' | 
 
   return response.blob();
 }
+
+export type ImportEntityStats = {
+  seen: number;
+  created: number;
+  updated: number;
+  skipped: number;
+};
+
+export type SolidtimeImportSummary = {
+  provider: string;
+  exportId: string;
+  version: string;
+  dryRun: boolean;
+  organization: ImportEntityStats;
+  members: ImportEntityStats;
+  clients: ImportEntityStats;
+  projects: ImportEntityStats;
+  tasks: ImportEntityStats;
+  tags: ImportEntityStats;
+  timeEntries: ImportEntityStats;
+  warnings: string[];
+  errors: string[];
+};
+
+type SolidtimeImportResponse = {
+  summary: SolidtimeImportSummary;
+};
+
+const emptyImportStats = (): ImportEntityStats => ({
+  seen: 0,
+  created: 0,
+  updated: 0,
+  skipped: 0,
+});
+
+export function normalizeSolidtimeImportSummary(
+  summary: Partial<SolidtimeImportSummary> | null | undefined,
+): SolidtimeImportSummary {
+  return {
+    provider: summary?.provider ?? '',
+    exportId: summary?.exportId ?? '',
+    version: summary?.version ?? '',
+    dryRun: summary?.dryRun ?? false,
+    organization: summary?.organization ?? emptyImportStats(),
+    members: summary?.members ?? emptyImportStats(),
+    clients: summary?.clients ?? emptyImportStats(),
+    projects: summary?.projects ?? emptyImportStats(),
+    tasks: summary?.tasks ?? emptyImportStats(),
+    tags: summary?.tags ?? emptyImportStats(),
+    timeEntries: summary?.timeEntries ?? emptyImportStats(),
+    warnings: summary?.warnings ?? [],
+    errors: summary?.errors ?? [],
+  };
+}
+
+export async function importSolidtimeExport(file: File, dryRun: boolean): Promise<SolidtimeImportSummary> {
+  const form = new FormData();
+  form.append('file', file);
+
+  const response = await fetch(`/api/v1/imports/solidtime?dryRun=${dryRun ? 'true' : 'false'}`, {
+    method: 'POST',
+    body: form,
+    credentials: 'include',
+  });
+
+  let payload: SolidtimeImportResponse & { error?: string } = { summary: {} as SolidtimeImportSummary };
+  try {
+    payload = (await response.json()) as SolidtimeImportResponse & { error?: string };
+  } catch {
+    throw new Error('import_failed');
+  }
+
+  if (!response.ok) {
+    if (payload.summary) {
+      return normalizeSolidtimeImportSummary(payload.summary);
+    }
+    throw new Error(payload.error ?? 'import_failed');
+  }
+
+  return normalizeSolidtimeImportSummary(payload.summary);
+}

@@ -10,7 +10,6 @@ export type AppRoute =
   | 'projects'
   | 'tasks'
   | 'clients'
-  | 'members'
   | 'tags'
   | 'import-export'
   | 'invoices'
@@ -31,7 +30,6 @@ const ROUTE_ALIASES: Record<string, AppRoute> = {
   projects: 'projects',
   tasks: 'tasks',
   clients: 'clients',
-  members: 'members',
   tags: 'tags',
   'import-export': 'import-export',
   invoices: 'invoices',

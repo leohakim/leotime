@@ -88,6 +88,7 @@ func NewRouter(cfg config.Config, st *store.Store) http.Handler {
 		r.Post("/invoices/{invoiceID}/status", server.requireUser(server.updateInvoiceStatus))
 		r.Delete("/invoices/{invoiceID}", server.requireUser(server.deleteInvoice))
 		r.Get("/invoices/{invoiceID}/export", server.requireUser(server.exportInvoice))
+		r.Post("/imports/solidtime", server.requireUser(server.importSolidtime))
 	})
 
 	r.NotFound(server.notFound)
