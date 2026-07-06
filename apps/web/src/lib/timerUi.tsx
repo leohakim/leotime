@@ -1,24 +1,22 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CircleAlert, DollarSign, Plus, Tag } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { startTimer, updateTimer, type Project, type Task, type TimeEntry, type TimerStartInput } from './api';
+import { Plus } from 'lucide-react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import { startTimer, updateTimer, type Project, type Tag, type Task, type TimeEntry, type TimerStartInput } from './api';
 import type { MessageKey } from './i18n';
 import { scrollToManualEntryForm } from './timeEntryUi';
-import { ProjectBadge } from './projectBadgeUi';
 import { TimerPlayIcon, TimerStopIcon } from './timerIcons';
+import { TimerBillableToggle, TimerProjectPicker, TimerTagPicker, type TimerMetaSelection } from './timerPickerUi';
 
 export type Translator = (key: MessageKey) => string;
 
-type TimerStartFormState = {
-  projectId: string;
-  taskId: string;
+type TimerStartFormState = TimerMetaSelection & {
   description: string;
-  billable: boolean;
 };
 
 const emptyTimerForm: TimerStartFormState = {
   projectId: '',
   taskId: '',
+  tagIds: [],
   description: '',
   billable: true,
 };
@@ -67,6 +65,7 @@ export function TimerCommandRow({
   onStop,
   projects,
   stoppingTimerId,
+  tags,
   tasks,
   timers,
   t,
@@ -74,6 +73,7 @@ export function TimerCommandRow({
   onStop: (timeEntryId: string) => void;
   projects: Project[];
   stoppingTimerId: string | null;
+  tags: Tag[];
   tasks: Task[];
   timers: TimeEntry[];
   t: Translator;
@@ -97,6 +97,17 @@ export function TimerCommandRow({
     skipDescriptionSaveRef.current = true;
     skipStartedAtSaveRef.current = true;
     setLiveDescription(activeTimer?.description ?? '');
+    if (activeTimer) {
+      setForm({
+        projectId: activeTimer.projectId,
+        taskId: activeTimer.taskId,
+        tagIds: activeTimer.tags.map((tag) => tag.id),
+        billable: activeTimer.billable,
+        description: activeTimer.description,
+      });
+    } else {
+      setForm(emptyTimerForm);
+    }
     if (activeTimer?.startedAt) {
       const parts = timerStartParts(activeTimer.startedAt);
       setLiveStartedDate(parts.date);
@@ -106,14 +117,7 @@ export function TimerCommandRow({
       setLiveStartedTime('');
     }
     setClockPopoverOpen(false);
-  }, [activeTimer?.id, activeTimer?.startedAt, activeTimer?.description]);
-
-  const filteredTasks = useMemo(() => {
-    const activeTasks = tasks.filter((task) => !task.archivedAt);
-    return form.projectId
-      ? activeTasks.filter((task) => task.projectId === form.projectId || task.projectId === '')
-      : activeTasks;
-  }, [form.projectId, tasks]);
+  }, [activeTimer?.id, activeTimer?.startedAt, activeTimer?.description, activeTimer?.billable, activeTimer?.projectId, activeTimer?.taskId, activeTimer?.tags]);
 
   const startMutation = useMutation({
     mutationFn: startTimer,
@@ -122,6 +126,7 @@ export function TimerCommandRow({
       setError('');
       queryClient.invalidateQueries({ queryKey: ['timers'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['tags'] });
     },
     onError: () => setError(t('timerStartFailed')),
   });
@@ -163,12 +168,12 @@ export function TimerCommandRow({
       }
       updateMutation.mutate({
         timeEntryId: currentTimer.id,
-        input: timerEntryToInput(currentTimer, { description: liveDescription }),
+        input: buildTimerInput(form, projects, currentTimer, { description: liveDescription }),
       });
     }, 400);
 
     return () => window.clearTimeout(handle);
-  }, [activeTimer?.id, liveDescription, updateMutation]);
+  }, [activeTimer?.id, form, liveDescription, projects, updateMutation]);
 
   useEffect(() => {
     const timer = activeTimerRef.current;
@@ -196,7 +201,7 @@ export function TimerCommandRow({
       }
       updateMutation.mutate({
         timeEntryId: currentTimer.id,
-        input: timerEntryToInput(currentTimer, {
+        input: buildTimerInput(form, projects, currentTimer, {
           description: liveDescription,
           startedAt: nextStartedAt,
         }),
@@ -204,7 +209,7 @@ export function TimerCommandRow({
     }, 400);
 
     return () => window.clearTimeout(handle);
-  }, [activeTimer?.id, liveDescription, liveStartedDate, liveStartedTime, t, updateMutation]);
+  }, [activeTimer?.id, form, liveDescription, liveStartedDate, liveStartedTime, projects, t, updateMutation]);
 
   useEffect(() => {
     if (!clockPopoverOpen) {
@@ -229,17 +234,23 @@ export function TimerCommandRow({
     };
   }, [clockPopoverOpen]);
 
+  function patchMeta(next: Partial<TimerMetaSelection>) {
+    setForm((current) => {
+      const merged = { ...current, ...next };
+      const timer = activeTimerRef.current;
+      if (timer) {
+        updateMutation.mutate({
+          timeEntryId: timer.id,
+          input: buildTimerInput(merged, projects, timer, { description: liveDescription }),
+        });
+      }
+      return merged;
+    });
+  }
+
   function submitStart(event: FormEvent) {
     event.preventDefault();
-    const input: TimerStartInput = {
-      clientId: '',
-      projectId: form.projectId,
-      taskId: form.taskId,
-      tagIds: [],
-      description: form.description.trim(),
-      billable: form.billable,
-    };
-    startMutation.mutate(input);
+    startMutation.mutate(buildTimerInput(form, projects, null, { description: form.description.trim() }));
   }
 
   return (
@@ -255,34 +266,23 @@ export function TimerCommandRow({
                 placeholder={t('timerDescriptionPlaceholder')}
                 value={liveDescription}
               />
-              <div className="timer-card-badges">
-                <ProjectBadge
-                  color={activeTimer.projectColor}
-                  emptyLabel={t('taskProjectOptional')}
-                  name={activeTimer.projectName}
-                />
-                {activeTimer.overlapWarning ? (
-                  <span className="status-pill warning-pill">
-                    <CircleAlert aria-hidden="true" />
-                    {t('overlapWarning')}
-                  </span>
-                ) : null}
-              </div>
+              {activeTimer.overlapWarning ? (
+                <div className="timer-card-badges">
+                  <span className="status-pill warning-pill">{t('overlapWarning')}</span>
+                </div>
+              ) : null}
             </div>
             <div className="timer-card-controls">
-              {activeTimer.tags.length > 0 ? (
-                <button className="quiet-icon-button" disabled type="button" title={t('tags')}>
-                  <Tag aria-hidden="true" />
-                </button>
-              ) : null}
-              <button
-                className={`quiet-icon-button${activeTimer.billable ? ' billable' : ''}`}
-                disabled
-                type="button"
-                title={t('billable')}
-              >
-                <DollarSign aria-hidden="true" />
-              </button>
+              <TimerProjectPicker
+                onChange={(next) => patchMeta(next)}
+                onCreateProject={() => scrollToProjectsPanel()}
+                projects={projects}
+                selection={form}
+                tasks={tasks}
+                t={t}
+              />
+              <TimerTagPicker onChange={(tagIds) => patchMeta({ tagIds })} tagIds={form.tagIds} tags={tags} t={t} />
+              <TimerBillableToggle billable={form.billable} onChange={(billable) => patchMeta({ billable })} t={t} />
               <div
                 className={`timer-clock-wrap${clockPopoverOpen ? ' is-open' : ''}`}
                 onMouseDown={(event) => event.stopPropagation()}
@@ -341,41 +341,35 @@ export function TimerCommandRow({
         </>
       ) : (
         <form className="active-timer-card timer-start-form" onSubmit={submitStart}>
-          <input
-            aria-label={t('description')}
-            className="timer-description-input"
-            onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-            placeholder={t('timerDescriptionPlaceholder')}
-            value={form.description}
-          />
-          <select
-            aria-label={t('taskProject')}
-            onChange={(event) => setForm((current) => ({ ...current, projectId: event.target.value, taskId: '' }))}
-            value={form.projectId}
-          >
-            <option value="">{t('taskProjectOptional')}</option>
-            {projects.filter((project) => !project.archivedAt).map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label={t('taskName')}
-            onChange={(event) => setForm((current) => ({ ...current, taskId: event.target.value }))}
-            value={form.taskId}
-          >
-            <option value="">{t('taskProjectOptional')}</option>
-            {filteredTasks.map((task) => (
-              <option key={task.id} value={task.id}>
-                {task.name}
-              </option>
-            ))}
-          </select>
-          <button className="start-timer-button" disabled={startMutation.isPending} type="submit" title={t('startTimer')}>
-            <TimerPlayIcon className="timer-play-icon" />
-            {t('startTimer')}
-          </button>
+          <div className="timer-card-main">
+            <input
+              aria-label={t('description')}
+              className="timer-description-input"
+              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+              placeholder={t('timerDescriptionPlaceholder')}
+              value={form.description}
+            />
+          </div>
+          <div className="timer-card-controls">
+            <TimerProjectPicker
+              onChange={(next) => setForm((current) => ({ ...current, ...next }))}
+              onCreateProject={() => scrollToProjectsPanel()}
+              projects={projects}
+              selection={form}
+              tasks={tasks}
+              t={t}
+            />
+            <TimerTagPicker onChange={(tagIds) => setForm((current) => ({ ...current, tagIds }))} tagIds={form.tagIds} tags={tags} t={t} />
+            <TimerBillableToggle
+              billable={form.billable}
+              onChange={(billable) => setForm((current) => ({ ...current, billable }))}
+              t={t}
+            />
+            <button className="start-timer-button" disabled={startMutation.isPending} type="submit" title={t('startTimer')}>
+              <TimerPlayIcon className="timer-play-icon" />
+              <span className="visually-hidden">{t('startTimer')}</span>
+            </button>
+          </div>
         </form>
       )}
 
@@ -428,19 +422,26 @@ export function formatElapsedClock(totalSeconds: number) {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function timerEntryToInput(
-  timer: TimeEntry,
-  overrides: { description?: string; startedAt?: string } = {},
+function buildTimerInput(
+  form: TimerMetaSelection & { description?: string },
+  projects: Project[],
+  timer: TimeEntry | null,
+  overrides: Partial<TimerStartInput> = {},
 ): TimerStartInput {
+  const project = projects.find((item) => item.id === form.projectId);
   return {
-    clientId: timer.clientId,
-    projectId: timer.projectId,
-    taskId: timer.taskId,
-    tagIds: timer.tags.map((tag) => tag.id),
-    description: overrides.description ?? timer.description,
-    billable: timer.billable,
-    ...(overrides.startedAt ? { startedAt: overrides.startedAt } : {}),
+    clientId: project?.clientId ?? timer?.clientId ?? '',
+    projectId: form.projectId,
+    taskId: form.taskId,
+    tagIds: form.tagIds,
+    description: overrides.description ?? timer?.description ?? form.description ?? '',
+    billable: form.billable,
+    ...overrides,
   };
+}
+
+function scrollToProjectsPanel() {
+  document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function timerStartParts(iso: string): { date: string; time: string } {

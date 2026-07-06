@@ -374,6 +374,7 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
           onStop={(timeEntryId) => stopTimerMutation.mutate(timeEntryId)}
           projects={projectsQuery.data?.projects ?? []}
           stoppingTimerId={stopTimerMutation.isPending ? (stopTimerMutation.variables ?? null) : null}
+          tags={tagsQuery.data?.tags ?? []}
           tasks={tasksQuery.data?.tasks ?? []}
           timers={openTimers}
           t={t}
