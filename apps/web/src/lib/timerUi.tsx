@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
-import { FormEvent, useEffect, useRef, useState } from 'react';
-import { startTimer, updateTimer, type Project, type Tag, type Task, type TimeEntry, type TimerStartInput } from './api';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type Project, type Tag, type Task, type TimeEntry, type TimerStartInput } from './api';
+import { patchTimersCache, refreshOverviewIfOnline } from './offline/cache';
+import { useOfflineStatus } from './offline/offlineContext';
+import { isLocalId, startTimer, updateTimer } from './offline/mutations';
 import type { MessageKey } from './i18n';
 import { scrollToManualEntryForm } from './timeEntryUi';
 import { TimerPlayIcon, TimerStopIcon } from './timerIcons';
@@ -79,6 +82,8 @@ export function TimerCommandRow({
   t: Translator;
 }) {
   const queryClient = useQueryClient();
+  const { refreshPendingCount } = useOfflineStatus();
+  const entityLookup = useMemo(() => ({ projects, tasks, tags }), [projects, tags, tasks]);
   const [form, setForm] = useState<TimerStartFormState>(emptyTimerForm);
   const [error, setError] = useState('');
   const activeTimer = timers[0] ?? null;
@@ -120,30 +125,33 @@ export function TimerCommandRow({
   }, [activeTimer?.id, activeTimer?.startedAt, activeTimer?.description, activeTimer?.billable, activeTimer?.projectId, activeTimer?.taskId, activeTimer?.tags]);
 
   const startMutation = useMutation({
-    mutationFn: startTimer,
-    onSuccess: () => {
+    mutationFn: (input: TimerStartInput) => startTimer(input, entityLookup),
+    onSuccess: (timer) => {
       setForm(emptyTimerForm);
       setError('');
-      queryClient.invalidateQueries({ queryKey: ['timers'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      patchTimersCache(queryClient, timer);
+      void refreshPendingCount();
+      void refreshOverviewIfOnline(queryClient);
+      if (!isLocalId(timer.id)) {
+        queryClient.invalidateQueries({ queryKey: ['timers'] });
+        queryClient.invalidateQueries({ queryKey: ['tags'] });
+      }
     },
     onError: () => setError(t('timerStartFailed')),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ timeEntryId, input }: { timeEntryId: string; input: TimerStartInput }) =>
-      updateTimer(timeEntryId, input),
+    mutationFn: ({ timeEntryId, input }: { timeEntryId: string; input: TimerStartInput }) => {
+      const timer = activeTimerRef.current;
+      return updateTimer(timeEntryId, input, entityLookup, timer ?? undefined);
+    },
     onSuccess: (updated) => {
-      queryClient.setQueryData(['timers'], (current: { timers: TimeEntry[] } | undefined) => {
-        if (!current) {
-          return current;
-        }
-        return {
-          timers: current.timers.map((timer) => (timer.id === updated.id ? updated : timer)),
-        };
-      });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      patchTimersCache(queryClient, updated);
+      void refreshPendingCount();
+      void refreshOverviewIfOnline(queryClient);
+      if (!isLocalId(updated.id)) {
+        queryClient.invalidateQueries({ queryKey: ['overview'] });
+      }
     },
     onError: () => setError(t('timerUpdateFailed')),
   });

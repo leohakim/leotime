@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { App } from './App';
+import { OfflineProvider } from './lib/offline/offlineContext';
 
 describe('App', () => {
   beforeEach(() => {
@@ -388,7 +389,9 @@ function renderApp() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <App />
+      <OfflineProvider>
+        <App />
+      </OfflineProvider>
     </QueryClientProvider>,
   );
 }

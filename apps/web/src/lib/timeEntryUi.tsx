@@ -2,9 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, ChevronLeft, ChevronRight, CircleAlert, Clock3, DollarSign, Pencil, Plus, Save, Tag, Trash2, X } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
-  createTimeEntry,
   deleteTimeEntry,
-  updateTimeEntry,
   type Client,
   type Locale,
   type Project,
@@ -13,6 +11,9 @@ import {
   type TimeEntry,
   type TimeEntryInput,
 } from './api';
+import { patchTimeEntriesCache, refreshOverviewIfOnline } from './offline/cache';
+import { useOfflineStatus } from './offline/offlineContext';
+import { createTimeEntry, isLocalId, updateTimeEntry } from './offline/mutations';
 import type { MessageKey } from './i18n';
 import { ProjectBadge, ProjectBadgeSelect } from './projectBadgeUi';
 import {
@@ -247,30 +248,45 @@ export function ManualTimeEntryPanel({
   timeEntries: TimeEntry[];
 }) {
   const queryClient = useQueryClient();
+  const { refreshPendingCount } = useOfflineStatus();
+  const entityLookup = useMemo(
+    () => ({ clients, projects, tasks, tags }),
+    [clients, projects, tags, tasks],
+  );
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [form, setForm] = useState<ManualTimeEntryFormState>(defaultManualTimeEntryForm);
   const [errors, setErrors] = useState<ManualTimeEntryFormErrors>({});
 
   const createMutation = useMutation({
-    mutationFn: createTimeEntry,
-    onSuccess: () => {
+    mutationFn: (input: TimeEntryInput) => createTimeEntry(input, entityLookup),
+    onSuccess: (entry) => {
       setForm(defaultManualTimeEntryForm());
       setErrors({});
-      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      patchTimeEntriesCache(queryClient, entry);
+      void refreshPendingCount();
+      void refreshOverviewIfOnline(queryClient);
+      if (!isLocalId(entry.id)) {
+        queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+      }
     },
     onError: () => setErrors((current) => ({ ...current, form: t('timeEntrySaveFailed') })),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ timeEntryId, input }: { timeEntryId: string; input: TimeEntryInput }) =>
-      updateTimeEntry(timeEntryId, input),
-    onSuccess: () => {
+    mutationFn: ({ timeEntryId, input }: { timeEntryId: string; input: TimeEntryInput }) => {
+      const existing = timeEntries.find((entry) => entry.id === timeEntryId);
+      return updateTimeEntry(timeEntryId, input, entityLookup, existing);
+    },
+    onSuccess: (entry) => {
       setEditingEntryId(null);
       setForm(defaultManualTimeEntryForm());
       setErrors({});
-      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      patchTimeEntriesCache(queryClient, entry);
+      void refreshPendingCount();
+      void refreshOverviewIfOnline(queryClient);
+      if (!isLocalId(entry.id)) {
+        queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+      }
     },
     onError: () => setErrors((current) => ({ ...current, form: t('timeEntrySaveFailed') })),
   });
@@ -582,9 +598,15 @@ function timeEntryToInput(entry: TimeEntry, overrides: Partial<TimeEntryInlineFo
   const description = overrides.description ?? entry.description;
   const projectId = overrides.projectId ?? entry.projectId;
   let taskId = overrides.taskId ?? entry.taskId;
+  const baselineForm = entryToInlineForm(entry);
   const startedAt =
-    overrides.startedAt !== undefined ? fromDateTimeLocalValue(overrides.startedAt) : entry.startedAt;
-  const endedAt = overrides.endedAt !== undefined ? fromDateTimeLocalValue(overrides.endedAt) : entry.endedAt;
+    overrides.startedAt !== undefined && overrides.startedAt !== baselineForm.startedAt
+      ? fromDateTimeLocalValue(overrides.startedAt)
+      : entry.startedAt;
+  const endedAt =
+    overrides.endedAt !== undefined && overrides.endedAt !== baselineForm.endedAt
+      ? fromDateTimeLocalValue(overrides.endedAt)
+      : entry.endedAt;
 
   if (projectId && taskId) {
     const task = tasks.find((item) => item.id === taskId);
@@ -671,14 +693,19 @@ function useTimeEntryInlineEditor({
   const queryClient = useQueryClient();
   const [form, setForm] = useState(() => entryToInlineForm(entry));
   const [error, setError] = useState('');
-  const skipSaveRef = useRef(true);
+  const userEditedRef = useRef(false);
   const entryRef = useRef(entry);
+  const projectsRef = useRef(projects);
+  const tasksRef = useRef(tasks);
   entryRef.current = entry;
+  projectsRef.current = projects;
+  tasksRef.current = tasks;
 
   const updateMutation = useMutation({
     mutationFn: ({ timeEntryId, input }: { timeEntryId: string; input: TimeEntryInput }) =>
       updateTimeEntry(timeEntryId, input),
     onSuccess: (updated) => {
+      userEditedRef.current = false;
       queryClient.setQueryData(['time-entries'], (current: { timeEntries: TimeEntry[] } | undefined) => {
         if (!current) {
           return current;
@@ -690,21 +717,21 @@ function useTimeEntryInlineEditor({
     },
     onError: () => setError(t('timeEntrySaveFailed')),
   });
+  const saveEntryRef = useRef(updateMutation.mutate);
+  saveEntryRef.current = updateMutation.mutate;
 
   useEffect(() => {
-    skipSaveRef.current = true;
+    userEditedRef.current = false;
     setForm(entryToInlineForm(entry));
     setError('');
   }, [entry.id, entry.updatedAt]);
 
   useEffect(() => {
-    if (!autoSave) {
-      skipSaveRef.current = true;
+    if (!autoSave || !userEditedRef.current) {
       return;
     }
 
-    if (skipSaveRef.current) {
-      skipSaveRef.current = false;
+    if (isLocalId(entryRef.current.id) || !entryRef.current.endedAt) {
       return;
     }
 
@@ -716,16 +743,17 @@ function useTimeEntryInlineEditor({
 
     setError('');
     const handle = window.setTimeout(() => {
-      updateMutation.mutate({
+      saveEntryRef.current({
         timeEntryId: entryRef.current.id,
-        input: timeEntryToInput(entryRef.current, form, projects, tasks),
+        input: timeEntryToInput(entryRef.current, form, projectsRef.current, tasksRef.current),
       });
     }, 400);
 
     return () => window.clearTimeout(handle);
-  }, [autoSave, form, entry.id, projects, tasks, t, updateMutation]);
+  }, [autoSave, form, entry.id, t]);
 
   function updateField<K extends keyof TimeEntryInlineForm>(field: K, value: TimeEntryInlineForm[K]) {
+    userEditedRef.current = true;
     setForm((current) => {
       const next = { ...current, [field]: value };
       if (field === 'projectId') {

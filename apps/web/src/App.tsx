@@ -39,10 +39,6 @@ import {
   archiveProject,
   archiveTag,
   archiveTask,
-  createClient,
-  createProject,
-  createTag,
-  createTask,
   fetchClients,
   fetchProjects,
   fetchSession,
@@ -52,7 +48,6 @@ import {
   fetchTimers,
   login,
   logout,
-  stopTimer,
   restoreClient,
   restoreProject,
   restoreTag,
@@ -76,6 +71,25 @@ import {
 } from './lib/api';
 import { translate } from './lib/i18n';
 import { ProfileSettingsPanel } from './lib/profileSettingsUi';
+import {
+  patchClientsCache,
+  patchProjectsCache,
+  patchTagsCache,
+  patchTasksCache,
+  patchTimeEntriesCache,
+  refreshOverviewIfOnline,
+  removeTimerFromCache,
+} from './lib/offline/cache';
+import { useOfflineStatus } from './lib/offline/offlineContext';
+import { OfflineStatusPill } from './lib/offline/offlineStatusUi';
+import {
+  createClient,
+  createProject,
+  createTag,
+  createTask,
+  isLocalId,
+  stopTimer,
+} from './lib/offline/mutations';
 import { sortTasksByNewest } from './lib/taskSort';
 import { ProjectBadge } from './lib/projectBadgeUi';
 import { CalendarPanel } from './lib/calendarUi';
@@ -197,6 +211,7 @@ type TimeView = 'timesheet' | 'calendar';
 
 function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode, themeMode, t, user, userName }: DashboardProps) {
   const queryClient = useQueryClient();
+  const { refreshPendingCount } = useOfflineStatus();
   const [timeView, setTimeView] = usePersistentState<TimeView>('leotime.timeView', 'timesheet');
   const [weekAnchorIso, setWeekAnchorIso] = usePersistentState('leotime.timesheetWeek', new Date().toISOString().slice(0, 10));
   const [monthAnchorIso, setMonthAnchorIso] = usePersistentState(
@@ -254,11 +269,22 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
   const openTimers = timersQuery.data?.timers ?? [];
   const activeTimer = openTimers[0] ?? null;
   const stopTimerMutation = useMutation({
-    mutationFn: stopTimer,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['timers'] });
-      queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    mutationFn: (timeEntryId: string) => {
+      const timer = openTimers.find((item) => item.id === timeEntryId);
+      if (!timer) {
+        throw new Error('timer not found');
+      }
+      return stopTimer(timeEntryId, timer);
+    },
+    onSuccess: (entry) => {
+      removeTimerFromCache(queryClient, entry.id);
+      patchTimeEntriesCache(queryClient, entry);
+      void refreshPendingCount();
+      void refreshOverviewIfOnline(queryClient);
+      if (!isLocalId(entry.id)) {
+        queryClient.invalidateQueries({ queryKey: ['timers'] });
+        queryClient.invalidateQueries({ queryKey: ['time-entries'] });
+      }
     },
   });
   const logoutMutation = useMutation({
@@ -366,6 +392,7 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
             <h1>{t('timeTracker')}</h1>
           </div>
           <div className="toolbar">
+            <OfflineStatusPill t={t} />
             <ThemeSwitcher setThemeMode={setThemeMode} themeMode={themeMode} t={t} />
             <LayoutSwitcher layoutMode={layoutMode} setLayoutMode={setLayoutMode} t={t} />
             <button type="button" title={t('logout')} onClick={() => logoutMutation.mutate()}>
@@ -522,17 +549,22 @@ const emptyClientForm: ClientFormState = {
 
 function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: boolean; t: Translator }) {
   const queryClient = useQueryClient();
+  const { refreshPendingCount } = useOfflineStatus();
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [form, setForm] = useState<ClientFormState>(emptyClientForm);
   const [errors, setErrors] = useState<ClientFormErrors>({});
 
   const createMutation = useMutation({
     mutationFn: createClient,
-    onSuccess: () => {
+    onSuccess: (client) => {
       setForm(emptyClientForm);
       setErrors({});
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      patchClientsCache(queryClient, client);
+      void refreshPendingCount();
+      void refreshOverviewIfOnline(queryClient);
+      if (!isLocalId(client.id)) {
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
+      }
     },
     onError: () => setErrors((current) => ({ ...current, form: t('clientSaveFailed') })),
   });
@@ -916,17 +948,22 @@ function ProjectPanel({
   t: Translator;
 }) {
   const queryClient = useQueryClient();
+  const { refreshPendingCount } = useOfflineStatus();
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [form, setForm] = useState<ProjectFormState>(emptyProjectForm);
   const [errors, setErrors] = useState<ProjectFormErrors>({});
 
   const createMutation = useMutation({
-    mutationFn: createProject,
-    onSuccess: () => {
+    mutationFn: (input: ProjectInput) => createProject(input, { clients }),
+    onSuccess: (project) => {
       setForm(emptyProjectForm);
       setErrors({});
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      patchProjectsCache(queryClient, project);
+      void refreshPendingCount();
+      void refreshOverviewIfOnline(queryClient);
+      if (!isLocalId(project.id)) {
+        queryClient.invalidateQueries({ queryKey: ['projects'] });
+      }
     },
     onError: () => setErrors((current) => ({ ...current, form: t('projectSaveFailed') })),
   });
@@ -1299,26 +1336,23 @@ function TaskPanel({
   t: Translator;
 }) {
   const queryClient = useQueryClient();
+  const { refreshPendingCount } = useOfflineStatus();
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [form, setForm] = useState<TaskFormState>(emptyTaskForm);
   const [errors, setErrors] = useState<TaskFormErrors>({});
   const sortedTasks = useMemo(() => sortTasksByNewest(tasks), [tasks]);
 
   const createMutation = useMutation({
-    mutationFn: createTask,
+    mutationFn: (input: TaskInput) => createTask(input, { projects }),
     onSuccess: (created) => {
-      queryClient.setQueryData(['tasks'], (current: { tasks: Task[] } | undefined) => {
-        if (!current) {
-          return current;
-        }
-        return {
-          tasks: sortTasksByNewest([created, ...current.tasks.filter((item) => item.id !== created.id)]),
-        };
-      });
+      patchTasksCache(queryClient, created);
       setForm(emptyTaskForm);
       setErrors({});
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      void refreshPendingCount();
+      void refreshOverviewIfOnline(queryClient);
+      if (!isLocalId(created.id)) {
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      }
     },
     onError: () => setErrors((current) => ({ ...current, form: t('taskSaveFailed') })),
   });
@@ -1675,17 +1709,22 @@ const emptyTagForm: TagFormState = {
 
 function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[]; t: Translator }) {
   const queryClient = useQueryClient();
+  const { refreshPendingCount } = useOfflineStatus();
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [form, setForm] = useState<TagFormState>(emptyTagForm);
   const [errors, setErrors] = useState<TagFormErrors>({});
 
   const createMutation = useMutation({
     mutationFn: createTag,
-    onSuccess: () => {
+    onSuccess: (tag) => {
       setForm(emptyTagForm);
       setErrors({});
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      patchTagsCache(queryClient, tag);
+      void refreshPendingCount();
+      void refreshOverviewIfOnline(queryClient);
+      if (!isLocalId(tag.id)) {
+        queryClient.invalidateQueries({ queryKey: ['tags'] });
+      }
     },
     onError: () => setErrors((current) => ({ ...current, form: t('tagSaveFailed') })),
   });

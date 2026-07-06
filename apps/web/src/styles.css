@@ -510,6 +510,52 @@ a:focus-visible {
   gap: 10px;
 }
 
+.offline-status-pill {
+  align-items: center;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  display: inline-flex;
+  font-size: var(--text-xs);
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.offline-status-pill.is-offline {
+  border-color: rgb(227 106 106 / 35%);
+  color: #ffb4b4;
+}
+
+.offline-status-pill.is-syncing {
+  color: var(--blue);
+}
+
+.offline-sync-button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .toolbar > button,
 .segmented-control button {
   justify-content: center;

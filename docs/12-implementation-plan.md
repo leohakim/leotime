@@ -34,12 +34,11 @@ Every product slice should include:
 - Dashboard UI with recent entries, last 7 days, activity heatmap, weekly bars, billable totals, project donut, tests, and docs.
 - Theme selector with Solidtime, light, dark, and minimal palettes, persistence, tests, and docs.
 - Profile settings with account update, password change, timezone, currency, theme sync, tests, and docs.
+- Offline queue MVP with IndexedDB mutation queue, optimistic UI, auto-sync, and daily workflow coverage.
 
 ## MVP Delivery Slices
 
-1. **Offline Queue MVP**
-   - Offline creation/edit queue for the core daily workflow.
-   - Syncs when connectivity returns.
+All MVP slices in the original plan are complete. Next work moves to backlog items such as CI, seed data, and broader refactors.
 
 ## Quality Gates By Slice
 
@@ -69,4 +68,4 @@ When port `8080` is already occupied by a local process without static assets, r
 
 ## Current Next Task
 
-The next implementation slice is **Offline Queue MVP**.
+There is no single mandatory product slice queued next. Prefer backlog engineering items such as CI, seed data, or frontend feature splits unless product scope changes.

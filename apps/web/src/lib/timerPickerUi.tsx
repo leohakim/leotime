@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronRight, DollarSign, Plus, Tag } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createTag, type Project, type Tag as TagRecord, type Task } from './api';
+import type { Project, Tag as TagRecord, Task } from './api';
+import { patchTagsCache, refreshOverviewIfOnline } from './offline/cache';
+import { useOfflineStatus } from './offline/offlineContext';
+import { createTag, isLocalId } from './offline/mutations';
 import type { MessageKey } from './i18n';
 import { ProjectBadge } from './projectBadgeUi';
 
@@ -250,13 +253,19 @@ export function TimerTagPicker({
   const [query, setQuery] = useState('');
   const popoverRef = usePopoverDismiss(open, setOpen);
   const queryClient = useQueryClient();
+  const { refreshPendingCount } = useOfflineStatus();
 
   const createTagMutation = useMutation({
     mutationFn: createTag,
     onSuccess: (created) => {
       onChange([...new Set([...tagIds, created.id])]);
       setQuery('');
-      queryClient.invalidateQueries({ queryKey: ['tags'] });
+      patchTagsCache(queryClient, created);
+      void refreshPendingCount();
+      void refreshOverviewIfOnline(queryClient);
+      if (!isLocalId(created.id)) {
+        queryClient.invalidateQueries({ queryKey: ['tags'] });
+      }
     },
   });
 
