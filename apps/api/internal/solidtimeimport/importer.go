@@ -307,6 +307,11 @@ func (s *importState) validateReferences(export *Export) error {
 				return fmt.Errorf("time entry %s has invalid end: %w", entry.ID, err)
 			}
 		}
+		if strings.TrimSpace(entry.StillActiveEmailSentAt) != "" {
+			if _, err := parseTime(entry.StillActiveEmailSentAt); err != nil {
+				return fmt.Errorf("time entry %s has invalid still_active_email_sent_at: %w", entry.ID, err)
+			}
+		}
 	}
 	return nil
 }
@@ -534,15 +539,17 @@ func (s *importState) writeTimeEntries(ctx context.Context, entries []TimeEntry)
 		if err != nil {
 			return fmt.Errorf("time entry %s billable: %w", entry.ID, err)
 		}
+		stillActiveEmailSentAt := nullString(entry.StillActiveEmailSentAt)
 
 		if mapping.exists {
 			s.summary.TimeEntries.Updated++
 			if _, err := s.db.ExecContext(ctx, `
 				UPDATE time_entries
 				SET client_id = ?, project_id = ?, task_id = ?, description = ?, started_at = ?, ended_at = ?,
-					duration_seconds = ?, billable = ?, overlap_warning = ?, source = 'import', sync_state = 'synced', updated_at = ?
+					duration_seconds = ?, billable = ?, overlap_warning = ?, still_active_email_sent_at = ?,
+					source = 'import', sync_state = 'synced', updated_at = ?
 				WHERE id = ? AND user_id = ?
-			`, clientID, projectID, taskID, entry.Description, formatTime(startedAt), optionalTimeString(endedAt), durationSeconds, boolInt(billable), boolInt(overlap), normalizeTimeOrNow(entry.UpdatedAt), mapping.internalID, s.userID); err != nil {
+			`, clientID, projectID, taskID, entry.Description, formatTime(startedAt), optionalTimeString(endedAt), durationSeconds, boolInt(billable), boolInt(overlap), stillActiveEmailSentAt, normalizeTimeOrNow(entry.UpdatedAt), mapping.internalID, s.userID); err != nil {
 				return fmt.Errorf("update time entry %s: %w", entry.ID, err)
 			}
 		} else {
@@ -550,10 +557,10 @@ func (s *importState) writeTimeEntries(ctx context.Context, entries []TimeEntry)
 			if _, err := s.db.ExecContext(ctx, `
 				INSERT INTO time_entries (
 					id, user_id, client_id, project_id, task_id, description, started_at, ended_at,
-					duration_seconds, billable, overlap_warning, source, sync_state, created_at, updated_at
+					duration_seconds, billable, overlap_warning, still_active_email_sent_at, source, sync_state, created_at, updated_at
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'import', 'synced', ?, ?)
-			`, mapping.internalID, s.userID, clientID, projectID, taskID, entry.Description, formatTime(startedAt), optionalTimeString(endedAt), durationSeconds, boolInt(billable), boolInt(overlap), normalizeTimeOrNow(entry.CreatedAt), normalizeTimeOrNow(entry.UpdatedAt)); err != nil {
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'import', 'synced', ?, ?)
+			`, mapping.internalID, s.userID, clientID, projectID, taskID, entry.Description, formatTime(startedAt), optionalTimeString(endedAt), durationSeconds, boolInt(billable), boolInt(overlap), stillActiveEmailSentAt, normalizeTimeOrNow(entry.CreatedAt), normalizeTimeOrNow(entry.UpdatedAt)); err != nil {
 				return fmt.Errorf("insert time entry %s: %w", entry.ID, err)
 			}
 			if err := s.writeMapping(ctx, "time_entry", entry.ID, "time_entry", mapping); err != nil {

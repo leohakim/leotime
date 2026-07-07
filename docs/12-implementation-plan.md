@@ -44,7 +44,7 @@ Every product slice should include:
 | Slice | Status | Notes |
 | --- | --- | --- |
 | Timer notification settings UI | Done | Profile API + Ajustes toggle and hours field |
-| Solidtime import `still_active_email_sent_at` | Backlog | Avoid duplicate mail after migration |
+| Solidtime import `still_active_email_sent_at` | Done | Persisted on import create/update |
 | Password reset email | Backlog | Reuse outbox + SMTP stack |
 
 All MVP slices in the original plan are complete. Next work moves to backlog items such as CI, seed data, and broader refactors.

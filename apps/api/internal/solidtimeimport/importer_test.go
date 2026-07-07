@@ -115,6 +115,57 @@ func TestImportIsIdempotent(t *testing.T) {
 	assertCount(t, database, "time_entries", 1)
 }
 
+func TestImportPersistsStillActiveEmailSentAt(t *testing.T) {
+	ctx := context.Background()
+	database := testDB(t, ctx)
+	importer := New(database)
+
+	files := validFixture()
+	files["time_entries.csv"] = csvFile(requiredHeaders["time_entries.csv"], [][]string{
+		{"entry-1", "Work", "2025-02-01T09:00:00Z", "", "", "true", "member-1", "user-1", "org-1", "client-1", "project-1", "task-1", `["tag-1"]`, "false", "2025-02-01T08:00:00Z", "2025-02-01T09:00:00Z", "2025-02-01T09:00:00Z"},
+	})
+
+	if _, err := importer.ImportFile(ctx, Options{
+		FilePath:  writeZipFixture(t, files),
+		UserEmail: "admin@example.com",
+	}); err != nil {
+		t.Fatalf("import with still_active_email_sent_at: %v", err)
+	}
+
+	var stillActive sql.NullString
+	if err := database.QueryRowContext(ctx, `
+		SELECT still_active_email_sent_at
+		FROM time_entries
+		LIMIT 1
+	`).Scan(&stillActive); err != nil {
+		t.Fatalf("query still_active_email_sent_at: %v", err)
+	}
+	if !stillActive.Valid || stillActive.String == "" {
+		t.Fatal("expected still_active_email_sent_at to be persisted")
+	}
+	if !strings.HasPrefix(stillActive.String, "2025-02-01T08:00:00") {
+		t.Fatalf("unexpected still_active_email_sent_at %q", stillActive.String)
+	}
+}
+
+func TestImportRejectsInvalidStillActiveEmailSentAt(t *testing.T) {
+	ctx := context.Background()
+	database := testDB(t, ctx)
+	files := validFixture()
+	files["time_entries.csv"] = csvFile(requiredHeaders["time_entries.csv"], [][]string{
+		{"entry-1", "Work", "2025-02-01T09:00:00Z", "2025-02-01T10:00:00Z", "", "true", "member-1", "user-1", "org-1", "client-1", "project-1", "task-1", `["tag-1"]`, "false", "not-a-timestamp", "2025-02-01T09:00:00Z", "2025-02-01T10:00:00Z"},
+	})
+
+	_, err := New(database).ImportFile(ctx, Options{
+		FilePath:  writeZipFixture(t, files),
+		UserEmail: "admin@example.com",
+		DryRun:    true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid still_active_email_sent_at") {
+		t.Fatalf("expected invalid still_active_email_sent_at error, got %v", err)
+	}
+}
+
 func TestImportRejectsUnknownReference(t *testing.T) {
 	ctx := context.Background()
 	database := testDB(t, ctx)

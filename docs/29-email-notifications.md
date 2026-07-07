@@ -164,7 +164,7 @@ docker compose exec leotime sh -lc "sqlite3 /data/leotime.db \"UPDATE time_entri
 
 ## Solidtime import note
 
-Solidtime exports include `still_active_email_sent_at` on time entries. The importer reads that column but does not persist it yet; after import work lands, migrated timers that already received Solidtime mail should not be notified again.
+Solidtime exports include `still_active_email_sent_at` on time entries. The importer persists that column on create and update so migrated open timers that already received Solidtime mail are not notified again.
 
 ## Code map
 
