@@ -31,9 +31,13 @@ LEOTIME_SMTP_HOST=...
 LEOTIME_SMTP_PORT=587
 LEOTIME_SMTP_USERNAME=...
 LEOTIME_SMTP_PASSWORD=...
+LEOTIME_SECRETS_KEY=...          # openssl rand -base64 32
+LEOTIME_BACKUP_SCHEDULER_ENABLED=true
 ```
 
 Still-running timer emails use the in-process scheduler (enabled by default). Full mail and scheduler reference: `docs/29-email-notifications.md`.
+
+Daily S3 backups use the same scheduler process. Configure the bucket in **Settings → Backups** after deploy, or use the CLI. Full reference: `docs/31-s3-daily-backups.md`.
 
 Start:
 
@@ -53,7 +57,7 @@ leotime.db-wal
 leotime.db-shm
 ```
 
-Backups must account for SQLite WAL mode. The safest first approach is to stop the container briefly or use SQLite's backup API through a future `leotime backup` command.
+Backups use the SQLite backup API (safe with WAL mode). The app creates gzip snapshots and uploads them to your private S3 bucket once per day (default **01:00** in your profile timezone, **365-day** retention).
 
 ## Reverse Proxy
 
@@ -65,18 +69,35 @@ deploy/caddy.example
 
 ## Backup Plan
 
-Initial recommended backup flow:
+Recommended production flow:
 
-1. Nightly job pauses or asks the app for a consistent backup.
-2. Backup file is compressed.
-3. Backup is copied with restic, rclone, or another offsite tool.
-4. Restore is tested regularly.
+1. Set `LEOTIME_SECRETS_KEY` in `.env` (back up this key separately from S3).
+2. Open **Settings → Backups** and enter S3 credentials (AWS or S3-compatible endpoint).
+3. Click **Test connection**, then **Run now** to verify the first upload.
+4. Leave automatic backup enabled (default schedule: **01:00** local time, **365 days** retention in S3).
+5. Test restore on a staging copy before you need it in production.
 
-The app should later expose:
+### CLI (same container)
 
-- Manual backup download.
-- Manual restore upload.
-- Scheduled backup status.
+```bash
+docker compose exec leotime /app/leotime backup run
+docker compose exec leotime /app/leotime backup list
+docker compose exec leotime /app/leotime backup restore --latest --force
+```
+
+### Cold recovery (UI unavailable)
+
+If the app will not start:
+
+1. Download the latest `leotime-*.db.gz` from S3.
+2. Stop the container: `docker compose down`.
+3. Decompress and replace `/data/leotime.db` in the `leotime-data` volume.
+4. Remove stale WAL files if present: `leotime.db-wal`, `leotime.db-shm`.
+5. Start again: `docker compose up -d`.
+
+Prefer in-app restore (`POST /api/v1/backups/restore` or Settings UI) when the server is healthy; it creates a local safety snapshot before replacing data.
+
+Full API, metrics, and provider examples: `docs/31-s3-daily-backups.md`.
 
 ## Upgrade Plan
 

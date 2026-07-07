@@ -200,6 +200,30 @@ curl -s http://127.0.0.1:8080/metrics | rg '^leotime_'
 
 See `docs/29-email-notifications.md` for configuration and troubleshooting.
 
+## S3 daily backups
+
+When implemented, the in-process scheduler also runs a backup tick (every 1 minute) for daily S3 uploads. Configure credentials in **Settings → Backups** or via CLI.
+
+```bash
+docker compose exec leotime /app/leotime backup run
+docker compose exec leotime /app/leotime backup list
+docker compose exec leotime /app/leotime backup restore --latest --force
+```
+
+Defaults: **01:00** in the owner's profile timezone, **365-day** retention in the bucket.
+
+Prometheus metrics (when enabled):
+
+```text
+leotime_backup_last_success_timestamp
+leotime_backup_failures_total
+leotime_backup_duration_seconds
+leotime_backup_restore_success_total
+leotime_backup_restore_failures_total
+```
+
+Full reference: `docs/31-s3-daily-backups.md`.
+
 ### Prometheus metrics useful for memory
 
 ```text
