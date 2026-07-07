@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CircleAlert, CircleCheck, Save, Settings, UserRound } from 'lucide-react';
+import { CircleAlert, Save, Settings, UserRound } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   changePassword,
@@ -15,6 +15,7 @@ import {
   type User,
 } from './api';
 import type { MessageKey } from './i18n';
+import { useToast } from './toast';
 
 export type Translator = (key: MessageKey) => string;
 
@@ -111,6 +112,7 @@ export function ProfileSettingsPanel({
   user: User;
 }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const profileQuery = useQuery({
     queryKey: ['profile'],
     queryFn: fetchProfile,
@@ -125,8 +127,6 @@ export function ProfileSettingsPanel({
     confirmPassword: '',
   });
   const [passwordErrors, setPasswordErrors] = useState<PasswordFormErrors>({});
-  const [savedMessage, setSavedMessage] = useState('');
-  const [passwordSavedMessage, setPasswordSavedMessage] = useState('');
 
   const timezoneOptions = useMemo(() => {
     if (form.timezone && !TIMEZONES.includes(form.timezone)) {
@@ -176,10 +176,12 @@ export function ProfileSettingsPanel({
       setLayoutMode(profile.layoutMode);
       setThemeMode(profile.settings.themeMode);
       setErrors({});
-      setSavedMessage(t('profileSaved'));
-      window.setTimeout(() => setSavedMessage(''), 2500);
+      toast.success(t('profileSaved'));
     },
-    onError: () => setErrors({ form: t('profileSaveFailed') }),
+    onError: () => {
+      setErrors({ form: t('profileSaveFailed') });
+      toast.error(t('profileSaveFailed'));
+    },
   });
 
   const passwordMutation = useMutation({
@@ -187,10 +189,12 @@ export function ProfileSettingsPanel({
     onSuccess: () => {
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setPasswordErrors({});
-      setPasswordSavedMessage(t('passwordChanged'));
-      window.setTimeout(() => setPasswordSavedMessage(''), 2500);
+      toast.success(t('passwordChanged'));
     },
-    onError: () => setPasswordErrors({ form: t('passwordChangeFailed') }),
+    onError: () => {
+      setPasswordErrors({ form: t('passwordChangeFailed') });
+      toast.error(t('passwordChangeFailed'));
+    },
   });
 
   function updateField<K extends keyof ProfileFormState>(key: K, value: ProfileFormState[K]) {
@@ -275,12 +279,7 @@ export function ProfileSettingsPanel({
           <h2 id="profile-title">{t('profilePanelTitle')}</h2>
           <p>{t('profilePanelSubtitle')}</p>
         </div>
-        {savedMessage ? (
-          <span className="sync-pill success-pill">
-            <CircleCheck aria-hidden="true" />
-            {savedMessage}
-          </span>
-        ) : profileQuery.isLoading ? (
+        {profileQuery.isLoading ? (
           <span className="sync-pill">{t('loading')}</span>
         ) : profileQuery.isError ? (
           <span className="sync-pill warning-pill">{t('profileLoadDegraded')}</span>
@@ -465,12 +464,6 @@ export function ProfileSettingsPanel({
               <span>{t('profilePasswordSection')}</span>
               <h3>{t('profilePasswordHeading')}</h3>
             </div>
-            {passwordSavedMessage ? (
-              <span className="sync-pill success-pill">
-                <CircleCheck aria-hidden="true" />
-                {passwordSavedMessage}
-              </span>
-            ) : null}
           </div>
 
           {passwordErrors.form ? (

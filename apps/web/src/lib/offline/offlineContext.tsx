@@ -1,7 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { Locale } from '../api';
+import { translate } from '../i18n';
+import { useToast } from '../toast';
 import { flushOfflineQueue, pendingMutationCount } from './mutations';
 import { isOnline, subscribeNetworkStatus } from './network';
+
+function appLocale(): Locale {
+  return window.localStorage.getItem('leotime.locale') === 'en' ? 'en' : 'es';
+}
 
 type OfflineContextValue = {
   online: boolean;
@@ -16,6 +23,7 @@ const OfflineContext = createContext<OfflineContextValue | null>(null);
 
 export function OfflineProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [online, setOnline] = useState(isOnline());
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -36,14 +44,16 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       await refreshPendingCount();
       if (result.failed > 0 && result.lastError) {
         setLastSyncError(result.lastError);
+        toast.error(result.lastError);
       }
       if (result.synced > 0) {
         await queryClient.invalidateQueries();
+        toast.success(translate(appLocale(), 'offlineSyncComplete'));
       }
     } finally {
       setSyncing(false);
     }
-  }, [queryClient, refreshPendingCount, syncing]);
+  }, [queryClient, refreshPendingCount, syncing, toast]);
 
   useEffect(() => {
     void refreshPendingCount();

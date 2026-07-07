@@ -8,6 +8,7 @@ import { isLocalId, startTimer, updateTimer } from './offline/mutations';
 import type { MessageKey } from './i18n';
 import { navigateTo } from './appRoutes';
 import { scrollToManualEntryForm } from './timeEntryUi';
+import { toastMutationSuccess, useToast } from './toast';
 import { TimerPlayIcon, TimerStopIcon } from './timerIcons';
 import { TimerBillableToggle, TimerProjectPicker, TimerTagPicker, type TimerMetaSelection } from './timerPickerUi';
 
@@ -83,6 +84,7 @@ export function TimerCommandRow({
   t: Translator;
 }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { refreshPendingCount } = useOfflineStatus();
   const entityLookup = useMemo(() => ({ projects, tasks, tags }), [projects, tags, tasks]);
   const [form, setForm] = useState<TimerStartFormState>(emptyTimerForm);
@@ -137,8 +139,12 @@ export function TimerCommandRow({
         queryClient.invalidateQueries({ queryKey: ['timers'] });
         queryClient.invalidateQueries({ queryKey: ['tags'] });
       }
+      toastMutationSuccess(toast, t, 'timerStarted', timer.id);
     },
-    onError: () => setError(t('timerStartFailed')),
+    onError: () => {
+      setError(t('timerStartFailed'));
+      toast.error(t('timerStartFailed'));
+    },
   });
 
   const updateMutation = useMutation({
@@ -154,7 +160,10 @@ export function TimerCommandRow({
         queryClient.invalidateQueries({ queryKey: ['overview'] });
       }
     },
-    onError: () => setError(t('timerUpdateFailed')),
+    onError: () => {
+      setError(t('timerUpdateFailed'));
+      toast.error(t('timerUpdateFailed'));
+    },
   });
 
   useEffect(() => {

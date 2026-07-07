@@ -25,6 +25,7 @@ import {
   type TimesheetDayGroup,
 } from './timesheetWeek';
 import { navigateTo } from './appRoutes';
+import { toastMutationSuccess, useToast } from './toast';
 
 export type Translator = (key: MessageKey) => string;
 
@@ -249,6 +250,7 @@ export function ManualTimeEntryPanel({
   timeEntries: TimeEntry[];
 }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { refreshPendingCount } = useOfflineStatus();
   const entityLookup = useMemo(
     () => ({ clients, projects, tasks, tags }),
@@ -269,8 +271,12 @@ export function ManualTimeEntryPanel({
       if (!isLocalId(entry.id)) {
         queryClient.invalidateQueries({ queryKey: ['time-entries'] });
       }
+      toastMutationSuccess(toast, t, 'timeEntryCreated', entry.id);
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('timeEntrySaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('timeEntrySaveFailed') }));
+      toast.error(t('timeEntrySaveFailed'));
+    },
   });
 
   const updateMutation = useMutation({
@@ -288,8 +294,12 @@ export function ManualTimeEntryPanel({
       if (!isLocalId(entry.id)) {
         queryClient.invalidateQueries({ queryKey: ['time-entries'] });
       }
+      toastMutationSuccess(toast, t, 'timeEntryUpdated', entry.id);
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('timeEntrySaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('timeEntrySaveFailed') }));
+      toast.error(t('timeEntrySaveFailed'));
+    },
   });
 
   const deleteMutation = useMutation({
@@ -297,8 +307,12 @@ export function ManualTimeEntryPanel({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-entries'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('timeEntryDeleted'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('timeEntryDeleteFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('timeEntryDeleteFailed') }));
+      toast.error(t('timeEntryDeleteFailed'));
+    },
   });
 
   const filteredTasks = useMemo(

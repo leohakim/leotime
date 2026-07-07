@@ -4083,3 +4083,84 @@ a:focus-visible {
 [data-theme='minimal'] .sidebar-timer {
   border-bottom-color: var(--border);
 }
+
+.toast-stack {
+  bottom: 20px;
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+  pointer-events: none;
+  position: fixed;
+  right: 20px;
+  width: min(420px, calc(100vw - 40px));
+  z-index: 1000;
+}
+
+.toast {
+  align-items: flex-start;
+  animation: toast-in 180ms ease-out;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  color: var(--text);
+  display: flex;
+  gap: 10px;
+  max-width: 100%;
+  padding: 12px 14px;
+  pointer-events: auto;
+}
+
+.toast svg:first-child {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.toast-message {
+  flex: 1 1 auto;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.toast-dismiss {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 2px;
+}
+
+.toast-dismiss:hover {
+  color: var(--text);
+}
+
+.toast-success {
+  border-color: color-mix(in srgb, var(--green) 35%, var(--border));
+}
+
+.toast-success svg:first-child {
+  color: var(--green);
+}
+
+.toast-error {
+  border-color: color-mix(in srgb, var(--rose) 35%, var(--border));
+}
+
+.toast-error svg:first-child {
+  color: var(--rose);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

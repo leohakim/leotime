@@ -7,6 +7,7 @@ import { useOfflineStatus } from './offline/offlineContext';
 import { createTag, isLocalId } from './offline/mutations';
 import type { MessageKey } from './i18n';
 import { ProjectBadge } from './projectBadgeUi';
+import { toastMutationSuccess, useToast } from './toast';
 
 export type Translator = (key: MessageKey) => string;
 
@@ -253,6 +254,7 @@ export function TimerTagPicker({
   const [query, setQuery] = useState('');
   const popoverRef = usePopoverDismiss(open, setOpen);
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { refreshPendingCount } = useOfflineStatus();
 
   const createTagMutation = useMutation({
@@ -266,7 +268,9 @@ export function TimerTagPicker({
       if (!isLocalId(created.id)) {
         queryClient.invalidateQueries({ queryKey: ['tags'] });
       }
+      toastMutationSuccess(toast, t, 'tagCreated', created.id);
     },
+    onError: () => toast.error(t('tagSaveFailed')),
   });
 
   const activeTags = useMemo(() => {

@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { OfflineProvider } from './lib/offline/offlineContext';
+import { ToastProvider } from './lib/toast';
 import './styles.css';
 
 const queryClient = new QueryClient({
@@ -21,9 +22,11 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <OfflineProvider>
-        <App />
-      </OfflineProvider>
+      <ToastProvider>
+        <OfflineProvider>
+          <App />
+        </OfflineProvider>
+      </ToastProvider>
     </QueryClientProvider>
   </StrictMode>,
 );

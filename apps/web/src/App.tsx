@@ -105,6 +105,7 @@ import { SidebarTimer, TimerCommandRow } from './lib/timerUi';
 import { addWeeks, startOfWeek, toWeekQueryFrom, toWeekQueryTo } from './lib/timesheetWeek';
 import { usePersistentState } from './lib/persistentState';
 import { ThemeSwitcher, useThemeEffect } from './lib/themeUi';
+import { toastMutationSuccess, useToast } from './lib/toast';
 
 export function App() {
   const [locale, setLocale] = usePersistentState<Locale>('leotime.locale', 'es');
@@ -251,6 +252,7 @@ function isReportingRoute(route: AppRoute): boolean {
 
 function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode, themeMode, t, user, userName }: DashboardProps) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { refreshPendingCount } = useOfflineStatus();
   const [route, navigate] = useAppRoute();
   const [timeView, setTimeView] = usePersistentState<TimeView>('leotime.timeView', 'timesheet');
@@ -338,7 +340,9 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
         queryClient.invalidateQueries({ queryKey: ['timers'] });
         queryClient.invalidateQueries({ queryKey: ['time-entries'] });
       }
+      toastMutationSuccess(toast, t, 'timerStopped', entry.id);
     },
+    onError: () => toast.error(t('timerStopFailed')),
   });
   const logoutMutation = useMutation({
     mutationFn: logout,
@@ -623,6 +627,7 @@ const emptyClientForm: ClientFormState = {
 
 function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: boolean; t: Translator }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { refreshPendingCount } = useOfflineStatus();
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [form, setForm] = useState<ClientFormState>(emptyClientForm);
@@ -639,8 +644,12 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
       if (!isLocalId(client.id)) {
         queryClient.invalidateQueries({ queryKey: ['clients'] });
       }
+      toastMutationSuccess(toast, t, 'clientCreated', client.id);
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('clientSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('clientSaveFailed') }));
+      toast.error(t('clientSaveFailed'));
+    },
   });
 
   const updateMutation = useMutation({
@@ -669,8 +678,12 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('clientUpdated'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('clientSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('clientSaveFailed') }));
+      toast.error(t('clientSaveFailed'));
+    },
   });
 
   const archiveMutation = useMutation({
@@ -678,8 +691,12 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('clientArchived'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('clientArchiveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('clientArchiveFailed') }));
+      toast.error(t('clientArchiveFailed'));
+    },
   });
 
   const restoreMutation = useMutation({
@@ -690,8 +707,12 @@ function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLoading: 
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('clientRestored'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('clientSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('clientSaveFailed') }));
+      toast.error(t('clientSaveFailed'));
+    },
   });
 
   function submitClient(event: FormEvent) {
@@ -1022,6 +1043,7 @@ function ProjectPanel({
   t: Translator;
 }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { refreshPendingCount } = useOfflineStatus();
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [form, setForm] = useState<ProjectFormState>(emptyProjectForm);
@@ -1038,8 +1060,12 @@ function ProjectPanel({
       if (!isLocalId(project.id)) {
         queryClient.invalidateQueries({ queryKey: ['projects'] });
       }
+      toastMutationSuccess(toast, t, 'projectCreated', project.id);
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('projectSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('projectSaveFailed') }));
+      toast.error(t('projectSaveFailed'));
+    },
   });
 
   const updateMutation = useMutation({
@@ -1068,8 +1094,12 @@ function ProjectPanel({
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('projectUpdated'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('projectSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('projectSaveFailed') }));
+      toast.error(t('projectSaveFailed'));
+    },
   });
 
   const archiveMutation = useMutation({
@@ -1077,8 +1107,12 @@ function ProjectPanel({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('projectArchived'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('projectArchiveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('projectArchiveFailed') }));
+      toast.error(t('projectArchiveFailed'));
+    },
   });
 
   const restoreMutation = useMutation({
@@ -1089,8 +1123,12 @@ function ProjectPanel({
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('projectRestored'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('projectSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('projectSaveFailed') }));
+      toast.error(t('projectSaveFailed'));
+    },
   });
 
   function submitProject(event: FormEvent) {
@@ -1410,6 +1448,7 @@ function TaskPanel({
   t: Translator;
 }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { refreshPendingCount } = useOfflineStatus();
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [form, setForm] = useState<TaskFormState>(emptyTaskForm);
@@ -1427,8 +1466,12 @@ function TaskPanel({
       if (!isLocalId(created.id)) {
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
       }
+      toastMutationSuccess(toast, t, 'taskCreated', created.id);
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('taskSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('taskSaveFailed') }));
+      toast.error(t('taskSaveFailed'));
+    },
   });
 
   const updateMutation = useMutation({
@@ -1457,8 +1500,12 @@ function TaskPanel({
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('taskUpdated'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('taskSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('taskSaveFailed') }));
+      toast.error(t('taskSaveFailed'));
+    },
   });
 
   const inlineUpdateMutation = useMutation({
@@ -1476,7 +1523,7 @@ function TaskPanel({
         setForm((current) => ({ ...current, name: updated.name }));
       }
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('taskSaveFailed') })),
+    onError: () => toast.error(t('taskSaveFailed')),
   });
 
   const saveInlineTaskName = useCallback(
@@ -1502,8 +1549,12 @@ function TaskPanel({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('taskArchived'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('taskArchiveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('taskArchiveFailed') }));
+      toast.error(t('taskArchiveFailed'));
+    },
   });
 
   const restoreMutation = useMutation({
@@ -1514,8 +1565,12 @@ function TaskPanel({
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('taskRestored'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('taskSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('taskSaveFailed') }));
+      toast.error(t('taskSaveFailed'));
+    },
   });
 
   function submitTask(event: FormEvent) {
@@ -1783,6 +1838,7 @@ const emptyTagForm: TagFormState = {
 
 function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[]; t: Translator }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { refreshPendingCount } = useOfflineStatus();
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [form, setForm] = useState<TagFormState>(emptyTagForm);
@@ -1799,8 +1855,12 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
       if (!isLocalId(tag.id)) {
         queryClient.invalidateQueries({ queryKey: ['tags'] });
       }
+      toastMutationSuccess(toast, t, 'tagCreated', tag.id);
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('tagSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('tagSaveFailed') }));
+      toast.error(t('tagSaveFailed'));
+    },
   });
 
   const updateMutation = useMutation({
@@ -1829,8 +1889,12 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['tags'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('tagUpdated'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('tagSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('tagSaveFailed') }));
+      toast.error(t('tagSaveFailed'));
+    },
   });
 
   const archiveMutation = useMutation({
@@ -1838,8 +1902,12 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('tagArchived'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('tagArchiveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('tagArchiveFailed') }));
+      toast.error(t('tagArchiveFailed'));
+    },
   });
 
   const restoreMutation = useMutation({
@@ -1850,8 +1918,12 @@ function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: TagRecord[
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['tags'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('tagRestored'));
     },
-    onError: () => setErrors((current) => ({ ...current, form: t('tagSaveFailed') })),
+    onError: () => {
+      setErrors((current) => ({ ...current, form: t('tagSaveFailed') }));
+      toast.error(t('tagSaveFailed'));
+    },
   });
 
   function submitTag(event: FormEvent) {

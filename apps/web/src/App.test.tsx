@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { App } from './App';
 import { OfflineProvider } from './lib/offline/offlineContext';
+import { ToastProvider } from './lib/toast';
 
 describe('App', () => {
   beforeEach(() => {
@@ -448,9 +449,11 @@ function renderApp() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <OfflineProvider>
-        <App />
-      </OfflineProvider>
+      <ToastProvider>
+        <OfflineProvider>
+          <App />
+        </OfflineProvider>
+      </ToastProvider>
     </QueryClientProvider>,
   );
 }

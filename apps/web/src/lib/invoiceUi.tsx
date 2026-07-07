@@ -15,6 +15,7 @@ import {
 } from './api';
 import { endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './calendarMonth';
 import type { Translator } from './timeEntryUi';
+import { useToast } from './toast';
 
 type DraftFormState = {
   clientId: string;
@@ -90,6 +91,7 @@ export function InvoicePanel({
   userName: string;
 }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [form, setForm] = useState<DraftFormState>(defaultDraftForm);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [formError, setFormError] = useState('');
@@ -139,8 +141,12 @@ export function InvoicePanel({
       setSelectedInvoiceId(invoice.id);
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('invoiceDraftCreated'));
     },
-    onError: () => setFormError(t('invoiceDraftFailed')),
+    onError: () => {
+      setFormError(t('invoiceDraftFailed'));
+      toast.error(t('invoiceDraftFailed'));
+    },
   });
 
   const statusMutation = useMutation({
@@ -149,7 +155,9 @@ export function InvoicePanel({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('invoiceStatusUpdated'));
     },
+    onError: () => toast.error(t('invoiceStatusUpdateFailed')),
   });
 
   const deleteMutation = useMutation({
@@ -158,7 +166,9 @@ export function InvoicePanel({
       setSelectedInvoiceId(null);
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('invoiceDeleted'));
     },
+    onError: () => toast.error(t('invoiceDeleteFailed')),
   });
 
   function submitDraft(event: FormEvent) {
@@ -173,8 +183,10 @@ export function InvoicePanel({
       const blob = await downloadInvoiceExport(invoice.id, format);
       const extension = format === 'html' ? 'html' : format;
       triggerDownload(blob, `${invoice.invoiceNumber}.${extension}`);
+      toast.success(t('invoiceExportSuccess'));
     } catch {
       setExportError(t('invoiceExportFailed'));
+      toast.error(t('invoiceExportFailed'));
     }
   }
 

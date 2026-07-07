@@ -23,6 +23,7 @@ import {
   weekChartPeak,
 } from './dashboardHeatmap';
 import { formatMoneyMinor } from './invoiceUi';
+import { toastMutationSuccess, useToast } from './toast';
 import { ProjectBadge } from './projectBadgeUi';
 import { TimerPlayIcon } from './timerIcons';
 import type { Translator } from './timeEntryUi';
@@ -330,6 +331,7 @@ function WeekOverview({ locale, stats, t }: { locale: Locale; stats: DashboardSt
 
 export function DashboardPanel({ locale, t }: { locale: Locale; t: Translator }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [activityMonth, setActivityMonth] = useState(currentMonthKey);
 
   const statsQuery = useQuery({
@@ -349,11 +351,13 @@ export function DashboardPanel({ locale, t }: { locale: Locale; t: Translator })
         billable: entry.billable,
         tagIds: [],
       }),
-    onSuccess: () => {
+    onSuccess: (timer) => {
       queryClient.invalidateQueries({ queryKey: ['timers'] });
       queryClient.invalidateQueries({ queryKey: ['overview'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      toastMutationSuccess(toast, t, 'timerStarted', timer.id);
     },
+    onError: () => toast.error(t('timerStartFailed')),
   });
 
   const stats = statsQuery.data;

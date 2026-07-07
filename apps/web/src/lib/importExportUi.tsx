@@ -9,6 +9,7 @@ import {
 } from './api';
 import { endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './calendarMonth';
 import type { Translator } from './timeEntryUi';
+import { useToast } from './toast';
 
 type ExportFormState = {
   billableOnly: boolean;
@@ -116,6 +117,7 @@ function ImportSummary({ summary, t }: { summary: SolidtimeImportSummary; t: Tra
 
 export function ImportExportPanel({ t }: { t: Translator }) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dryRun, setDryRun] = useState(true);
@@ -136,11 +138,15 @@ export function ImportExportPanel({ t }: { t: Translator }) {
       setSummary(result);
       if (result.errors.length > 0) {
         setImportMessage('');
-        setImportError(result.errors[0] ?? t('importFailed'));
+        const message = result.errors[0] ?? t('importFailed');
+        setImportError(message);
+        toast.error(message);
         return;
       }
       setImportError('');
-      setImportMessage(result.dryRun ? t('importValidateSuccess') : t('importSuccess'));
+      const message = result.dryRun ? t('importValidateSuccess') : t('importSuccess');
+      setImportMessage(message);
+      toast.success(message);
       if (!result.dryRun) {
         void queryClient.invalidateQueries({ queryKey: ['clients'] });
         void queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -154,7 +160,9 @@ export function ImportExportPanel({ t }: { t: Translator }) {
     },
     onError: (error) => {
       setImportMessage('');
-      setImportError(error instanceof Error ? error.message : t('importFailed'));
+      const message = error instanceof Error ? error.message : t('importFailed');
+      setImportError(message);
+      toast.error(message);
     },
   });
 
@@ -187,8 +195,10 @@ export function ImportExportPanel({ t }: { t: Translator }) {
         format,
       );
       triggerDownload(blob, format === 'csv' ? 'leotime-export.csv' : 'leotime-export.json');
+      toast.success(t('reportExportSuccess'));
     } catch {
       setExportError(t('reportExportFailed'));
+      toast.error(t('reportExportFailed'));
     }
   }
 
