@@ -114,7 +114,9 @@ Default Compose starts **one** service:
 
 | Service | Role |
 | --- | --- |
-| `leotime` | Go API, embedded SQLite, built static web |
+| `leotime` | Go API, embedded SQLite, built static web, in-process scheduler, email outbox |
+
+The scheduler sends still-running timer notifications. See `docs/29-email-notifications.md`.
 
 Prometheus and Grafana are optional (`make metrics`) and should not be counted in product footprint unless you deploy them.
 
@@ -130,20 +132,19 @@ Example snapshot from a VPS running official Solidtime:
 | database | ~51 MiB |
 | **Total** | **~817 MiB** |
 
-That stack also runs background workers for queues, schedules, and mail. leotime does **not** include those yet.
+That stack also runs background workers for queues, schedules, and mail. leotime covers still-running timer mail inside the same container; password reset and other mail types are not implemented yet.
 
 ### Fair comparison notes
 
 Measure leotime after importing a representative Solidtime ZIP and using the app normally (timer, timesheet, reports). Compare:
 
 1. **Total RAM across containers** (Solidtime) vs **single `leotime` container**.
-2. **Idle vs active** usage. Timer polling and report exports change CPU slightly.
-3. **Missing features that will add cost later**:
-   - outbound email (password reset, reminders such as a timer left running 8+ hours)
-   - background queue worker if email or imports move async
-   - scheduler/cron for digest and reminder jobs
+2. **Idle vs active** usage. Timer polling, report exports, and the email scheduler change CPU slightly.
+3. **Remaining mail features**:
+   - password reset and other transactional templates
+   - profile UI for still-running threshold (database columns exist today)
 
-When those arrive, budget roughly one small worker process or a second lightweight container, not a full Solidtime-style stack, unless traffic demands it.
+Re-measure with `make resources` after enabling the scheduler and SMTP in production-like settings.
 
 ### Measured baseline (2026-07-06)
 
@@ -176,9 +177,28 @@ Comparison against the Solidtime VPS snapshot documented above:
 | Solidtime (queue + scheduler + app + database) | 4 | ~817 MiB |
 | leotime (this baseline) | 1 | ~25 MiB |
 
-That is roughly **33× less peak RAM** in this empty-stack scenario. It is not a full product parity test yet: Solidtime was measured with real production traffic/data, while this leotime baseline has almost no imported time entries and no mail or background workers.
+That is roughly **33× less peak RAM** in this empty-stack scenario. It predates the in-process email scheduler; expect a small RAM/CPU increase with background ticks enabled.
 
 Re-run after importing a representative Solidtime ZIP and during normal daily use (timer running, timesheet edits, report export) before treating these numbers as deployment guidance.
+
+### Email scheduler metrics
+
+When the background scheduler is enabled, scrape:
+
+```text
+leotime_still_running_timers_detected_total
+leotime_email_outbox_sent_total
+leotime_email_outbox_retried_total
+leotime_email_outbox_dead_total
+leotime_scheduler_scan_errors_total
+leotime_scheduler_outbox_errors_total
+```
+
+```bash
+curl -s http://127.0.0.1:8080/metrics | rg '^leotime_'
+```
+
+See `docs/29-email-notifications.md` for configuration and troubleshooting.
 
 ### Prometheus metrics useful for memory
 

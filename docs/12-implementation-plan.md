@@ -35,8 +35,16 @@ Every product slice should include:
 - Theme selector with Solidtime, light, dark, and minimal palettes, persistence, tests, and docs.
 - Profile settings with account update, password change, timezone, currency, theme sync, tests, and docs.
 - Offline queue MVP with IndexedDB mutation queue, optimistic UI, auto-sync, and daily workflow coverage.
+- Email outbox foundation with SMTP/log senders, SQLite outbox, and retry policy (migration `000005`).
+- In-process scheduler for still-running timer notifications with Prometheus metrics.
 
-## MVP Delivery Slices
+## Post-MVP Delivery Slices
+
+| Slice | Status | Notes |
+| --- | --- | --- |
+| Timer notification settings UI | Next | Expose `timer_still_running_*` in profile API + Ajustes |
+| Solidtime import `still_active_email_sent_at` | Backlog | Avoid duplicate mail after migration |
+| Password reset email | Backlog | Reuse outbox + SMTP stack |
 
 All MVP slices in the original plan are complete. Next work moves to backlog items such as CI, seed data, and broader refactors.
 

@@ -16,6 +16,8 @@ time_entry_tags
 rates
 invoices
 invoice_lines
+app_settings
+email_outbox
 ```
 
 ## Ownership Rules
@@ -38,8 +40,28 @@ Time entries should store:
 - Billable flag.
 - Currency snapshot when relevant.
 - Sync metadata.
+- `still_active_email_sent_at`, nullable; set after a successful still-running timer email.
 
 Overlaps are allowed. The UI and reports should warn, not reject.
+
+## Email Outbox
+
+`email_outbox` stores durable outbound mail jobs processed by the in-process scheduler:
+
+- One pending/sent row per `(kind, time_entry_id)` for timer notifications.
+- Status: `pending`, `sent`, or `dead`.
+- Retry metadata: `attempts`, `next_retry_at`, `last_error`.
+
+See `docs/29-email-notifications.md`.
+
+## App Settings
+
+Per-user preferences in `app_settings` include:
+
+- `timer_still_running_enabled` (default on)
+- `timer_still_running_hours` (default 8)
+
+Profile API/UI exposure for these fields is planned; the database columns exist today.
 
 ## Invoices
 

@@ -19,4 +19,5 @@ This directory owns product, architecture, operations, deployment, import compat
 - Solidtime import compatibility.
 - Docker-first operations.
 - Observability and performance measurement.
+- Email notifications and in-process scheduler (`docs/29-email-notifications.md`).
 

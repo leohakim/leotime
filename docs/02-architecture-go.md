@@ -10,6 +10,7 @@ main.go
   -> open SQLite database
   -> apply embedded migrations
   -> create bootstrap admin if needed
+  -> start background scheduler (timer mail scan + outbox processing)
   -> build HTTP router
   -> serve API and static frontend
 ```
@@ -24,6 +25,11 @@ apps/api
     ├── config         # environment parsing
     ├── db             # SQLite open and migration runner
     ├── httpapi        # routes, handlers, JSON responses
+    ├── mail           # SMTP and log senders
+    ├── metrics        # Prometheus counters for scheduler/mail
+    ├── notify         # still-running timer notification jobs
+    ├── outbox         # durable email queue + retry processor
+    ├── scheduler      # in-process scan/outbox tickers
     └── store          # database-backed business operations
 ```
 

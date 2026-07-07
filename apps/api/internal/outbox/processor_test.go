@@ -2,6 +2,7 @@ package outbox
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"sync"
 	"testing"
@@ -121,6 +122,44 @@ func TestEnqueueAndMarkSent(t *testing.T) {
 	}
 	if updated.SentAt == "" {
 		t.Fatal("expected sent_at to be set")
+	}
+}
+
+func TestProcessorOnSentHook(t *testing.T) {
+	ctx := context.Background()
+	outboxStore, st, userID, userEmail := setupOutboxTest(t)
+	timerID := createOpenTimer(t, st, userID)
+	now := time.Date(2026, 7, 7, 9, 0, 0, 0, time.UTC)
+
+	entry := enqueueTestEmail(t, outboxStore, userID, timerID, userEmail, now)
+
+	hookCalled := false
+	sender := &fakeSender{}
+	processor := NewProcessor(outboxStore, sender, ProcessorOptions{
+		RetryPolicy: DefaultRetryPolicy(time.Minute, 6*time.Hour),
+		Now:         func() time.Time { return now },
+		OnSent: func(ctx context.Context, email Email) error {
+			hookCalled = true
+			if email.ID != entry.ID {
+				t.Fatalf("unexpected email id in hook")
+			}
+			return st.MarkStillRunningEmailSent(ctx, email.TimeEntryID, now)
+		},
+	})
+
+	if _, err := processor.ProcessOnce(ctx); err != nil {
+		t.Fatalf("process once: %v", err)
+	}
+	if !hookCalled {
+		t.Fatal("expected on sent hook to run")
+	}
+
+	var stillActive sql.NullString
+	if err := st.DB().QueryRowContext(ctx, "SELECT still_active_email_sent_at FROM time_entries WHERE id = ?", timerID).Scan(&stillActive); err != nil {
+		t.Fatalf("query still_active_email_sent_at: %v", err)
+	}
+	if !stillActive.Valid || stillActive.String == "" {
+		t.Fatal("expected still_active_email_sent_at to be set by hook")
 	}
 }
 

@@ -16,6 +16,11 @@ import (
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/db"
 	"github.com/leotime/leotime/apps/api/internal/httpapi"
+	"github.com/leotime/leotime/apps/api/internal/mail"
+	_ "github.com/leotime/leotime/apps/api/internal/metrics"
+	"github.com/leotime/leotime/apps/api/internal/notify"
+	"github.com/leotime/leotime/apps/api/internal/outbox"
+	"github.com/leotime/leotime/apps/api/internal/scheduler"
 	"github.com/leotime/leotime/apps/api/internal/solidtimeimport"
 	"github.com/leotime/leotime/apps/api/internal/store"
 )
@@ -53,6 +58,29 @@ func main() {
 		log.Fatalf("bootstrap admin: %v", err)
 	}
 
+	runCtx, cancelBackground := context.WithCancel(ctx)
+	defer cancelBackground()
+
+	if cfg.SchedulerEnabled {
+		mailSender, err := mail.NewSender(cfg)
+		if err != nil {
+			log.Fatalf("mail sender: %v", err)
+		}
+
+		outboxStore := outbox.NewStore(database)
+		notifier := notify.NewStillRunningNotifier(st, outboxStore, cfg)
+		processor := outbox.NewProcessor(outboxStore, mailSender, outbox.ProcessorOptions{
+			RetryPolicy: outbox.DefaultRetryPolicy(cfg.MailRetryBase, cfg.MailRetryMax),
+			OnSent:      notifier.HandleSent,
+		})
+		backgroundScheduler := scheduler.New(cfg, notifier, processor)
+
+		go func() {
+			log.Printf("scheduler enabled: scan=%s outbox=%s mail=%s", cfg.SchedulerScanInterval, cfg.OutboxProcessInterval, cfg.MailMode)
+			backgroundScheduler.Run(runCtx)
+		}()
+	}
+
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           httpapi.NewRouter(cfg, st),
@@ -69,6 +97,8 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
+
+	cancelBackground()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

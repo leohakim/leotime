@@ -32,6 +32,8 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Theme selector | Solidtime default, light, dark, minimal palettes with persistence. |
 | Done | Profile Settings | Change password, email, name, timezone, currency, theme, etc. |
 | Done | Offline queue MVP | Create/edit offline and sync when online. |
+| Done | Still-running timer email | In-process scheduler, outbox, SMTP/log, docs. |
+| Next | Timer notification settings UI | Threshold + toggle in profile settings. |
 | Later | Tauri desktop app | Desktop packaging after web MVP works. |
 | Later | Idle detection | Helpful but not needed for first deployable MVP. |
 | Later | Activity tracking | Backlog from original scope, not MVP. |
@@ -70,5 +72,6 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Theme selector | `docs/25-theme-selector.md`. |
 | Done | Profile settings | `docs/26-profile-settings-api.md`. |
 | Done | Offline queue MVP | `docs/27-offline-queue-mvp.md`. |
+| Done | Email notifications | `docs/29-email-notifications.md`. |
 | Backlog | API reference index | One index linking each resource doc. |
 | Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers. |

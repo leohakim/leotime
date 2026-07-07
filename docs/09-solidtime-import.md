@@ -95,6 +95,7 @@ This makes imports idempotent: running the same ZIP again updates existing mappe
 - Empty billable rates become null/default values.
 - Decimal billable rates are converted to minor units by multiplying by 100.
 - Tags in `time_entries.csv` are parsed as JSON text.
+- `still_active_email_sent_at` is read from Solidtime exports but not persisted yet; see `docs/29-email-notifications.md`.
 - Empty client/project/task references are allowed on time entries.
 - Unknown non-empty references fail validation.
 - Overlapping time entries are allowed and recorded as warnings.

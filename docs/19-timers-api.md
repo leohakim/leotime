@@ -70,6 +70,18 @@ GET /api/v1/timers
 
 Devuelve `{ "timers": [...] }` ordenados por `started_at` descendente.
 
+## Aviso por timer largo (email)
+
+Si un timer abierto supera el umbral configurado (default **8 horas**), leotime envia **un solo email** al correo del usuario.
+
+- El scheduler corre dentro del mismo proceso Go (no hay contenedor aparte).
+- La deteccion ocurre cada 10 minutos por defecto (`LEOTIME_SCHEDULER_SCAN_INTERVAL`).
+- El umbral vive en `app_settings.timer_still_running_hours`; se puede desactivar con `timer_still_running_enabled`.
+- Tras un envio exitoso se guarda `time_entries.still_active_email_sent_at`.
+- En local, `LEOTIME_MAIL_MODE=log` escribe el mail en los logs del contenedor.
+
+Documentacion completa: `docs/29-email-notifications.md`.
+
 ## Frontend
 
 - La barra principal (`TimerCommandRow`) muestra el timer activo mas reciente o el formulario de inicio.
@@ -81,6 +93,7 @@ Devuelve `{ "timers": [...] }` ordenados por `started_at` descendente.
 | Capa | Ubicacion |
 | --- | --- |
 | Persistencia y reglas | `apps/api/internal/store/timer.go` |
+| Aviso timer largo | `apps/api/internal/store/still_running.go`, `apps/api/internal/notify/` |
 | Tests de store | `apps/api/internal/store/timer_test.go` |
 | Handlers HTTP | `apps/api/internal/httpapi/timers.go` |
 | Tests de integracion HTTP | `apps/api/internal/httpapi/router_test.go` (`TestTimerHTTPLifecycle`) |

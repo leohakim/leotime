@@ -24,7 +24,16 @@ Change at least:
 LEOTIME_BOOTSTRAP_EMAIL
 LEOTIME_BOOTSTRAP_PASSWORD
 LEOTIME_COOKIE_SECURE=true
+LEOTIME_PUBLIC_BASE_URL=https://leotime.example.com
+LEOTIME_MAIL_MODE=smtp
+LEOTIME_MAIL_FROM=no-reply@your-domain.com
+LEOTIME_SMTP_HOST=...
+LEOTIME_SMTP_PORT=587
+LEOTIME_SMTP_USERNAME=...
+LEOTIME_SMTP_PASSWORD=...
 ```
+
+Still-running timer emails use the in-process scheduler (enabled by default). Full mail and scheduler reference: `docs/29-email-notifications.md`.
 
 Start:
 

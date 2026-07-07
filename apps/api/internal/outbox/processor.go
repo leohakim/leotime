@@ -17,6 +17,7 @@ type Processor struct {
 	batchLimit  int
 	rng         *rand.Rand
 	now         func() time.Time
+	onSent      func(ctx context.Context, email Email) error
 }
 
 type ProcessorOptions struct {
@@ -25,6 +26,7 @@ type ProcessorOptions struct {
 	BatchLimit  int
 	RNG         *rand.Rand
 	Now         func() time.Time
+	OnSent      func(ctx context.Context, email Email) error
 }
 
 type ProcessResult struct {
@@ -55,6 +57,7 @@ func NewProcessor(store *Store, sender mail.Sender, opts ProcessorOptions) *Proc
 		batchLimit:  opts.BatchLimit,
 		rng:         opts.RNG,
 		now:         opts.Now,
+		onSent:      opts.OnSent,
 	}
 }
 
@@ -103,6 +106,11 @@ func (p *Processor) processEmail(ctx context.Context, email Email) (processOutco
 	if err == nil {
 		if err := p.store.MarkSent(ctx, email.ID, p.now()); err != nil {
 			return 0, fmt.Errorf("mark sent %s: %w", email.ID, err)
+		}
+		if p.onSent != nil {
+			if err := p.onSent(ctx, email); err != nil {
+				return 0, fmt.Errorf("on sent hook %s: %w", email.ID, err)
+			}
 		}
 		return outcomeSent, nil
 	}
