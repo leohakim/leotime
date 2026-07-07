@@ -51,7 +51,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Backlog | API error codes | Move from plain error text to structured validation errors. |
 | Backlog | Seed/dev data command | Make UI development easier without manual entry. |
 | Backlog | Backup/restore command | Wrap SQLite backup and restore flows. |
-| Backlog | CI pipeline | Run tests, build, docker build, and smoke in GitHub Actions. |
+| Done | CI pipeline | GitHub Actions: tests, build, Docker, smoke |
 
 ## Documentation Backlog
 

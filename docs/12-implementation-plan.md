@@ -39,6 +39,7 @@ Every product slice should include:
 - In-process scheduler for still-running timer notifications with Prometheus metrics.
 - Timer notification settings in profile API and Settings UI.
 - Password reset email with one-time tokens, outbox delivery, and login/reset UI.
+- GitHub Actions CI for API tests, web build, Playwright, Docker build, and smoke checks.
 
 ## Post-MVP Delivery Slices
 
@@ -78,4 +79,4 @@ When port `8080` is already occupied by a local process without static assets, r
 
 ## Current Next Task
 
-There is no single mandatory product slice queued next. Prefer backlog engineering items such as CI, seed data, or frontend feature splits unless product scope changes.
+There is no single mandatory product slice queued next. Prefer backlog engineering items such as seed data, backup/restore commands, or frontend feature splits unless product scope changes.

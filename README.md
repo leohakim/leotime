@@ -61,8 +61,21 @@ npm run dev
 Docker:
 
 ```bash
+cp .env.example .env.local   # optional; customize SMTP and bootstrap credentials
 docker compose up --build
 ```
+
+Without `.env.local`, Compose falls back to application defaults from `.env.example` values documented there.
+
+## Continuous Integration
+
+GitHub Actions runs on pushes and pull requests to `main`:
+
+```bash
+make fmt-check test-api-vet test-api test-web build-web test-e2e docker-build
+```
+
+See `.github/workflows/ci.yml` and `docs/05-testing-strategy.md`.
 
 Install git hooks (recommended after clone):
 
