@@ -43,3 +43,25 @@ func TestFromLookupOverridesValues(t *testing.T) {
 		t.Fatal("expected secure cookies")
 	}
 }
+
+func TestFromLookupMailAndSchedulerDefaults(t *testing.T) {
+	cfg := FromLookup(func(string) (string, bool) {
+		return "", false
+	})
+
+	if !cfg.SchedulerEnabled {
+		t.Fatal("expected scheduler enabled by default")
+	}
+	if cfg.MailMode != "log" {
+		t.Fatalf("expected log mail mode, got %q", cfg.MailMode)
+	}
+	if cfg.MailMaxAttempts != 5 {
+		t.Fatalf("expected 5 mail attempts, got %d", cfg.MailMaxAttempts)
+	}
+	if cfg.MailRetryBase != time.Minute {
+		t.Fatalf("expected 1m retry base, got %s", cfg.MailRetryBase)
+	}
+	if cfg.PublicBaseURL != "http://127.0.0.1:8080" {
+		t.Fatalf("unexpected public base url %q", cfg.PublicBaseURL)
+	}
+}

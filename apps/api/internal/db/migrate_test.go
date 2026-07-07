@@ -30,4 +30,16 @@ func TestMigrateCreatesCoreTables(t *testing.T) {
 	if tableCount != 6 {
 		t.Fatalf("expected 6 core tables, got %d", tableCount)
 	}
+
+	var emailOutbox int
+	if err := database.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM sqlite_master
+		WHERE type = 'table' AND name = 'email_outbox';
+	`).Scan(&emailOutbox); err != nil {
+		t.Fatalf("count email_outbox table: %v", err)
+	}
+	if emailOutbox != 1 {
+		t.Fatalf("expected email_outbox table, got count %d", emailOutbox)
+	}
 }
