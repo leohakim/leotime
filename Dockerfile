@@ -15,6 +15,7 @@ COPY apps/api ./
 RUN CGO_ENABLED=0 go build -o /out/leotime ./cmd/leotime
 
 FROM alpine:3.22
+RUN apk add --no-cache tzdata
 RUN adduser -D -H -u 10001 leotime
 WORKDIR /app
 COPY --from=api /out/leotime /usr/local/bin/leotime

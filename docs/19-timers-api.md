@@ -76,7 +76,8 @@ Si un timer abierto supera el umbral configurado (default **8 horas**), leotime 
 
 - El scheduler corre dentro del mismo proceso Go (no hay contenedor aparte).
 - La deteccion ocurre cada 10 minutos por defecto (`LEOTIME_SCHEDULER_SCAN_INTERVAL`).
-- El umbral vive en `app_settings.timer_still_running_hours`; se puede desactivar con `timer_still_running_enabled`.
+- El umbral vive en `app_settings.timer_still_running_hours` y se edita en Ajustes (`timerStillRunningHours`, 1–24).
+- Se puede desactivar con `timerStillRunningEnabled` en Ajustes o `timer_still_running_enabled` en base de datos.
 - Tras un envio exitoso se guarda `time_entries.still_active_email_sent_at`.
 - En local, `LEOTIME_MAIL_MODE=log` escribe el mail en los logs del contenedor.
 

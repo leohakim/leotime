@@ -103,16 +103,18 @@ LEOTIME_COOKIE_SECURE=true
 
 Approximate retry spacing: 1m → 2m → 4m → 8m → 16m (plus jitter).
 
-### Per-user threshold (database)
+### Per-user threshold (profile settings)
 
-Stored in `app_settings` (migration `000005`):
+Configure in **Settings** (`/settings`):
 
-| Column | Default | Meaning |
+| Field | Default | Meaning |
 | --- | --- | --- |
-| `timer_still_running_enabled` | `1` | Send still-running emails |
-| `timer_still_running_hours` | `8` | Hours before the first alert |
+| `timerStillRunningEnabled` | on | Send still-running emails |
+| `timerStillRunningHours` | `8` | Hours before the first alert (1–24) |
 
-Profile UI for these fields is planned; until then, change them with SQL if needed:
+These map to `app_settings.timer_still_running_enabled` and `app_settings.timer_still_running_hours`.
+
+SQL fallback:
 
 ```sql
 UPDATE app_settings

@@ -18,10 +18,12 @@ var ErrEmailTaken = errors.New("email already in use")
 var ErrInvalidPasswordChange = errors.New("invalid password change")
 
 type AppSettings struct {
-	TaskProjectRequired bool   `json:"taskProjectRequired"`
-	DefaultCurrency     string `json:"defaultCurrency"`
-	Timezone            string `json:"timezone"`
-	ThemeMode           string `json:"themeMode"`
+	TaskProjectRequired      bool   `json:"taskProjectRequired"`
+	DefaultCurrency          string `json:"defaultCurrency"`
+	Timezone                 string `json:"timezone"`
+	ThemeMode                string `json:"themeMode"`
+	TimerStillRunningEnabled bool   `json:"timerStillRunningEnabled"`
+	TimerStillRunningHours   int    `json:"timerStillRunningHours"`
 }
 
 type Profile struct {
@@ -36,14 +38,16 @@ type Profile struct {
 }
 
 type ProfileUpdateInput struct {
-	Name                string `json:"name"`
-	Email               string `json:"email"`
-	Locale              string `json:"locale"`
-	LayoutMode          string `json:"layoutMode"`
-	TaskProjectRequired bool   `json:"taskProjectRequired"`
-	DefaultCurrency     string `json:"defaultCurrency"`
-	Timezone            string `json:"timezone"`
-	ThemeMode           string `json:"themeMode"`
+	Name                     string `json:"name"`
+	Email                    string `json:"email"`
+	Locale                   string `json:"locale"`
+	LayoutMode               string `json:"layoutMode"`
+	TaskProjectRequired      bool   `json:"taskProjectRequired"`
+	DefaultCurrency          string `json:"defaultCurrency"`
+	Timezone                 string `json:"timezone"`
+	ThemeMode                string `json:"themeMode"`
+	TimerStillRunningEnabled bool   `json:"timerStillRunningEnabled"`
+	TimerStillRunningHours   int    `json:"timerStillRunningHours"`
 }
 
 type ChangePasswordInput struct {
@@ -54,12 +58,15 @@ type ChangePasswordInput struct {
 func (s *Store) ProfileByUserID(ctx context.Context, userID string) (*Profile, error) {
 	var profile Profile
 	var taskProjectRequired int
+	var timerStillRunningEnabled int
 	if err := s.db.QueryRowContext(ctx, `
 		SELECT u.id, u.email, u.name, u.locale, u.layout_mode, u.created_at, u.updated_at,
 			COALESCE(a.task_project_required, 0),
 			COALESCE(a.default_currency, 'EUR'),
-			COALESCE(a.timezone, 'Europe/Madrid'),
-			COALESCE(a.theme_mode, 'solid')
+			COALESCE(NULLIF(a.timezone, ''), 'Europe/Madrid'),
+			COALESCE(a.theme_mode, 'solid'),
+			COALESCE(a.timer_still_running_enabled, 1),
+			COALESCE(a.timer_still_running_hours, 8)
 		FROM users u
 		LEFT JOIN app_settings a ON a.user_id = u.id
 		WHERE u.id = ?
@@ -75,6 +82,8 @@ func (s *Store) ProfileByUserID(ctx context.Context, userID string) (*Profile, e
 		&profile.Settings.DefaultCurrency,
 		&profile.Settings.Timezone,
 		&profile.Settings.ThemeMode,
+		&timerStillRunningEnabled,
+		&profile.Settings.TimerStillRunningHours,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrProfileNotFound
@@ -83,6 +92,10 @@ func (s *Store) ProfileByUserID(ctx context.Context, userID string) (*Profile, e
 	}
 
 	profile.Settings.TaskProjectRequired = taskProjectRequired != 0
+	profile.Settings.TimerStillRunningEnabled = timerStillRunningEnabled != 0
+	if profile.Settings.TimerStillRunningHours <= 0 {
+		profile.Settings.TimerStillRunningHours = 8
+	}
 	return &profile, nil
 }
 
@@ -135,11 +148,15 @@ func (s *Store) UpdateProfile(ctx context.Context, userID string, input ProfileU
 			default_currency = ?,
 			timezone = ?,
 			theme_mode = ?,
+			timer_still_running_enabled = ?,
+			timer_still_running_hours = ?,
 			default_locale = ?,
 			default_layout_mode = ?,
 			updated_at = ?
 		WHERE user_id = ?
-	`, boolToInt(normalized.TaskProjectRequired), normalized.DefaultCurrency, normalized.Timezone, normalized.ThemeMode, normalized.Locale, normalized.LayoutMode, now, userID)
+	`, boolToInt(normalized.TaskProjectRequired), normalized.DefaultCurrency, normalized.Timezone, normalized.ThemeMode,
+		boolToInt(normalized.TimerStillRunningEnabled), normalized.TimerStillRunningHours,
+		normalized.Locale, normalized.LayoutMode, now, userID)
 	if err != nil {
 		return nil, fmt.Errorf("update app settings: %w", err)
 	}
@@ -152,9 +169,12 @@ func (s *Store) UpdateProfile(ctx context.Context, userID string, input ProfileU
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO app_settings (
 				user_id, task_project_required, default_currency, timezone, theme_mode,
+				timer_still_running_enabled, timer_still_running_hours,
 				default_locale, default_layout_mode, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		`, userID, boolToInt(normalized.TaskProjectRequired), normalized.DefaultCurrency, normalized.Timezone, normalized.ThemeMode, normalized.Locale, normalized.LayoutMode, now); err != nil {
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, userID, boolToInt(normalized.TaskProjectRequired), normalized.DefaultCurrency, normalized.Timezone, normalized.ThemeMode,
+			boolToInt(normalized.TimerStillRunningEnabled), normalized.TimerStillRunningHours,
+			normalized.Locale, normalized.LayoutMode, now); err != nil {
 			return nil, fmt.Errorf("insert app settings: %w", err)
 		}
 	}
@@ -205,14 +225,16 @@ func (s *Store) ChangePassword(ctx context.Context, userID string, input ChangeP
 
 func normalizeProfileInput(input ProfileUpdateInput) (ProfileUpdateInput, error) {
 	normalized := ProfileUpdateInput{
-		Name:                strings.TrimSpace(input.Name),
-		Email:               strings.TrimSpace(strings.ToLower(input.Email)),
-		Locale:              strings.TrimSpace(strings.ToLower(input.Locale)),
-		LayoutMode:          strings.TrimSpace(strings.ToLower(input.LayoutMode)),
-		TaskProjectRequired: input.TaskProjectRequired,
-		DefaultCurrency:     strings.TrimSpace(strings.ToUpper(input.DefaultCurrency)),
-		Timezone:            strings.TrimSpace(input.Timezone),
-		ThemeMode:           strings.TrimSpace(strings.ToLower(input.ThemeMode)),
+		Name:                     strings.TrimSpace(input.Name),
+		Email:                    strings.TrimSpace(strings.ToLower(input.Email)),
+		Locale:                   strings.TrimSpace(strings.ToLower(input.Locale)),
+		LayoutMode:               strings.TrimSpace(strings.ToLower(input.LayoutMode)),
+		TaskProjectRequired:      input.TaskProjectRequired,
+		DefaultCurrency:          strings.TrimSpace(strings.ToUpper(input.DefaultCurrency)),
+		Timezone:                 strings.TrimSpace(input.Timezone),
+		ThemeMode:                strings.TrimSpace(strings.ToLower(input.ThemeMode)),
+		TimerStillRunningEnabled: input.TimerStillRunningEnabled,
+		TimerStillRunningHours:   input.TimerStillRunningHours,
 	}
 
 	if normalized.Name == "" {
@@ -244,6 +266,12 @@ func normalizeProfileInput(input ProfileUpdateInput) (ProfileUpdateInput, error)
 	}
 	if _, err := time.LoadLocation(normalized.Timezone); err != nil {
 		return ProfileUpdateInput{}, fmt.Errorf("%w: timezone is invalid", ErrInvalidProfileInput)
+	}
+	if normalized.TimerStillRunningHours <= 0 {
+		normalized.TimerStillRunningHours = 8
+	}
+	if normalized.TimerStillRunningHours > 24 {
+		return ProfileUpdateInput{}, fmt.Errorf("%w: timerStillRunningHours must be between 1 and 24", ErrInvalidProfileInput)
 	}
 
 	return normalized, nil

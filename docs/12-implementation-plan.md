@@ -37,12 +37,13 @@ Every product slice should include:
 - Offline queue MVP with IndexedDB mutation queue, optimistic UI, auto-sync, and daily workflow coverage.
 - Email outbox foundation with SMTP/log senders, SQLite outbox, and retry policy (migration `000005`).
 - In-process scheduler for still-running timer notifications with Prometheus metrics.
+- Timer notification settings in profile API and Settings UI.
 
 ## Post-MVP Delivery Slices
 
 | Slice | Status | Notes |
 | --- | --- | --- |
-| Timer notification settings UI | Next | Expose `timer_still_running_*` in profile API + Ajustes |
+| Timer notification settings UI | Done | Profile API + Ajustes toggle and hours field |
 | Solidtime import `still_active_email_sent_at` | Backlog | Avoid duplicate mail after migration |
 | Password reset email | Backlog | Reuse outbox + SMTP stack |
 

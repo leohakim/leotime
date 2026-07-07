@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CircleAlert, CircleCheck, Save, Settings, UserRound } from 'lucide-react';
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   changePassword,
   fetchProfile,
@@ -58,6 +58,8 @@ function buildFormFromProfile(profile: Profile): ProfileFormState {
     defaultCurrency: profile.settings.defaultCurrency,
     timezone: profile.settings.timezone,
     themeMode: profile.settings.themeMode,
+    timerStillRunningEnabled: profile.settings.timerStillRunningEnabled,
+    timerStillRunningHours: profile.settings.timerStillRunningHours,
   };
 }
 
@@ -71,6 +73,8 @@ function buildFormFromUser(user: User, themeMode: ThemeMode): ProfileFormState {
     defaultCurrency: 'EUR',
     timezone: 'Europe/Madrid',
     themeMode,
+    timerStillRunningEnabled: true,
+    timerStillRunningHours: 8,
   };
 }
 
@@ -123,6 +127,13 @@ export function ProfileSettingsPanel({
   const [passwordErrors, setPasswordErrors] = useState<PasswordFormErrors>({});
   const [savedMessage, setSavedMessage] = useState('');
   const [passwordSavedMessage, setPasswordSavedMessage] = useState('');
+
+  const timezoneOptions = useMemo(() => {
+    if (form.timezone && !TIMEZONES.includes(form.timezone)) {
+      return [form.timezone, ...TIMEZONES];
+    }
+    return TIMEZONES;
+  }, [form.timezone]);
 
   useEffect(() => {
     if (focusSection === 'settings') {
@@ -203,6 +214,9 @@ export function ProfileSettingsPanel({
     if (!/^[A-Z]{3}$/.test(next.defaultCurrency.trim().toUpperCase())) {
       nextErrors.defaultCurrency = t('profileCurrencyInvalid');
     }
+    if (next.timerStillRunningHours < 1 || next.timerStillRunningHours > 24) {
+      nextErrors.timerStillRunningHours = t('profileTimerStillRunningHoursInvalid');
+    }
     return nextErrors;
   }
 
@@ -232,6 +246,8 @@ export function ProfileSettingsPanel({
       name: form.name.trim(),
       email: form.email.trim(),
       defaultCurrency: form.defaultCurrency.trim().toUpperCase(),
+      timezone: form.timezone.trim() || 'Europe/Madrid',
+      timerStillRunningHours: Math.trunc(form.timerStillRunningHours),
     });
   }
 
@@ -388,7 +404,7 @@ export function ProfileSettingsPanel({
             <label className="form-field profile-timezone-field" htmlFor="profile-timezone">
               <span>{t('timezone')}</span>
               <select id="profile-timezone" onChange={(event) => updateField('timezone', event.target.value)} value={form.timezone}>
-                {TIMEZONES.map((timezone) => (
+                {timezoneOptions.map((timezone) => (
                   <option key={timezone} value={timezone}>
                     {timezone}
                   </option>
@@ -404,6 +420,34 @@ export function ProfileSettingsPanel({
                 type="checkbox"
               />
               <span>{t('profileTaskProjectRequired')}</span>
+            </label>
+
+            <label className="form-field profile-checkbox-field" htmlFor="profile-timer-still-running-enabled">
+              <input
+                checked={form.timerStillRunningEnabled}
+                id="profile-timer-still-running-enabled"
+                onChange={(event) => updateField('timerStillRunningEnabled', event.target.checked)}
+                type="checkbox"
+              />
+              <span>{t('profileTimerStillRunningEnabled')}</span>
+            </label>
+
+            <label
+              className={fieldClass(errors.timerStillRunningHours)}
+              htmlFor="profile-timer-still-running-hours"
+            >
+              <span>{t('profileTimerStillRunningHours')}</span>
+              <input
+                disabled={!form.timerStillRunningEnabled}
+                id="profile-timer-still-running-hours"
+                min={1}
+                max={24}
+                onChange={(event) => updateField('timerStillRunningHours', Number(event.target.value))}
+                step={1}
+                type="number"
+                value={form.timerStillRunningHours}
+              />
+              <FieldError id="profile-timer-still-running-hours-error" message={errors.timerStillRunningHours} />
             </label>
           </div>
 

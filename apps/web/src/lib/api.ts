@@ -17,6 +17,8 @@ export type AppSettings = {
   defaultCurrency: string;
   timezone: string;
   themeMode: ThemeMode;
+  timerStillRunningEnabled: boolean;
+  timerStillRunningHours: number;
 };
 
 export type Profile = {
@@ -39,6 +41,8 @@ export type ProfileUpdateInput = {
   defaultCurrency: string;
   timezone: string;
   themeMode: ThemeMode;
+  timerStillRunningEnabled: boolean;
+  timerStillRunningHours: number;
 };
 
 export type ChangePasswordInput = {

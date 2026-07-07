@@ -45,16 +45,21 @@ func TestProfileUpdateAndChangePassword(t *testing.T) {
 	if profile.Settings.DefaultCurrency != "EUR" {
 		t.Fatalf("expected default currency EUR, got %q", profile.Settings.DefaultCurrency)
 	}
+	if !profile.Settings.TimerStillRunningEnabled || profile.Settings.TimerStillRunningHours != 8 {
+		t.Fatalf("expected default timer notification settings, got %+v", profile.Settings)
+	}
 
 	updated, err := st.UpdateProfile(ctx, user.ID, ProfileUpdateInput{
-		Name:                "Leo",
-		Email:               "leo@example.com",
-		Locale:              "en",
-		LayoutMode:          "compact",
-		TaskProjectRequired: true,
-		DefaultCurrency:     "USD",
-		Timezone:            "America/New_York",
-		ThemeMode:           "dark",
+		Name:                     "Leo",
+		Email:                    "leo@example.com",
+		Locale:                   "en",
+		LayoutMode:               "compact",
+		TaskProjectRequired:      true,
+		DefaultCurrency:          "USD",
+		Timezone:                 "America/New_York",
+		ThemeMode:                "dark",
+		TimerStillRunningEnabled: true,
+		TimerStillRunningHours:   6,
 	})
 	if err != nil {
 		t.Fatalf("update profile: %v", err)
@@ -64,6 +69,9 @@ func TestProfileUpdateAndChangePassword(t *testing.T) {
 	}
 	if !updated.Settings.TaskProjectRequired || updated.Settings.DefaultCurrency != "USD" {
 		t.Fatalf("unexpected settings: %+v", updated.Settings)
+	}
+	if !updated.Settings.TimerStillRunningEnabled || updated.Settings.TimerStillRunningHours != 6 {
+		t.Fatalf("unexpected timer notification settings: %+v", updated.Settings)
 	}
 
 	if err := st.ChangePassword(ctx, user.ID, ChangePasswordInput{
@@ -86,15 +94,31 @@ func TestProfileValidation(t *testing.T) {
 	st, user := newProfileTestStore(t, ctx)
 
 	if _, err := st.UpdateProfile(ctx, user.ID, ProfileUpdateInput{
-		Name:            "Leo",
-		Email:           "admin@example.com",
-		Locale:          "es",
-		LayoutMode:      "solid",
-		DefaultCurrency: "EURO",
-		Timezone:        "Europe/Madrid",
-		ThemeMode:       "solid",
+		Name:                     "Leo",
+		Email:                    "admin@example.com",
+		Locale:                   "es",
+		LayoutMode:               "solid",
+		DefaultCurrency:          "EURO",
+		Timezone:                 "Europe/Madrid",
+		ThemeMode:                "solid",
+		TimerStillRunningEnabled: true,
+		TimerStillRunningHours:   8,
 	}); !errors.Is(err, ErrInvalidProfileInput) {
 		t.Fatalf("expected invalid currency, got %v", err)
+	}
+
+	if _, err := st.UpdateProfile(ctx, user.ID, ProfileUpdateInput{
+		Name:                     "Leo",
+		Email:                    "admin@example.com",
+		Locale:                   "es",
+		LayoutMode:               "solid",
+		DefaultCurrency:          "EUR",
+		Timezone:                 "Europe/Madrid",
+		ThemeMode:                "solid",
+		TimerStillRunningEnabled: true,
+		TimerStillRunningHours:   30,
+	}); !errors.Is(err, ErrInvalidProfileInput) {
+		t.Fatalf("expected invalid timer hours, got %v", err)
 	}
 
 	if err := st.ChangePassword(ctx, user.ID, ChangePasswordInput{
@@ -117,13 +141,15 @@ func TestProfileEmailTaken(t *testing.T) {
 	}
 
 	if _, err := st.UpdateProfile(ctx, user.ID, ProfileUpdateInput{
-		Name:            "Leo",
-		Email:           "other@example.com",
-		Locale:          "es",
-		LayoutMode:      "solid",
-		DefaultCurrency: "EUR",
-		Timezone:        "Europe/Madrid",
-		ThemeMode:       "solid",
+		Name:                     "Leo",
+		Email:                    "other@example.com",
+		Locale:                   "es",
+		LayoutMode:               "solid",
+		DefaultCurrency:          "EUR",
+		Timezone:                 "Europe/Madrid",
+		ThemeMode:                "solid",
+		TimerStillRunningEnabled: true,
+		TimerStillRunningHours:   8,
 	}); !errors.Is(err, ErrEmailTaken) {
 		t.Fatalf("expected email taken, got %v", err)
 	}

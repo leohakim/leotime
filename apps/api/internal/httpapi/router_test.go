@@ -135,7 +135,9 @@ func TestProfileHTTPLifecycle(t *testing.T) {
 		"taskProjectRequired":true,
 		"defaultCurrency":"USD",
 		"timezone":"America/New_York",
-		"themeMode":"dark"
+		"themeMode":"dark",
+		"timerStillRunningEnabled":true,
+		"timerStillRunningHours":6
 	}`))
 	for _, cookie := range cookies {
 		patchRequest.AddCookie(cookie)

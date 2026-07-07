@@ -59,9 +59,7 @@ See `docs/29-email-notifications.md`.
 Per-user preferences in `app_settings` include:
 
 - `timer_still_running_enabled` (default on)
-- `timer_still_running_hours` (default 8)
-
-Profile API/UI exposure for these fields is planned; the database columns exist today.
+- `timer_still_running_hours` (default 8, editable in Profile Settings)
 
 ## Invoices
 

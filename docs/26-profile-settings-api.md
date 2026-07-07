@@ -25,7 +25,9 @@ POST /api/v1/profile/change-password
     "taskProjectRequired": false,
     "defaultCurrency": "EUR",
     "timezone": "Europe/Madrid",
-    "themeMode": "solid"
+    "themeMode": "solid",
+    "timerStillRunningEnabled": true,
+    "timerStillRunningHours": 8
   },
   "createdAt": "2026-01-01T00:00:00Z",
   "updatedAt": "2026-01-01T00:00:00Z"
@@ -45,7 +47,9 @@ Create and update use the same body:
   "taskProjectRequired": true,
   "defaultCurrency": "USD",
   "timezone": "America/New_York",
-  "themeMode": "dark"
+  "themeMode": "dark",
+  "timerStillRunningEnabled": true,
+  "timerStillRunningHours": 6
 }
 ```
 
@@ -69,6 +73,7 @@ Returns `204 No Content` on success.
 - `themeMode` must be `solid`, `light`, `dark`, or `minimal`.
 - `defaultCurrency` must be a 3-letter uppercase code.
 - `timezone` must be a valid IANA timezone.
+- `timerStillRunningHours` must be between 1 and 24 (defaults to 8 when omitted or zero).
 - Password change requires the current password and a new password with at least 8 characters.
 
 ## Storage
@@ -79,15 +84,19 @@ User fields live in `users`. App preferences live in `app_settings`:
 - `default_currency`
 - `timezone`
 - `theme_mode`
+- `timer_still_running_enabled`
+- `timer_still_running_hours`
 
-Migration `000004_profile_settings.sql` adds the new `app_settings` columns.
+Migration `000004_profile_settings.sql` adds profile columns. Migration `000005_email_notifications.sql` adds timer notification settings.
+
+Timer notification behavior: `docs/29-email-notifications.md`.
 
 ## Frontend
 
 The dashboard includes a profile panel at `#profile` with:
 
 - Account fields: name and email.
-- Preferences: language, layout, theme, default currency, timezone, and task-project requirement.
+- Preferences: language, layout, theme, default currency, timezone, task-project requirement, and still-running timer email settings.
 - Password change form.
 
 On first load, the app hydrates locale, layout, and theme from the saved profile. Saving profile updates the session cache and local UI preferences.
