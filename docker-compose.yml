@@ -5,7 +5,8 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - .env.local
+      - path: .env.local
+        required: false
     volumes:
       - leotime-data:/data
     restart: unless-stopped

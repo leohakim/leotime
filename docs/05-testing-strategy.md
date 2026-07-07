@@ -81,12 +81,17 @@ few end-to-end tests
 
 ## CI Expectation
 
-The future GitHub Actions workflow should run:
+GitHub Actions runs on every push and pull request to `main`:
 
-- `go test ./...`
+- `make fmt-check`
+- `make test-api-vet`
+- `make test-api`
 - `npm ci`
-- `npm test -- --run`
-- `npm run build`
-- Playwright smoke test
-- Docker build
+- `make test-web`
+- `make build-web`
+- `make test-e2e`
+- `make docker-build`
+- Docker Compose smoke checks against `http://127.0.0.1:8080`
+
+Workflow file: `.github/workflows/ci.yml`
 
