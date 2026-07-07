@@ -234,6 +234,17 @@ a:focus-visible {
   margin-top: 12px;
 }
 
+.login-help {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  margin: -8px 0 16px;
+}
+
+.login-inline-link {
+  margin-top: 0;
+}
+
 .app-shell {
   align-items: start;
   background: var(--bg);

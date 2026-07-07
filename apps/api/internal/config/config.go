@@ -31,6 +31,7 @@ type Config struct {
 	MailRetryBase         time.Duration
 	MailRetryMax          time.Duration
 	PublicBaseURL         string
+	PasswordResetTTL      time.Duration
 }
 
 func Load() Config {
@@ -63,6 +64,7 @@ func FromLookup(lookup func(string) (string, bool)) Config {
 		MailRetryBase:         durationEnv(lookup, "LEOTIME_MAIL_RETRY_BASE", time.Minute),
 		MailRetryMax:          durationEnv(lookup, "LEOTIME_MAIL_RETRY_MAX", 6*time.Hour),
 		PublicBaseURL:         stringEnv(lookup, "LEOTIME_PUBLIC_BASE_URL", "http://127.0.0.1:8080"),
+		PasswordResetTTL:      durationEnv(lookup, "LEOTIME_PASSWORD_RESET_TTL", time.Hour),
 	}
 }
 

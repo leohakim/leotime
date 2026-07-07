@@ -613,6 +613,36 @@ export async function logout(): Promise<void> {
   }
 }
 
+export async function requestPasswordReset(email: string): Promise<void> {
+  const response = await fetch('/api/v1/auth/forgot-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    throw new Error('password_reset_request_failed');
+  }
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const response = await fetch('/api/v1/auth/reset-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ token, newPassword }),
+  });
+
+  if (!response.ok) {
+    throw new Error('password_reset_failed');
+  }
+}
+
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(path, {
     credentials: 'include',

@@ -63,29 +63,32 @@ func main() {
 	runCtx, cancelBackground := context.WithCancel(ctx)
 	defer cancelBackground()
 
-	if cfg.SchedulerEnabled {
-		mailSender, err := mail.NewSender(cfg)
-		if err != nil {
-			log.Fatalf("mail sender: %v", err)
-		}
-
-		outboxStore := outbox.NewStore(database)
-		notifier := notify.NewStillRunningNotifier(st, outboxStore, cfg)
-		processor := outbox.NewProcessor(outboxStore, mailSender, outbox.ProcessorOptions{
-			RetryPolicy: outbox.DefaultRetryPolicy(cfg.MailRetryBase, cfg.MailRetryMax),
-			OnSent:      notifier.HandleSent,
-		})
-		backgroundScheduler := scheduler.New(cfg, notifier, processor)
-
-		go func() {
-			log.Printf("scheduler enabled: scan=%s outbox=%s mail=%s", cfg.SchedulerScanInterval, cfg.OutboxProcessInterval, cfg.MailMode)
-			backgroundScheduler.Run(runCtx)
-		}()
+	mailSender, err := mail.NewSender(cfg)
+	if err != nil {
+		log.Fatalf("mail sender: %v", err)
 	}
+
+	outboxStore := outbox.NewStore(database)
+	passwordReset := notify.NewPasswordResetService(st, outboxStore, cfg)
+	notifier := notify.NewStillRunningNotifier(st, outboxStore, cfg)
+	processor := outbox.NewProcessor(outboxStore, mailSender, outbox.ProcessorOptions{
+		RetryPolicy: outbox.DefaultRetryPolicy(cfg.MailRetryBase, cfg.MailRetryMax),
+		OnSent:      notifier.HandleSent,
+	})
+	backgroundScheduler := scheduler.New(cfg, notifier, processor)
+
+	go func() {
+		if cfg.SchedulerEnabled {
+			log.Printf("scheduler enabled: scan=%s outbox=%s mail=%s", cfg.SchedulerScanInterval, cfg.OutboxProcessInterval, cfg.MailMode)
+		} else {
+			log.Printf("scheduler scan disabled; outbox=%s mail=%s", cfg.OutboxProcessInterval, cfg.MailMode)
+		}
+		backgroundScheduler.Run(runCtx)
+	}()
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(cfg, st),
+		Handler:           httpapi.NewRouter(cfg, st, passwordReset),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

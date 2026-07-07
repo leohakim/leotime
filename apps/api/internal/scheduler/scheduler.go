@@ -31,7 +31,9 @@ func (s *Scheduler) Run(ctx context.Context) {
 	defer scanTicker.Stop()
 	defer outboxTicker.Stop()
 
-	s.runScan(ctx)
+	if s.cfg.SchedulerEnabled {
+		s.runScan(ctx)
+	}
 	s.runOutbox(ctx)
 
 	for {
@@ -39,7 +41,9 @@ func (s *Scheduler) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-scanTicker.C:
-			s.runScan(ctx)
+			if s.cfg.SchedulerEnabled {
+				s.runScan(ctx)
+			}
 		case <-outboxTicker.C:
 			s.runOutbox(ctx)
 		}

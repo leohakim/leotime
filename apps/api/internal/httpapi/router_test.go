@@ -12,6 +12,8 @@ import (
 
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/db"
+	"github.com/leotime/leotime/apps/api/internal/notify"
+	"github.com/leotime/leotime/apps/api/internal/outbox"
 	"github.com/leotime/leotime/apps/api/internal/store"
 )
 
@@ -937,14 +939,21 @@ func newTestRouter(t *testing.T) http.Handler {
 		t.Fatalf("bootstrap admin: %v", err)
 	}
 
-	return NewRouter(config.Config{
+	cfg := config.Config{
 		HTTPAddr:          ":0",
 		DBPath:            "unused",
 		BootstrapEmail:    "admin@example.com",
 		BootstrapPassword: "change-me-now",
 		SessionCookieName: "leotime_session",
 		SessionTTL:        time.Hour,
-	}, st)
+		PublicBaseURL:     "http://127.0.0.1:8080",
+		PasswordResetTTL:  time.Hour,
+		MailMaxAttempts:   5,
+	}
+
+	outboxStore := outbox.NewStore(database)
+	passwordReset := notify.NewPasswordResetService(st, outboxStore, cfg)
+	return NewRouter(cfg, st, passwordReset)
 }
 
 func loginCookies(t *testing.T, router http.Handler) []*http.Cookie {
@@ -1011,4 +1020,64 @@ func createProjectForHTTPTest(t *testing.T, router http.Handler, cookies []*http
 		t.Fatalf("decode created project: %v", err)
 	}
 	return created.ID
+}
+
+func TestForgotPasswordAlwaysReturnsNoContent(t *testing.T) {
+	router := newTestRouter(t)
+
+	for _, body := range []string{
+		`{"email":"admin@example.com"}`,
+		`{"email":"missing@example.com"}`,
+	} {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/forgot-password", bytes.NewBufferString(body))
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusNoContent {
+			t.Fatalf("expected 204 for %s, got %d: %s", body, response.Code, response.Body.String())
+		}
+	}
+}
+
+func TestResetPasswordWithToken(t *testing.T) {
+	ctx := context.Background()
+	database, err := db.Open(ctx, t.TempDir()+"/reset.db")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { database.Close() })
+	if err := db.Migrate(ctx, database); err != nil {
+		t.Fatalf("migrate db: %v", err)
+	}
+	st := store.New(database)
+	if err := st.BootstrapAdmin(ctx, "admin@example.com", "change-me-now"); err != nil {
+		t.Fatalf("bootstrap admin: %v", err)
+	}
+	user, err := st.Authenticate(ctx, "admin@example.com", "change-me-now")
+	if err != nil {
+		t.Fatalf("authenticate: %v", err)
+	}
+	rawToken, err := st.CreatePasswordResetToken(ctx, user.ID, time.Hour)
+	if err != nil {
+		t.Fatalf("create token: %v", err)
+	}
+
+	cfg := config.Config{
+		SessionCookieName: "leotime_session",
+		SessionTTL:        time.Hour,
+		PublicBaseURL:     "http://127.0.0.1:8080",
+		PasswordResetTTL:  time.Hour,
+		MailMaxAttempts:   5,
+	}
+	router := NewRouter(cfg, st, notify.NewPasswordResetService(st, outbox.NewStore(database), cfg))
+
+	resetResponse := httptest.NewRecorder()
+	resetRequest := httptest.NewRequest(http.MethodPost, "/api/v1/auth/reset-password", bytes.NewBufferString(`{"token":"`+rawToken+`","newPassword":"brand-new-password"}`))
+	router.ServeHTTP(resetResponse, resetRequest)
+	if resetResponse.Code != http.StatusNoContent {
+		t.Fatalf("expected reset 204, got %d: %s", resetResponse.Code, resetResponse.Body.String())
+	}
+
+	if _, err := st.Authenticate(ctx, "admin@example.com", "brand-new-password"); err != nil {
+		t.Fatalf("authenticate with reset password: %v", err)
+	}
 }

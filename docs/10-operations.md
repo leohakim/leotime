@@ -132,7 +132,7 @@ Example snapshot from a VPS running official Solidtime:
 | database | ~51 MiB |
 | **Total** | **~817 MiB** |
 
-That stack also runs background workers for queues, schedules, and mail. leotime covers still-running timer mail inside the same container; password reset and other mail types are not implemented yet.
+That stack also runs background workers for queues, schedules, and mail. leotime covers still-running timer mail and password reset mail inside the same container through the SQLite outbox.
 
 ### Fair comparison notes
 
@@ -141,7 +141,7 @@ Measure leotime after importing a representative Solidtime ZIP and using the app
 1. **Total RAM across containers** (Solidtime) vs **single `leotime` container**.
 2. **Idle vs active** usage. Timer polling, report exports, and the email scheduler change CPU slightly.
 3. **Remaining mail features**:
-   - password reset and other transactional templates
+   - password reset and other transactional templates as needed
    - profile UI for still-running threshold (database columns exist today)
 
 Re-measure with `make resources` after enabling the scheduler and SMTP in production-like settings.

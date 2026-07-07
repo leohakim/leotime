@@ -22,7 +22,6 @@ import {
   Mail,
   Minimize2,
   PanelLeft,
-  Play,
   Plus,
   RotateCcw,
   Save,
@@ -45,7 +44,6 @@ import {
   fetchTasks,
   fetchTimeEntries,
   fetchTimers,
-  login,
   logout,
   restoreClient,
   restoreProject,
@@ -71,6 +69,7 @@ import {
 import { LeotimeLogo, LeotimeMark } from './lib/leotimeLogo';
 import { translate } from './lib/i18n';
 import { AppRoute, routeHref, routeShowsTimerBar, routeUsesTimeEntries, useAppRoute } from './lib/appRoutes';
+import { AuthScreen } from './lib/authUi';
 import { PlaceholderPage } from './lib/placeholderPageUi';
 import { ProfileSettingsPanel } from './lib/profileSettingsUi';
 import {
@@ -108,6 +107,7 @@ import { ThemeSwitcher, useThemeEffect } from './lib/themeUi';
 import { toastMutationSuccess, useToast } from './lib/toast';
 
 export function App() {
+  const queryClient = useQueryClient();
   const [locale, setLocale] = usePersistentState<Locale>('leotime.locale', 'es');
   const [layoutMode, setLayoutMode] = usePersistentState<LayoutMode>('leotime.layout', 'solid');
   const [themeMode, setThemeMode] = usePersistentState<ThemeMode>('leotime.theme', 'solid');
@@ -126,7 +126,16 @@ export function App() {
   }
 
   if (!sessionQuery.data?.authenticated || !sessionQuery.data.user) {
-    return <LoginScreen locale={locale} setLocale={setLocale} t={t} />;
+    return (
+      <AuthScreen
+        locale={locale}
+        onAuthenticated={() => {
+          void queryClient.invalidateQueries({ queryKey: ['session'] });
+        }}
+        setLocale={setLocale}
+        t={t}
+      />
+    );
   }
 
   return (
@@ -145,56 +154,6 @@ export function App() {
 }
 
 type Translator = (key: Parameters<typeof translate>[1]) => string;
-
-type LoginScreenProps = {
-  locale: Locale;
-  setLocale: (locale: Locale) => void;
-  t: Translator;
-};
-
-function LoginScreen({ locale, setLocale, t }: LoginScreenProps) {
-  const queryClient = useQueryClient();
-  const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('change-me-now');
-  const loginMutation = useMutation({
-    mutationFn: () => login(email, password),
-    onSuccess: (session) => {
-      queryClient.setQueryData(['session'], session);
-    },
-  });
-
-  function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    loginMutation.mutate();
-  }
-
-  return (
-    <main className="login-screen">
-      <section className="login-panel" aria-labelledby="login-title">
-        <LeotimeLogo className="brand-row" markSize={28} />
-        <h1 id="login-title">{t('welcome')}</h1>
-        <form onSubmit={onSubmit} className="login-form">
-          <label>
-            {t('email')}
-            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
-          </label>
-          <label>
-            {t('password')}
-            <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" />
-          </label>
-          <button type="submit" disabled={loginMutation.isPending}>
-            <Play aria-hidden="true" />
-            {t('login')}
-          </button>
-        </form>
-        <button className="ghost-button" type="button" onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}>
-          <Languages aria-hidden="true" />
-          {t('language')}
-        </button>
-      </section>
-    </main>
-  );
-}
 
 type DashboardProps = {
   layoutMode: LayoutMode;

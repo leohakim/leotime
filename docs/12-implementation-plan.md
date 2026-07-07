@@ -38,6 +38,7 @@ Every product slice should include:
 - Email outbox foundation with SMTP/log senders, SQLite outbox, and retry policy (migration `000005`).
 - In-process scheduler for still-running timer notifications with Prometheus metrics.
 - Timer notification settings in profile API and Settings UI.
+- Password reset email with one-time tokens, outbox delivery, and login/reset UI.
 
 ## Post-MVP Delivery Slices
 
@@ -45,7 +46,7 @@ Every product slice should include:
 | --- | --- | --- |
 | Timer notification settings UI | Done | Profile API + Ajustes toggle and hours field |
 | Solidtime import `still_active_email_sent_at` | Done | Persisted on import create/update |
-| Password reset email | Backlog | Reuse outbox + SMTP stack |
+| Password reset email | Done | Outbox mail + login/reset UI |
 
 All MVP slices in the original plan are complete. Next work moves to backlog items such as CI, seed data, and broader refactors.
 

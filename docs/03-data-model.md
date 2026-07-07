@@ -49,10 +49,20 @@ Overlaps are allowed. The UI and reports should warn, not reject.
 `email_outbox` stores durable outbound mail jobs processed by the in-process scheduler:
 
 - One pending/sent row per `(kind, time_entry_id)` for timer notifications.
+- Additional kinds such as `password_reset` use `time_entry_id = NULL`.
 - Status: `pending`, `sent`, or `dead`.
 - Retry metadata: `attempts`, `next_retry_at`, `last_error`.
 
-See `docs/29-email-notifications.md`.
+See `docs/29-email-notifications.md` and `docs/30-password-reset.md`.
+
+## Password Reset Tokens
+
+`password_reset_tokens` stores hashed one-time reset tokens:
+
+- Linked to `users.id`
+- Expires after `LEOTIME_PASSWORD_RESET_TTL` (default 1 hour)
+- Marked with `used_at` after a successful reset
+- Successful reset clears all active sessions for that user
 
 ## App Settings
 

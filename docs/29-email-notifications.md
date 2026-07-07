@@ -182,6 +182,7 @@ Solidtime exports include `still_active_email_sent_at` on time entries. The impo
 
 ## Related docs
 
+- Password reset: `docs/30-password-reset.md`
 - VPS SMTP deployment: `docs/06-deploy-vps.md`
 - Operations and footprint: `docs/10-operations.md`
 - Timer API: `docs/19-timers-api.md`

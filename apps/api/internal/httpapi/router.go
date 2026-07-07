@@ -11,13 +11,15 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/leotime/leotime/apps/api/internal/config"
+	"github.com/leotime/leotime/apps/api/internal/notify"
 	"github.com/leotime/leotime/apps/api/internal/store"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
-	cfg   config.Config
-	store *store.Store
+	cfg           config.Config
+	store         *store.Store
+	passwordReset *notify.PasswordResetService
 }
 
 type sessionResponse struct {
@@ -25,8 +27,8 @@ type sessionResponse struct {
 	User          *store.User `json:"user"`
 }
 
-func NewRouter(cfg config.Config, st *store.Store) http.Handler {
-	server := &Server{cfg: cfg, store: st}
+func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.PasswordResetService) http.Handler {
+	server := &Server{cfg: cfg, store: st, passwordReset: passwordReset}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -40,6 +42,8 @@ func NewRouter(cfg config.Config, st *store.Store) http.Handler {
 		r.Get("/session", server.session)
 		r.Post("/auth/login", server.login)
 		r.Post("/auth/logout", server.logout)
+		r.Post("/auth/forgot-password", server.forgotPassword)
+		r.Post("/auth/reset-password", server.resetPassword)
 		r.Get("/overview", server.requireUser(server.overview))
 		r.Get("/dashboard/stats", server.requireUser(server.getDashboardStats))
 		r.Get("/profile", server.requireUser(server.getProfile))
