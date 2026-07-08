@@ -34,11 +34,13 @@ Example: adding clients.
 Example: adding a client list.
 
 1. Add API functions in `src/lib/api.ts`.
-2. Add a focused component under `src/components` or a feature folder.
+2. Add a focused component under `src/features/<domain>/` or `src/lib/*Ui.tsx`.
 3. Keep text keys in `src/lib/i18n.ts`.
 4. Use stable layout dimensions so compact/minimal modes do not jump.
 5. Add a Vitest test for rendering and interaction.
 6. Add a Playwright test only when the browser workflow matters.
+
+Shell routing and sidebar live in `src/features/shell/DashboardShell.tsx`. Session boot stays in `App.tsx`.
 
 ## Database Workflow
 

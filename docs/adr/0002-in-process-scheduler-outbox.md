@@ -4,6 +4,18 @@
 
 Accepted.
 
+## Implementation
+
+**Implemented** (2026-07-08). See:
+
+- `apps/api/internal/scheduler/`
+- `apps/api/internal/outbox/`
+- `apps/api/internal/notify/`
+- Migration `000005_email_notifications.sql` (outbox + timer columns); extended in `000006`, `000008`
+- `docs/29-email-notifications.md`
+
+Password reset and backup/restore mail reuse the same outbox.
+
 ## Context
 
 Solidtime self-hosting runs separate scheduler and queue worker containers for timed jobs and outbound email. leotime targets a single Docker container, low RAM, and one owner first.

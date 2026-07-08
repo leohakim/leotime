@@ -197,6 +197,8 @@ export function ProfileSettingsPanel({
     onSuccess: () => {
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setPasswordErrors({});
+      queryClient.clear();
+      void queryClient.invalidateQueries({ queryKey: ['session'] });
       toast.success(t('passwordChanged'));
     },
     onError: () => {

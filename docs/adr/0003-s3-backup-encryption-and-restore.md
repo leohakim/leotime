@@ -4,6 +4,18 @@
 
 Accepted.
 
+## Implementation
+
+**Implemented** (2026-07-08). See:
+
+- `apps/api/internal/backup/`
+- `apps/api/internal/db/migrations/000007_backup_settings.sql`
+- `docs/31-s3-daily-backups.md`
+- CLI: `leotime backup run|list|restore`
+- Profile backup/restore email toggles: migration `000008_backup_email_notifications.sql`
+
+Backup/restore email notifications (follow-up in this ADR) are also implemented.
+
 ## Context
 
 leotime stores all product data in a single SQLite file with WAL mode. VPS deployment is Docker-first and single-container. The deploy guide previously recommended external tools (restic, rclone) for offsite copies.

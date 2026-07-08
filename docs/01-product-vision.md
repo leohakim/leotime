@@ -4,6 +4,10 @@
 
 It should feel closer to a fast workbench than to a heavy SaaS product.
 
+## MVP Status
+
+**Delivered (2026-07-08).** The first deployable version is complete for a single owner. See [MVP delivery status](33-mvp-delivery-status.md) for the capability matrix and [Known gaps and audit](34-known-gaps-and-audit.md) for remaining hardening work.
+
 ## Primary User
 
 The first product version is for one person:
@@ -23,45 +27,41 @@ The first product version is for one person:
 - **Local ownership:** SQLite makes the data inspectable, movable, and easy to back up.
 - **Learning-friendly code:** important decisions live in docs, and code is organized for readers coming from Django.
 
-## MVP Capabilities
+## Delivered MVP Capabilities
 
-- Login with a bootstrap admin user.
-- Clients.
-- Projects.
-- Tasks.
-- Tags.
-- Time entries with one-minute precision.
-- Overlap warnings, not overlap blocking.
-- Calendar view.
-- Weekly timesheet view.
-- Rates by client and optionally by project.
-- Multi-currency invoices.
-- Invoice PDF/export.
+- Login with a bootstrap admin user; password reset email.
+- Clients, projects, tasks, tags.
+- Time entries with one-minute precision; overlap warnings (not blocking).
+- Timers (start/stop, edit start time).
+- Calendar and weekly timesheet views.
+- Hourly rates on clients and optional project override (`rates` table reserved for future rate history).
+- Multi-currency invoices with HTML/CSV/JSON export.
 - Report export as CSV and JSON.
-- Spanish and English UI.
-- Configurable layouts.
-- Offline creation queue with sync when the app reconnects.
+- Dashboard with heatmap, weekly bars, and project breakdown.
+- Spanish and English UI; configurable layout modes and themes.
+- Profile settings (timezone, currency, timer mail, backup mail toggles).
+- Offline create queue with sync on reconnect (see limitations in doc 34).
+- Still-running timer email (scheduler + outbox).
+- S3 daily backups and in-app restore.
+- Solidtime ZIP import.
+- Dev seed command (`make seed`).
 
 ## Backlog Capabilities
 
-The operational backlog lives in [`docs/13-backlog.md`](13-backlog.md). This section keeps the high-level product ideas.
+The operational backlog lives in [`docs/13-backlog.md`](13-backlog.md). High-level ideas still outside MVP:
 
 - Tauri desktop app.
-- Idle detection.
-- Activity tracking.
+- Idle detection and activity tracking.
 - Full multi-device local-first sync.
-- Import from Solidtime.
-- Advanced invoice templates.
-- More currencies and exchange-rate snapshots.
 - Multi-user/team mode.
-- Public API tokens.
-- Webhooks.
+- Public API tokens and webhooks.
+- Shared report links.
+- Advanced invoice templates and exchange-rate snapshots.
 
 ## Non-Goals For The MVP
 
 - Legal-grade tax compliance.
-- Full accounting.
-- Payroll.
+- Full accounting or payroll.
 - Enterprise roles and permissions.
 - Real-time collaboration.
 - Complex SaaS multi-tenancy.

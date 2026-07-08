@@ -70,7 +70,7 @@ Create and update use the same body:
 }
 ```
 
-Returns `204 No Content` on success.
+Returns `204 No Content` on success. **All sessions for the user are invalidated** (including the current cookie). The client must log in again with the new password.
 
 ## Validation
 
@@ -99,7 +99,7 @@ User fields live in `users`. App preferences live in `app_settings`:
 - `restore_email_on_success`
 - `restore_email_on_failure`
 
-Migration `000004_profile_settings.sql` adds profile columns. Migration `000005_email_notifications.sql` adds timer notification settings. Migration `000008_backup_email_notifications.sql` adds backup/restore email toggles.
+Migration `000004_profile_settings.sql` adds profile columns. Migration `000005_email_notifications.sql` adds email outbox and timer notification columns. Migration `000006_password_reset.sql` adds password reset tokens. Migration `000008_backup_email_notifications.sql` adds backup/restore email toggles and extends outbox kinds.
 
 Timer notification behavior: `docs/29-email-notifications.md`. Backup/restore email behavior: `docs/31-s3-daily-backups.md`.
 

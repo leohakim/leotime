@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { buildOptimisticTimeEntry, buildOptimisticTimer } from './optimistic';
-import { createLocalId, isLocalId } from './sync';
+import { createLocalId, isLocalId, remapProjectInput, remapTaskInput } from './sync';
+import { resetOfflineStorageForTests, setServerId } from './db';
 
 describe('offline helpers', () => {
   test('creates stable local id prefix', () => {
@@ -60,5 +61,32 @@ describe('offline helpers', () => {
 
     expect(entry.durationSeconds).toBe(3600);
     expect(entry.source).toBe('offline');
+  });
+
+  test('remaps local client id when building project input for sync', async () => {
+    resetOfflineStorageForTests();
+    await setServerId('local_cli_1', 'cli_server_1');
+
+    const remapped = await remapProjectInput({
+      clientId: 'local_cli_1',
+      name: 'Portal',
+      color: '#2563eb',
+      defaultHourlyRateMinor: null,
+    });
+
+    expect(remapped.clientId).toBe('cli_server_1');
+  });
+
+  test('remaps local project id when building task input for sync', async () => {
+    resetOfflineStorageForTests();
+    await setServerId('local_prj_1', 'prj_server_1');
+
+    const remapped = await remapTaskInput({
+      projectId: 'local_prj_1',
+      name: 'Support',
+      billable: true,
+    });
+
+    expect(remapped.projectId).toBe('prj_server_1');
   });
 });

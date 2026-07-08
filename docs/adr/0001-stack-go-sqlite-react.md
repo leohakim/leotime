@@ -4,6 +4,10 @@
 
 Accepted.
 
+## Implementation
+
+**Implemented** (foundational stack since MVP scaffold).
+
 ## Context
 
 The product should be:

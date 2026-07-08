@@ -10,7 +10,7 @@ main.go
   -> open SQLite database
   -> apply embedded migrations
   -> create bootstrap admin if needed
-  -> start background scheduler (timer mail scan + outbox processing)
+  -> wire backup service, email outbox, notifier, scheduler
   -> build HTTP router
   -> serve API and static frontend
 ```
@@ -19,17 +19,21 @@ main.go
 
 ```text
 apps/api
-├── cmd/leotime        # executable entrypoint
+├── cmd/leotime        # server, seed, import-solidtime, backup subcommands
 └── internal
+    ├── apierr         # structured JSON error types
     ├── auth           # password hashing and verification
+    ├── backup         # snapshot, S3 storage, restore, scheduler hooks
     ├── config         # environment parsing
     ├── db             # SQLite open and migration runner
     ├── httpapi        # routes, handlers, JSON responses
     ├── mail           # SMTP and log senders
-    ├── metrics        # Prometheus counters for scheduler/mail
-    ├── notify         # still-running timer notification jobs
+    ├── metrics        # Prometheus counters
+    ├── notify         # timer, backup, password-reset mail builders
     ├── outbox         # durable email queue + retry processor
-    ├── scheduler      # in-process scan/outbox tickers
+    ├── scheduler      # in-process scan/outbox/backup tickers
+    ├── seed           # demo data loader
+    ├── solidtimeimport
     └── store          # database-backed business operations
 ```
 
@@ -51,49 +55,76 @@ Browser
   -> handler
   -> store method
   -> SQLite query
-  -> JSON response
+  -> JSON response (or structured error envelope)
 ```
 
-Authentication uses an HTTP-only cookie backed by a `sessions` table. Passwords are not stored directly. The current scaffold uses PBKDF2-HMAC-SHA256 with random salts and constant-time comparison so the code remains dependency-light and understandable.
+Authentication uses an HTTP-only cookie backed by a `sessions` table. Passwords use PBKDF2-HMAC-SHA256 with random salts.
+
+API errors return `{ "error": { "code", "message", "fields?" } }`. See [API error responses](32-api-errors.md).
 
 ## SQLite Policy
 
-SQLite runs in WAL mode. For the first single-user version, the database pool is conservative and uses one open connection. That keeps correctness easy to reason about. If the product grows, we can later relax this and tune the pool.
+SQLite runs in WAL mode with a conservative single-connection pool for the first single-user version. Foreign keys, busy timeout, and WAL are enabled on every connection.
 
-Every connection should keep these expectations:
+## API Surface
 
-- Foreign keys enabled.
-- Busy timeout configured.
-- WAL journal mode.
-- Normal synchronous mode for good write performance with acceptable durability for a backed-up VPS app.
-
-## API Versioning
-
-The API starts under `/api/v1`.
-
-The initial routes are:
+Health and metrics:
 
 - `GET /api/health`
+- `GET /metrics` (Prometheus; protect in production—see doc 34)
+
+Auth:
+
 - `GET /api/v1/session`
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/logout`
-- `GET /api/v1/overview`
-- `GET /api/v1/clients`
-- `POST /api/v1/clients`
-- `GET /api/v1/clients/{clientID}`
-- `PATCH /api/v1/clients/{clientID}`
-- `DELETE /api/v1/clients/{clientID}`
-- `GET /api/v1/projects`
-- `POST /api/v1/projects`
-- `GET /api/v1/projects/{projectID}`
-- `PATCH /api/v1/projects/{projectID}`
-- `DELETE /api/v1/projects/{projectID}`
+- `POST /api/v1/auth/forgot-password`
+- `POST /api/v1/auth/reset-password`
 
-More feature routes should be added by domain:
+Core resources (all under `/api/v1`, cookie auth):
 
-- `/api/v1/tasks`
-- `/api/v1/tags`
-- `/api/v1/time-entries`
-- `/api/v1/reports`
-- `/api/v1/invoices`
-- `/api/v1/sync`
+- `overview`, `clients`, `projects`, `tasks`, `tags`
+- `time-entries`, `timers`
+- `reports/time`, `invoices`
+- `dashboard/stats`
+- `profile` (GET/PATCH), `profile/password`
+- `import/solidtime`
+- `backups/settings`, `backups/test`, `backups/run`, `backups/restore`, `backups/status`, `backups/objects`
+
+Full per-resource docs: [documentation index](00-documentation-index.md).
+
+## Frontend Layout
+
+```text
+apps/web/src
+├── App.tsx              # session boot, auth gate
+├── features/
+│   ├── shell/           # DashboardShell, routing, sidebar
+│   ├── clients/         # ClientPanel
+│   ├── projects/        # ProjectPanel
+│   ├── tasks/           # TaskPanel
+│   └── tags/            # TagPanel
+└── lib/                 # api, i18n, offline, *Ui panels
+```
+
+## Architecture decisions
+
+| ADR | Topic | Implemented |
+| --- | --- | --- |
+| [0001](adr/0001-stack-go-sqlite-react.md) | Stack | Yes |
+| [0002](adr/0002-in-process-scheduler-outbox.md) | Scheduler + outbox | Yes |
+| [0003](adr/0003-s3-backup-encryption-and-restore.md) | S3 backup/restore | Yes |
+| [0004](adr/0004-billing-documents-official-pdfs.md) | Official invoice PDFs | **No** |
+
+Index: [adr/README.md](adr/README.md).
+
+## CLI Subcommands
+
+| Command | Purpose |
+| --- | --- |
+| `(default)` | HTTP server |
+| `seed` | Demo data |
+| `import-solidtime` | ZIP import |
+| `backup run \| list \| restore` | Backup ops |
+
+See [Operations](10-operations.md) and [MVP delivery status](33-mvp-delivery-status.md).

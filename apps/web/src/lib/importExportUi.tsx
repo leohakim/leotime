@@ -155,7 +155,7 @@ export function ImportExportPanel({ t }: { t: Translator }) {
         void queryClient.invalidateQueries({ queryKey: ['time-entries'] });
         void queryClient.invalidateQueries({ queryKey: ['timers'] });
         void queryClient.invalidateQueries({ queryKey: ['overview'] });
-        void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        void queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       }
     },
     onError: (error) => {

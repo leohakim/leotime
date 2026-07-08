@@ -721,14 +721,7 @@ function useTimeEntryInlineEditor({
       updateTimeEntry(timeEntryId, input),
     onSuccess: (updated) => {
       userEditedRef.current = false;
-      queryClient.setQueryData(['time-entries'], (current: { timeEntries: TimeEntry[] } | undefined) => {
-        if (!current) {
-          return current;
-        }
-        return {
-          timeEntries: current.timeEntries.map((item) => (item.id === updated.id ? updated : item)),
-        };
-      });
+      patchTimeEntriesCache(queryClient, updated);
     },
     onError: () => setError(t('timeEntrySaveFailed')),
   });

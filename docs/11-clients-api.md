@@ -71,3 +71,21 @@ The form validates before submit:
 The UI shows hourly rates as human amounts, for example `75.00`. The API still stores money as minor units, so the frontend sends `7500`.
 
 The panel invalidates the clients and overview queries after mutations so counters stay aligned.
+
+## Error Responses
+
+Validation and domain errors use the structured envelope documented in [API error responses](32-api-errors.md).
+
+Example — empty name on create (`400`):
+
+```json
+{
+  "error": {
+    "code": "validation_failed",
+    "message": "name is required",
+    "fields": [{ "field": "name", "code": "required", "message": "name is required" }]
+  }
+}
+```
+
+Other client codes: `client_not_found` (404), `invalid_json` (400), `client_operation_failed` (500).

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/leotime/leotime/apps/api/internal/db"
 )
@@ -90,11 +91,20 @@ func TestProfileUpdateAndChangePassword(t *testing.T) {
 		t.Fatalf("unexpected restore email settings: %+v", updated.Settings)
 	}
 
+	token, _, err := st.CreateSession(ctx, user.ID, time.Hour)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
 	if err := st.ChangePassword(ctx, user.ID, ChangePasswordInput{
 		CurrentPassword: "change-me-now",
 		NewPassword:     "new-password-123",
 	}); err != nil {
 		t.Fatalf("change password: %v", err)
+	}
+
+	if _, err := st.UserBySessionToken(ctx, token); !errors.Is(err, ErrSessionNotFound) {
+		t.Fatalf("expected sessions cleared after password change, got %v", err)
 	}
 
 	if _, err := st.Authenticate(ctx, "leo@example.com", "change-me-now"); !errors.Is(err, ErrInvalidCredentials) {

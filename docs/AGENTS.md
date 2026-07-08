@@ -10,6 +10,7 @@ This directory owns product, architecture, operations, deployment, import compat
 - Keep language concrete and implementation-oriented.
 - Document the current behavior, not only future intentions.
 - When a decision changes architecture, add or update an ADR.
+- Keep [adr/README.md](adr/README.md) in sync: mark each ADR as implemented or not, and link the matching API/ops doc.
 
 ## Required Topics
 

@@ -57,7 +57,27 @@ Every product slice should include:
 | Frontend feature split | Done | CRUD panels and `DashboardShell` under `apps/web/src/features/` |
 | API error codes | Done | Structured JSON error payloads with validation `fields` |
 
-All MVP slices in the original plan are complete. Next engineering slice: visual regression checks unless product scope changes.
+All MVP slices in the original plan are complete.
+
+## Post-MVP Documentation
+
+- [Documentation index](00-documentation-index.md)
+- [MVP delivery status](33-mvp-delivery-status.md)
+- [Known gaps and audit](34-known-gaps-and-audit.md)
+- [ADR index](adr/README.md)
+
+## Accepted but not implemented
+
+| Item | ADR / spec | Current behavior |
+| --- | --- | --- |
+| Billing documents + official PDFs | [ADR 0004](adr/0004-billing-documents-official-pdfs.md), [32-billing-documents.md](32-billing-documents.md) | [23-invoices-api.md](23-invoices-api.md) |
+| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [25-theme-selector.md](25-theme-selector.md) (solid/light/dark/minimal only) |
+
+Implementation plans: `docs/superpowers/plans/`. Do not start ADR 0004 until restore/backup hardening in doc 34 is addressed.
+
+## Current Next Task
+
+Hardening from [Known gaps and audit](34-known-gaps-and-audit.md) and visual regression checks unless product scope changes.
 
 ## Quality Gates By Slice
 

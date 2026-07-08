@@ -72,14 +72,14 @@ async function processMutation(mutation: QueuedMutation): Promise<void> {
       return;
     }
     case 'createProject': {
-      const created = await apiCreateProject(mutation.payload as ProjectInput);
+      const created = await apiCreateProject(await remapProjectInput(mutation.payload as ProjectInput));
       if (mutation.localId) {
         await setServerId(mutation.localId, created.id);
       }
       return;
     }
     case 'createTask': {
-      const created = await apiCreateTask(mutation.payload as TaskInput);
+      const created = await apiCreateTask(await remapTaskInput(mutation.payload as TaskInput));
       if (mutation.localId) {
         await setServerId(mutation.localId, created.id);
       }
@@ -128,6 +128,20 @@ async function processMutation(mutation: QueuedMutation): Promise<void> {
     default:
       throw new Error(`unsupported offline operation: ${mutation.operation as string}`);
   }
+}
+
+export async function remapProjectInput(input: ProjectInput): Promise<ProjectInput> {
+  return {
+    ...input,
+    clientId: input.clientId ? await resolveEntityId(input.clientId) : input.clientId,
+  };
+}
+
+export async function remapTaskInput(input: TaskInput): Promise<TaskInput> {
+  return {
+    ...input,
+    projectId: input.projectId ? await resolveEntityId(input.projectId) : input.projectId,
+  };
 }
 
 export async function remapTimeEntryInput(input: TimeEntryInput): Promise<TimeEntryInput> {

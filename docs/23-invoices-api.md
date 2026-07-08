@@ -2,6 +2,8 @@
 
 Las facturas permiten crear borradores desde tiempo facturable, congelar datos del cliente y exportar HTML imprimible, CSV o JSON.
 
+> **Planned upgrade (not shipped):** [ADR 0004](adr/0004-billing-documents-official-pdfs.md) and [32-billing-documents.md](32-billing-documents.md) describe official PDFs, fiscal series, and Work Protocol appendices. Until that delivery lands, this document is the source of truth for invoice API behavior.
+
 ## Rutas HTTP
 
 Todas las rutas requieren cookie de sesion valida.

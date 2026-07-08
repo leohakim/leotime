@@ -95,6 +95,20 @@ export async function clearQueuedMutations(): Promise<void> {
   await runTransaction(MUTATIONS_STORE, 'readwrite', ([store]) => store.clear());
 }
 
+export async function clearIdMappings(): Promise<void> {
+  if (!storageAvailable()) {
+    memoryIdMap = new Map();
+    return;
+  }
+
+  await runTransaction(ID_MAP_STORE, 'readwrite', ([store]) => store.clear());
+}
+
+export async function resetOfflineStorage(): Promise<void> {
+  await clearQueuedMutations();
+  await clearIdMappings();
+}
+
 export async function getServerId(localId: string): Promise<string | null> {
   if (!storageAvailable()) {
     return memoryIdMap.get(localId) ?? null;

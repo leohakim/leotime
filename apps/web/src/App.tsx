@@ -14,7 +14,7 @@ export function App() {
   const [layoutMode, setLayoutMode] = usePersistentState<LayoutMode>('leotime.layout', 'solid');
   const [themeMode, setThemeMode] = usePersistentState<ThemeMode>('leotime.theme', 'solid');
   useThemeEffect(themeMode);
-  const sessionQuery = useQuery({ queryKey: ['session'], queryFn: fetchSession });
+  const sessionQuery = useQuery({ queryKey: ['session'], queryFn: fetchSession, retry: 1 });
 
   const t = useMemo(() => (key: Parameters<typeof translate>[1]) => translate(locale, key), [locale]);
 
@@ -23,6 +23,18 @@ export function App() {
       <main className="boot-screen">
         <LeotimeMark className="boot-logo" size={36} title="leotime" />
         <span>{t('appName')}</span>
+      </main>
+    );
+  }
+
+  if (sessionQuery.isError) {
+    return (
+      <main className="boot-screen">
+        <LeotimeMark className="boot-logo" size={36} title="leotime" />
+        <p>{t('sessionLoadFailed')}</p>
+        <button type="button" onClick={() => void sessionQuery.refetch()}>
+          {t('retry')}
+        </button>
       </main>
     );
   }

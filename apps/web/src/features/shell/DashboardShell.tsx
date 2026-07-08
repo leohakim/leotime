@@ -48,6 +48,7 @@ import {
 } from '../../lib/offline/cache';
 import { useOfflineStatus } from '../../lib/offline/offlineContext';
 import { OfflineStatusPill } from '../../lib/offline/offlineStatusUi';
+import { resetOfflineStorage } from '../../lib/offline/db';
 import { isLocalId, stopTimer } from '../../lib/offline/mutations';
 import { CalendarPanel } from '../../lib/calendarUi';
 import { DashboardPanel } from '../../lib/dashboardUi';
@@ -214,7 +215,12 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
   });
   const logoutMutation = useMutation({
     mutationFn: logout,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
+    onSuccess: async () => {
+      await resetOfflineStorage();
+      queryClient.clear();
+      await queryClient.invalidateQueries({ queryKey: ['session'] });
+    },
+    onError: () => toast.error(t('logoutFailed')),
   });
 
   return (

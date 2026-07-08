@@ -254,6 +254,10 @@ func (s *Store) ChangePassword(ctx context.Context, userID string, input ChangeP
 		return fmt.Errorf("update password: %w", err)
 	}
 
+	if _, err := s.db.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ?", userID); err != nil {
+		return fmt.Errorf("clear sessions after password change: %w", err)
+	}
+
 	return nil
 }
 

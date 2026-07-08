@@ -45,6 +45,15 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Later | Public API tokens | Useful after core API stabilizes. |
 | Later | Webhooks | Useful after external integrations exist. |
 
+## Accepted ADRs and designs (not implemented)
+
+| Status | Item | Notes |
+| --- | --- | --- |
+| Accepted, backlog | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol; [32-billing-documents.md](32-billing-documents.md), [plan](superpowers/plans/2026-07-08-billing-documents.md) |
+| Approved, backlog | UI/UX experience themes | Six presets + SolidTime Exact; [design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) |
+
+See [ADR index](adr/README.md) for implementation status of all records.
+
 ## Engineering Backlog
 
 | Status | Item | Notes |
@@ -79,5 +88,9 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Password reset | `docs/30-password-reset.md`. |
 | Done | S3 daily backups | `docs/31-s3-daily-backups.md`. |
 | Done | API error responses | `docs/32-api-errors.md`. |
-| Backlog | API reference index | One index linking each resource doc. |
+| Done | API reference index | [00-documentation-index.md](00-documentation-index.md) |
+| Done | MVP delivery status | [33-mvp-delivery-status.md](33-mvp-delivery-status.md) |
+| Done | Known gaps audit | [34-known-gaps-and-audit.md](34-known-gaps-and-audit.md) |
+| Done | ADR index | [adr/README.md](adr/README.md) |
+| Done | Billing documents spec (planned) | [32-billing-documents.md](32-billing-documents.md) |
 | Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers. |
