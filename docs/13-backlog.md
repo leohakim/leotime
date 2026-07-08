@@ -17,7 +17,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | **0** | Production hardening (restore safety, static files, metrics, bootstrap password, rate limits, JSON body limits) | **Done** |
 | **1** | Backup stability (restore latest sort, validation, generic errors, HTTP tests, prune best-effort) | **Done** |
 | **2** | UX/API coherence (`ApiError` everywhere, `taskProjectRequired`, offline queue, profile field errors) | **Done** |
-| **3** | ADR 0004 billing documents (official PDFs, fiscal series, Work Protocol) | **Next** |
+| **3** | ADR 0004 billing documents (official PDFs, fiscal series, Work Protocol) | **Doing** |
 | **4** | Product polish (remaining audit medium/low items) | Backlog |
 | **5** | UI/UX experience themes (10-sprint design spec) | Backlog |
 | **6** | Tooling (visual regression, contributor tutorial) | Backlog |
