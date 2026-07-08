@@ -66,6 +66,31 @@ func Migrate(ctx context.Context, database *sql.DB) error {
 	return nil
 }
 
+func LatestMigrationVersion() (int, error) {
+	files, err := fs.ReadDir(migrationFiles, "migrations")
+	if err != nil {
+		return 0, fmt.Errorf("read migration files: %w", err)
+	}
+
+	latest := 0
+	for _, file := range files {
+		if file.IsDir() || !strings.HasSuffix(file.Name(), ".sql") {
+			continue
+		}
+		version, err := migrationVersion(file.Name())
+		if err != nil {
+			return 0, err
+		}
+		if version > latest {
+			latest = version
+		}
+	}
+	if latest == 0 {
+		return 0, fmt.Errorf("no migration files found")
+	}
+	return latest, nil
+}
+
 func migrationVersion(name string) (int, error) {
 	prefix := strings.SplitN(name, "_", 2)[0]
 	version, err := strconv.Atoi(prefix)

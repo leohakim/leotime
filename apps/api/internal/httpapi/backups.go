@@ -131,6 +131,8 @@ func writeBackupError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrBackupSecretsKeyMissing):
 		writeError(w, http.StatusServiceUnavailable, "backup_secrets_key_missing", "backup secrets key is not configured")
+	case errors.Is(err, backup.ErrRemoteStorage):
+		writeError(w, http.StatusBadGateway, "backup_remote_storage_failed", "backup remote storage operation failed")
 	case store.IsValidation(err, store.ErrInvalidBackupSettings):
 		writeValidationStoreError(w, err)
 	default:

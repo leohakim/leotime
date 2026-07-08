@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/leotime/leotime/apps/api/internal/backup/snapshot"
 	"github.com/leotime/leotime/apps/api/internal/backup/storage"
 	"github.com/leotime/leotime/apps/api/internal/config"
+	"github.com/leotime/leotime/apps/api/internal/db"
 	"github.com/leotime/leotime/apps/api/internal/maintenance"
 	"github.com/leotime/leotime/apps/api/internal/metrics"
 	"github.com/leotime/leotime/apps/api/internal/store"
@@ -72,6 +74,13 @@ func NewService(cfg config.Config, st *store.Store, db *sql.DB, notifier EmailNo
 	}
 }
 
+// SetClientFactory replaces the default remote storage client factory.
+func (s *Service) SetClientFactory(factory ClientFactory) {
+	if factory != nil {
+		s.clientFactory = factory
+	}
+}
+
 func defaultClientFactory(ctx context.Context, cfg storage.S3Config) (storage.Client, error) {
 	return storage.NewS3Client(ctx, cfg)
 }
@@ -105,8 +114,9 @@ func (s *Service) ListObjects(ctx context.Context, userID string) ([]ObjectRespo
 
 	objects, err := client.List(ctx, resolved.prefix)
 	if err != nil {
-		return nil, err
+		return nil, wrapRemoteError(err)
 	}
+	sortStorageObjectsDesc(objects)
 
 	response := make([]ObjectResponse, 0, len(objects))
 	for _, object := range objects {
@@ -119,6 +129,7 @@ func (s *Service) ListObjects(ctx context.Context, userID string) ([]ObjectRespo
 			LastModified: object.LastModified.UTC().Format(time.RFC3339),
 		})
 	}
+	sortObjectResponsesDesc(response)
 	return response, nil
 }
 
@@ -228,17 +239,11 @@ func (s *Service) Run(ctx context.Context, userID string, force bool) (*RunResul
 		notifySuccess = false
 		notifyObjectKey = objectKey
 		notifyError = err.Error()
-		return nil, err
+		return nil, wrapRemoteError(err)
 	}
 
 	if err := s.pruneOldBackups(ctx, client, resolved.prefix, settings.RetentionDays, started); err != nil {
-		_ = s.store.UpdateBackupRunStatus(ctx, userID, "failed", err.Error(), objectKey)
-		metrics.BackupFailuresTotal.Inc()
-		shouldNotify = true
-		notifySuccess = false
-		notifyObjectKey = objectKey
-		notifyError = err.Error()
-		return nil, err
+		log.Printf("backup prune warning (upload succeeded): %v", err)
 	}
 
 	_ = s.store.UpdateBackupRunStatus(ctx, userID, "success", "", objectKey)
@@ -335,7 +340,7 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 		notifySuccess = false
 		notifyObjectKey = objectKey
 		notifyError = err.Error()
-		return nil, err
+		return nil, wrapRemoteError(err)
 	}
 	file, err := os.Create(gzipPath)
 	if err != nil {
@@ -359,7 +364,11 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 		notifyError = err.Error()
 		return nil, err
 	}
-	if err := snapshot.ValidateDatabase(ctx, restoreDBPath); err != nil {
+	minMigrationVersion, err := db.LatestMigrationVersion()
+	if err != nil {
+		return nil, err
+	}
+	if err := snapshot.ValidateDatabase(ctx, restoreDBPath, minMigrationVersion); err != nil {
 		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
 		metrics.BackupRestoreFailuresTotal.Inc()
 		shouldNotify = true
@@ -444,7 +453,7 @@ func (s *Service) loadClient(ctx context.Context, userID string) (*resolvedS3Con
 
 	client, err := s.clientFactory(ctx, resolved.cfg)
 	if err != nil {
-		return nil, nil, fmt.Errorf("create s3 client: %w", err)
+		return nil, nil, wrapRemoteError(err)
 	}
 
 	return resolved, client, nil
@@ -482,7 +491,7 @@ func (s *Service) pruneOldBackups(ctx context.Context, client storage.Client, pr
 		}
 		if object.LastModified.Before(cutoff) {
 			if err := client.Delete(ctx, object.Key); err != nil {
-				return err
+				return wrapRemoteError(err)
 			}
 		}
 	}

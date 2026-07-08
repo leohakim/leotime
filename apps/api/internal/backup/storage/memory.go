@@ -23,11 +23,15 @@ type Client interface {
 }
 
 type MemoryClient struct {
-	Objects map[string][]byte
+	Objects    map[string][]byte
+	ModifiedAt map[string]time.Time
 }
 
 func NewMemoryClient() *MemoryClient {
-	return &MemoryClient{Objects: map[string][]byte{}}
+	return &MemoryClient{
+		Objects:    map[string][]byte{},
+		ModifiedAt: map[string]time.Time{},
+	}
 }
 
 func (c *MemoryClient) Put(ctx context.Context, key string, body io.Reader, contentType string) error {
@@ -38,6 +42,9 @@ func (c *MemoryClient) Put(ctx context.Context, key string, body io.Reader, cont
 		return err
 	}
 	c.Objects[key] = data
+	if _, ok := c.ModifiedAt[key]; !ok {
+		c.ModifiedAt[key] = time.Now().UTC()
+	}
 	return nil
 }
 
@@ -63,14 +70,18 @@ func (c *MemoryClient) List(ctx context.Context, prefix string) ([]Object, error
 		if !strings.HasPrefix(key, prefix) {
 			continue
 		}
+		modified := c.ModifiedAt[key]
+		if modified.IsZero() {
+			modified = time.Now().UTC()
+		}
 		objects = append(objects, Object{
 			Key:          key,
 			SizeBytes:    int64(len(data)),
-			LastModified: time.Now().UTC(),
+			LastModified: modified,
 		})
 	}
 	sort.Slice(objects, func(i, j int) bool {
-		return objects[i].Key > objects[j].Key
+		return objects[i].LastModified.After(objects[j].LastModified)
 	})
 	return objects, nil
 }

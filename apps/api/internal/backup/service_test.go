@@ -3,6 +3,8 @@ package backup
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
+	"io"
 	"path/filepath"
 	"testing"
 	"time"
@@ -150,4 +152,192 @@ func TestIsDueUsesTimezone(t *testing.T) {
 	if due {
 		t.Fatal("expected not due before 01:00 Madrid time")
 	}
+}
+
+func TestListObjectsSortsByLastModifiedDesc(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "leotime.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	st := store.New(database)
+	if err := st.BootstrapAdmin(ctx, "admin@example.com", "change-me-now"); err != nil {
+		t.Fatal(err)
+	}
+	user, err := st.Authenticate(ctx, "admin@example.com", "change-me-now")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secretsKey := base64.StdEncoding.EncodeToString([]byte("01234567890123456789012345678901"))
+	service := NewService(config.Config{DBPath: dbPath, SecretsKey: secretsKey}, st, database, nil)
+	memory := storage.NewMemoryClient()
+	prefix := "leotime/backups/"
+	memory.Objects[prefix+"older.db.gz"] = []byte("1")
+	memory.Objects[prefix+"newer.db.gz"] = []byte("2")
+	memory.ModifiedAt[prefix+"older.db.gz"] = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	memory.ModifiedAt[prefix+"newer.db.gz"] = time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
+	service.clientFactory = func(ctx context.Context, cfg storage.S3Config) (storage.Client, error) {
+		return memory, nil
+	}
+
+	secretEnc, err := crypto.Encrypt([]byte("secret"), []byte("01234567890123456789012345678901"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.UpsertBackupSettings(ctx, user.ID, store.BackupSettingsInput{
+		Enabled: true, Bucket: "bucket", AccessKeyID: "key", ScheduleHour: 1, RetentionDays: 365,
+	}, secretEnc); err != nil {
+		t.Fatal(err)
+	}
+
+	objects, err := service.ListObjects(ctx, user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(objects) != 2 || objects[0].Key != prefix+"newer.db.gz" {
+		t.Fatalf("expected newest object first, got %+v", objects)
+	}
+}
+
+func TestRestoreLatestUsesNewestObjectKey(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "leotime.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	st := store.New(database)
+	if err := st.BootstrapAdmin(ctx, "admin@example.com", "change-me-now"); err != nil {
+		t.Fatal(err)
+	}
+	user, err := st.Authenticate(ctx, "admin@example.com", "change-me-now")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secretsKey := base64.StdEncoding.EncodeToString([]byte("01234567890123456789012345678901"))
+	service := NewService(config.Config{DBPath: dbPath, SecretsKey: secretsKey}, st, database, nil)
+	memory := storage.NewMemoryClient()
+	prefix := "leotime/backups/"
+	olderKey := prefix + "older.db.gz"
+	newerKey := prefix + "newer.db.gz"
+	memory.Objects[olderKey] = []byte("old")
+	memory.Objects[newerKey] = []byte("new")
+	memory.ModifiedAt[olderKey] = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	memory.ModifiedAt[newerKey] = time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
+
+	var requestedKey string
+	service.clientFactory = func(ctx context.Context, cfg storage.S3Config) (storage.Client, error) {
+		return getTrackingClient{Client: memory, onGet: func(key string) { requestedKey = key }}, nil
+	}
+
+	secretEnc, err := crypto.Encrypt([]byte("secret"), []byte("01234567890123456789012345678901"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.UpsertBackupSettings(ctx, user.ID, store.BackupSettingsInput{
+		Enabled: true, Bucket: "bucket", AccessKeyID: "key", ScheduleHour: 1, RetentionDays: 365,
+	}, secretEnc); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := service.Restore(ctx, user.ID, "", true); err == nil {
+		t.Fatal("expected restore to fail on invalid backup payload")
+	}
+	if requestedKey != newerKey {
+		t.Fatalf("expected restore latest to request %q, got %q", newerKey, requestedKey)
+	}
+}
+
+func TestRunSucceedsWhenPruneFails(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "leotime.db")
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Migrate(ctx, database); err != nil {
+		t.Fatal(err)
+	}
+	st := store.New(database)
+	if err := st.BootstrapAdmin(ctx, "admin@example.com", "change-me-now"); err != nil {
+		t.Fatal(err)
+	}
+	user, err := st.Authenticate(ctx, "admin@example.com", "change-me-now")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secretsKey := base64.StdEncoding.EncodeToString([]byte("01234567890123456789012345678901"))
+	cfg := config.Config{DBPath: dbPath, SecretsKey: secretsKey, BootstrapEmail: "admin@example.com"}
+	memory := storage.NewMemoryClient()
+	service := NewService(cfg, st, database, nil)
+	service.clientFactory = func(ctx context.Context, cfg storage.S3Config) (storage.Client, error) {
+		return deleteFailingClient{MemoryClient: memory}, nil
+	}
+
+	secretEnc, err := crypto.Encrypt([]byte("secret"), []byte("01234567890123456789012345678901"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.UpsertBackupSettings(ctx, user.ID, store.BackupSettingsInput{
+		Enabled: true, Bucket: "bucket", AccessKeyID: "key", ScheduleHour: 1, RetentionDays: 1,
+	}, secretEnc); err != nil {
+		t.Fatal(err)
+	}
+
+	oldKey := "leotime/backups/leotime-old.db.gz"
+	memory.Objects[oldKey] = []byte("stale")
+	memory.ModifiedAt[oldKey] = time.Now().UTC().AddDate(0, 0, -10)
+
+	runResult, err := service.Run(ctx, user.ID, true)
+	if err != nil {
+		t.Fatalf("run backup: %v", err)
+	}
+	if runResult.Status != "success" {
+		t.Fatalf("expected success despite prune failure, got %+v", runResult)
+	}
+}
+
+type getTrackingClient struct {
+	storage.Client
+	onGet func(key string)
+}
+
+func (c getTrackingClient) Get(ctx context.Context, key string) (io.ReadCloser, error) {
+	if c.onGet != nil {
+		c.onGet(key)
+	}
+	return c.Client.Get(ctx, key)
+}
+
+type deleteFailingClient struct {
+	*storage.MemoryClient
+}
+
+func (c deleteFailingClient) Delete(ctx context.Context, key string) error {
+	return fmt.Errorf("simulated delete failure")
+}
+
+func (c deleteFailingClient) Put(ctx context.Context, key string, body io.Reader, contentType string) error {
+	return c.MemoryClient.Put(ctx, key, body, contentType)
+}
+
+func (c deleteFailingClient) Get(ctx context.Context, key string) (io.ReadCloser, error) {
+	return c.MemoryClient.Get(ctx, key)
+}
+
+func (c deleteFailingClient) List(ctx context.Context, prefix string) ([]storage.Object, error) {
+	return c.MemoryClient.List(ctx, prefix)
 }

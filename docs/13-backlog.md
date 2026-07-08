@@ -15,8 +15,8 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Phase | Focus | Status |
 | --- | --- | --- |
 | **0** | Production hardening (restore safety, static files, metrics, bootstrap password, rate limits, JSON body limits) | **Done** |
-| **1** | Backup stability (restore latest sort, validation, generic errors, HTTP tests, prune best-effort) | Next |
-| **2** | UX/API coherence (`ApiError` everywhere, `taskProjectRequired`, offline queue, profile field errors) | Backlog |
+| **1** | Backup stability (restore latest sort, validation, generic errors, HTTP tests, prune best-effort) | **Done** |
+| **2** | UX/API coherence (`ApiError` everywhere, `taskProjectRequired`, offline queue, profile field errors) | **Next** |
 | **3** | ADR 0004 billing documents (official PDFs, fiscal series, Work Protocol) | Backlog |
 | **4** | Product polish (remaining audit medium/low items) | Backlog |
 | **5** | UI/UX experience themes (10-sprint design spec) | Backlog |
@@ -70,18 +70,18 @@ See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*,
 | M12 | Auth rate limits | Login 10/15min per IP; forgot-password 5/hour per IP+email |
 | M14 | JSON body size limit | 1 MiB default on JSON handlers (`body_too_large`) |
 
-## Phase 1 — Backup Stability (Next)
+## Phase 1 — Backup Stability (Done)
 
 | ID | Item | Notes |
 | --- | --- | --- |
-| M1 | Restore `latest` sort | Sort S3 objects by `LastModified` before picking |
-| M2 | Restore validation | `integrity_check` + migration version checks |
-| M3 | Prune best-effort | Do not fail backup run after successful upload |
-| M7 | Generic backup client errors | Do not leak S3 internals |
-| M11 | Backup HTTP tests | Route coverage in `router_test.go` |
-| M24 | Restore reload UX | Partially done via `requiresRestart`; verify cache clear |
+| M1 | Restore `latest` sort | Newest S3 object by `LastModified` |
+| M2 | Restore validation | `PRAGMA integrity_check` + `schema_migrations` version |
+| M3 | Prune best-effort | Upload success kept when retention delete fails |
+| M7 | Generic backup client errors | `backup_remote_storage_failed`; no S3 internals in API |
+| M11 | Backup HTTP tests | Auth, confirm, secrets key, status, generic remote errors |
+| M24 | Restore reload UX | Done in Phase 0 via `requiresRestart` |
 
-## Phase 2 — UX / API Coherence (Backlog)
+## Phase 2 — UX / API Coherence (Next)
 
 | ID | Item | Notes |
 | --- | --- | --- |

@@ -133,17 +133,17 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 
 | ID | Title | Location | Notes |
 | --- | --- | --- | --- |
-| M1 | Restore `latest` picks unsorted S3 list order | `backup/service.go` | Sort by `LastModified` before picking |
-| M2 | Restore validation minimal | `backup/snapshot/snapshot.go` | Check migrations + `integrity_check` |
-| M3 | Prune failure marks backup run failed after upload | `backup/service.go` | Treat prune as best-effort |
+| M1 | Restore `latest` picks unsorted S3 list order — **Fixed** | `backup/service.go` | Sort by `LastModified` before picking |
+| M2 | Restore validation minimal — **Fixed** | `backup/snapshot/snapshot.go` | `integrity_check` + migration version |
+| M3 | Prune failure marks backup run failed after upload — **Fixed** | `backup/service.go` | Treat prune as best-effort |
 | M4 | Invoice status transitions unconstrained | `store/invoice.go` | Add transition matrix |
 | M5 | Archived tags attachable to entries | `store/time_entry.go` | Reject archived tag IDs |
 | M6 | `StartTimer` ignores client `startedAt` | `store/timer.go` | Honor or remove from API |
-| M7 | Backup errors leak S3 internals to client | `httpapi/backups.go` | Generic client message |
+| M7 | Backup errors leak S3 internals to client — **Fixed** | `httpapi/backups.go` | Generic `backup_remote_storage_failed` |
 | M8 | Backup resolve errors lack `fields` | `backup/config_resolve.go` | Use `validationError` |
 | M9 | `rates` table unused | migration 000001 | Implement or deprecate |
 | M10 | Outbox double-send if MarkSent fails | `outbox/processor.go` | Idempotency / ordering |
-| M11 | No HTTP tests for backup routes | `router_test.go` | Add coverage |
+| M11 | No HTTP tests for backup routes — **Fixed** | `httpapi/backups_test.go` | Auth, confirm, secrets key, remote errors |
 | M12 | No login/forgot-password rate limits — **Fixed** | `httpapi/ratelimit.go` | 10 login / 15 min per IP; 5 forgot-password / hour per IP+email |
 | M13 | Session DB errors returned as 401 | `router.go` `currentUser` | Distinguish 503 |
 | M14 | JSON body size unlimited (except import) — **Fixed** | `httpapi/json_body.go` | 1 MiB default via `MaxBytesReader` |

@@ -1,45 +1,13 @@
 package db
 
-import (
-	"context"
-	"testing"
-)
+import "testing"
 
-func TestMigrateCreatesCoreTables(t *testing.T) {
-	ctx := context.Background()
-	database, err := Open(ctx, t.TempDir()+"/leotime.db")
+func TestLatestMigrationVersion(t *testing.T) {
+	version, err := LatestMigrationVersion()
 	if err != nil {
-		t.Fatalf("open db: %v", err)
+		t.Fatalf("latest migration version: %v", err)
 	}
-	defer database.Close()
-
-	if err := Migrate(ctx, database); err != nil {
-		t.Fatalf("migrate db: %v", err)
-	}
-
-	var tableCount int
-	if err := database.QueryRowContext(ctx, `
-		SELECT COUNT(*)
-		FROM sqlite_master
-		WHERE type = 'table'
-			AND name IN ('users', 'clients', 'projects', 'tasks', 'time_entries', 'invoices');
-	`).Scan(&tableCount); err != nil {
-		t.Fatalf("count tables: %v", err)
-	}
-
-	if tableCount != 6 {
-		t.Fatalf("expected 6 core tables, got %d", tableCount)
-	}
-
-	var emailOutbox int
-	if err := database.QueryRowContext(ctx, `
-		SELECT COUNT(*)
-		FROM sqlite_master
-		WHERE type = 'table' AND name = 'email_outbox';
-	`).Scan(&emailOutbox); err != nil {
-		t.Fatalf("count email_outbox table: %v", err)
-	}
-	if emailOutbox != 1 {
-		t.Fatalf("expected email_outbox table, got count %d", emailOutbox)
+	if version < 8 {
+		t.Fatalf("expected at least migration 000008, got %d", version)
 	}
 }

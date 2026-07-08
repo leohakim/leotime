@@ -7,6 +7,10 @@ import (
 
 var ErrBusy = errors.New("backup job already running")
 
+// ErrRemoteStorage marks failures talking to remote backup storage (S3-compatible).
+// HTTP handlers should not expose the wrapped cause to clients.
+var ErrRemoteStorage = errors.New("remote storage operation failed")
+
 func IsDue(settings EnabledSettings, timezone string, now time.Time, force bool) (bool, error) {
 	if !settings.Enabled {
 		return false, nil

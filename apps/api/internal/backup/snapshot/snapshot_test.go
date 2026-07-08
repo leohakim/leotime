@@ -44,7 +44,11 @@ func TestSnapshotRoundTrip(t *testing.T) {
 	if err := GunzipToFile(gzipPath, restoredPath); err != nil {
 		t.Fatalf("gunzip: %v", err)
 	}
-	if err := ValidateDatabase(ctx, restoredPath); err != nil {
+	minVersion, err := db.LatestMigrationVersion()
+	if err != nil {
+		t.Fatalf("latest migration version: %v", err)
+	}
+	if err := ValidateDatabase(ctx, restoredPath, minVersion); err != nil {
 		t.Fatalf("validate restored db: %v", err)
 	}
 

@@ -93,14 +93,22 @@ func GunzipToFile(srcPath, destPath string) error {
 	return nil
 }
 
-func ValidateDatabase(ctx context.Context, dbPath string) error {
+func ValidateDatabase(ctx context.Context, dbPath string, minMigrationVersion int) error {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return fmt.Errorf("open validation database: %w", err)
 	}
 	defer db.Close()
 
-	requiredTables := []string{"users", "clients", "time_entries"}
+	var integrity string
+	if err := db.QueryRowContext(ctx, "PRAGMA integrity_check").Scan(&integrity); err != nil {
+		return fmt.Errorf("integrity check: %w", err)
+	}
+	if integrity != "ok" {
+		return fmt.Errorf("integrity check failed: %s", integrity)
+	}
+
+	requiredTables := []string{"users", "clients", "time_entries", "schema_migrations"}
 	for _, table := range requiredTables {
 		var name string
 		if err := db.QueryRowContext(ctx, `
@@ -108,6 +116,14 @@ func ValidateDatabase(ctx context.Context, dbPath string) error {
 		`, table).Scan(&name); err != nil {
 			return fmt.Errorf("missing table %q: %w", table, err)
 		}
+	}
+
+	var maxVersion sql.NullInt64
+	if err := db.QueryRowContext(ctx, "SELECT MAX(version) FROM schema_migrations").Scan(&maxVersion); err != nil {
+		return fmt.Errorf("read schema migrations: %w", err)
+	}
+	if !maxVersion.Valid || int(maxVersion.Int64) < minMigrationVersion {
+		return fmt.Errorf("schema migration version too old: have %d need %d", maxVersion.Int64, minMigrationVersion)
 	}
 
 	return nil
