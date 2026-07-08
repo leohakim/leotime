@@ -52,7 +52,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Backlog | Split frontend features | Move large dashboard sections into feature components. |
 | Backlog | Visual regression checks | Add screenshot checks after core UI stabilizes. |
 | Backlog | API error codes | Move from plain error text to structured validation errors. |
-| Backlog | Seed/dev data command | Make UI development easier without manual entry. |
+| Done | Seed/dev data command | `make seed` / `leotime seed` loads demo clients, time entries, open timer |
 | Done | S3 backup/restore | Snapshot, S3 upload, scheduler, CLI, in-app restore; see `docs/31-s3-daily-backups.md` |
 | Done | CI pipeline | GitHub Actions: tests, build, Docker, smoke |
 

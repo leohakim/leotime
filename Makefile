@@ -10,7 +10,7 @@ SAMPLE_SECONDS ?= 60
 SAMPLE_INTERVAL ?= 5
 WITH_LOAD ?= 0
 
-.PHONY: help setup setup-hooks pre-commit fmt-check test-api-vet dev dev-api dev-web up down logs migrate test test-api test-web test-e2e build-web smoke bench stress metrics resources docker-build deploy-check import-solidtime import-solidtime-dry
+.PHONY: help setup setup-hooks pre-commit fmt-check test-api-vet dev dev-api dev-web up down logs migrate seed test test-api test-web test-e2e build-web smoke bench stress metrics resources docker-build deploy-check import-solidtime import-solidtime-dry
 
 help: ## 🧭 Show available commands
 	@printf "\n🕒 leotime developer commands\n\n"
@@ -75,6 +75,10 @@ logs: ## 📜 Tail application logs
 migrate: ## 🗄️ Apply migrations by starting the API once
 	@printf "🗄️ Applying migrations through application startup...\n"
 	cd apps/api && go run ./cmd/leotime -migrate-only
+
+seed: ## 🌱 Load demo clients, projects, tasks, tags, and time entries
+	@printf "🌱 Seeding demo data for $(USER_EMAIL)...\n"
+	cd apps/api && go run ./cmd/leotime seed --user-email "$(USER_EMAIL)"
 
 test: test-api test-web ## ✅ Run backend and frontend tests
 

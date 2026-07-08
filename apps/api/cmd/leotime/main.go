@@ -41,6 +41,12 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "seed" {
+		if err := runSeedCommand(context.Background(), os.Args[2:]); err != nil {
+			log.Fatalf("seed failed: %v", err)
+		}
+		return
+	}
 
 	migrateOnly := flag.Bool("migrate-only", false, "apply database migrations and exit")
 	flag.Parse()

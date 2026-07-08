@@ -41,6 +41,7 @@ Every product slice should include:
 - Password reset email with one-time tokens, outbox delivery, and login/reset UI.
 - S3 daily backups with encrypted credentials, scheduler, CLI, restore, and Settings UI.
 - Backup/restore email notifications with profile toggles and outbox delivery.
+- Dev seed command for demo clients, projects, tasks, tags, and time entries.
 - GitHub Actions CI for API tests, web build, Playwright, Docker build, and smoke checks.
 
 ## Post-MVP Delivery Slices
@@ -52,8 +53,9 @@ Every product slice should include:
 | Password reset email | Done | Outbox mail + login/reset UI |
 | S3 daily backups + restore | Done | Spec in `docs/31-s3-daily-backups.md`; 01:00 default, 365d retention, UI + CLI + scheduler |
 | Backup/restore email notifications | Done | Profile toggles, outbox kinds, localized templates; see `docs/29-email-notifications.md` |
+| Seed/dev data command | Done | `make seed` / `leotime seed`; see `docs/10-operations.md` |
 
-All MVP slices in the original plan are complete. Next engineering slices: seed data, frontend feature splits, or API error codes unless product scope changes.
+All MVP slices in the original plan are complete. Next engineering slices: frontend feature splits or structured API error codes unless product scope changes.
 
 ## Quality Gates By Slice
 
@@ -83,4 +85,4 @@ When port `8080` is already occupied by a local process without static assets, r
 
 ## Current Next Task
 
-Backlog engineering items such as seed data, frontend feature splits, or structured API error codes unless product scope changes.
+Backlog engineering items such as frontend feature splits or structured API error codes unless product scope changes.

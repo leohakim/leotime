@@ -13,6 +13,7 @@ make up
 make smoke
 make logs
 make down
+make seed
 make resources
 ```
 
@@ -49,6 +50,39 @@ Use another URL:
 
 ```bash
 make smoke BASE_URL=https://leotime.example.com
+```
+
+## Demo seed data
+
+Load sample clients, projects, tasks, tags, two weeks of weekday time entries, and one open timer for UI development:
+
+```bash
+make seed
+```
+
+Custom owner email:
+
+```bash
+make seed USER_EMAIL=admin@example.com
+```
+
+CLI equivalent:
+
+```bash
+cd apps/api && go run ./cmd/leotime seed
+cd apps/api && go run ./cmd/leotime seed --user-email admin@example.com
+```
+
+Behavior:
+
+- **Skipped** when the database already has clients (safe to run repeatedly).
+- **Seeded** on an empty database: 2 clients, 3 projects, 4 tasks, 3 tags, ~30 time entries, 1 open timer.
+- `--force` returns an error if data already exists; use a fresh database or delete existing rows first.
+
+Docker:
+
+```bash
+docker compose exec leotime /app/leotime seed
 ```
 
 ## Metrics
