@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/leotime/leotime/apps/api/internal/backup"
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/notify"
 	"github.com/leotime/leotime/apps/api/internal/store"
@@ -20,6 +21,7 @@ type Server struct {
 	cfg           config.Config
 	store         *store.Store
 	passwordReset *notify.PasswordResetService
+	backups       *backup.Service
 }
 
 type sessionResponse struct {
@@ -27,8 +29,8 @@ type sessionResponse struct {
 	User          *store.User `json:"user"`
 }
 
-func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.PasswordResetService) http.Handler {
-	server := &Server{cfg: cfg, store: st, passwordReset: passwordReset}
+func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.PasswordResetService, backups *backup.Service) http.Handler {
+	server := &Server{cfg: cfg, store: st, passwordReset: passwordReset, backups: backups}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -49,6 +51,13 @@ func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.Passwor
 		r.Get("/profile", server.requireUser(server.getProfile))
 		r.Patch("/profile", server.requireUser(server.updateProfile))
 		r.Post("/profile/change-password", server.requireUser(server.changePassword))
+		r.Get("/backups/settings", server.requireUser(server.getBackupSettings))
+		r.Put("/backups/settings", server.requireUser(server.putBackupSettings))
+		r.Post("/backups/test", server.requireUser(server.testBackupConnection))
+		r.Post("/backups/run", server.requireUser(server.runBackup))
+		r.Get("/backups/objects", server.requireUser(server.listBackupObjects))
+		r.Post("/backups/restore", server.requireUser(server.restoreBackup))
+		r.Get("/backups/status", server.requireUser(server.getBackupStatus))
 		r.Get("/clients", server.requireUser(server.listClients))
 		r.Post("/clients", server.requireUser(server.createClient))
 		r.Get("/clients/{clientID}", server.requireUser(server.getClient))

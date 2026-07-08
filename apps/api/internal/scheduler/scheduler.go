@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/leotime/leotime/apps/api/internal/backup"
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/metrics"
 	"github.com/leotime/leotime/apps/api/internal/notify"
@@ -15,26 +16,33 @@ type Scheduler struct {
 	cfg       config.Config
 	notifier  *notify.StillRunningNotifier
 	processor *outbox.Processor
+	backups   *backup.Service
 }
 
-func New(cfg config.Config, notifier *notify.StillRunningNotifier, processor *outbox.Processor) *Scheduler {
+func New(cfg config.Config, notifier *notify.StillRunningNotifier, processor *outbox.Processor, backups *backup.Service) *Scheduler {
 	return &Scheduler{
 		cfg:       cfg,
 		notifier:  notifier,
 		processor: processor,
+		backups:   backups,
 	}
 }
 
 func (s *Scheduler) Run(ctx context.Context) {
 	scanTicker := time.NewTicker(s.cfg.SchedulerScanInterval)
 	outboxTicker := time.NewTicker(s.cfg.OutboxProcessInterval)
+	backupTicker := time.NewTicker(s.cfg.BackupSchedulerInterval)
 	defer scanTicker.Stop()
 	defer outboxTicker.Stop()
+	defer backupTicker.Stop()
 
 	if s.cfg.SchedulerEnabled {
 		s.runScan(ctx)
 	}
 	s.runOutbox(ctx)
+	if s.cfg.BackupSchedulerEnabled {
+		s.runBackup(ctx)
+	}
 
 	for {
 		select {
@@ -46,6 +54,10 @@ func (s *Scheduler) Run(ctx context.Context) {
 			}
 		case <-outboxTicker.C:
 			s.runOutbox(ctx)
+		case <-backupTicker.C:
+			if s.cfg.BackupSchedulerEnabled {
+				s.runBackup(ctx)
+			}
 		}
 	}
 }
@@ -87,5 +99,15 @@ func (s *Scheduler) runOutbox(ctx context.Context) {
 	}
 	if result.Dead > 0 {
 		metrics.EmailOutboxDead.Add(float64(result.Dead))
+	}
+}
+
+func (s *Scheduler) runBackup(ctx context.Context) {
+	if ctx.Err() != nil || s.backups == nil {
+		return
+	}
+
+	if err := s.backups.RunScheduled(ctx); err != nil {
+		log.Printf("scheduler backup run failed: %v", err)
 	}
 }

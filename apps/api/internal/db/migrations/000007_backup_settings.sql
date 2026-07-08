@@ -1,0 +1,22 @@
+CREATE TABLE backup_settings (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  enabled INTEGER NOT NULL DEFAULT 0,
+  endpoint TEXT NOT NULL DEFAULT '',
+  region TEXT NOT NULL DEFAULT '',
+  bucket TEXT NOT NULL DEFAULT '',
+  prefix TEXT NOT NULL DEFAULT 'leotime/backups/',
+  access_key_id TEXT NOT NULL DEFAULT '',
+  secret_access_key_enc TEXT NOT NULL DEFAULT '',
+  use_path_style INTEGER NOT NULL DEFAULT 0,
+  schedule_hour INTEGER NOT NULL DEFAULT 1,
+  retention_days INTEGER NOT NULL DEFAULT 365,
+  last_run_at TEXT,
+  last_status TEXT NOT NULL DEFAULT 'never',
+  last_error TEXT NOT NULL DEFAULT '',
+  last_object_key TEXT NOT NULL DEFAULT '',
+  last_restore_at TEXT,
+  last_restore_status TEXT NOT NULL DEFAULT 'never',
+  last_restore_error TEXT NOT NULL DEFAULT '',
+  last_restore_object_key TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL
+);

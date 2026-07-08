@@ -50,6 +50,64 @@ export type ChangePasswordInput = {
   newPassword: string;
 };
 
+export type BackupSettings = {
+  enabled: boolean;
+  endpoint: string;
+  region: string;
+  bucket: string;
+  prefix: string;
+  accessKeyId: string;
+  secretAccessKeyConfigured: boolean;
+  usePathStyle: boolean;
+  scheduleHour: number;
+  retentionDays: number;
+  lastRunAt?: string | null;
+  lastStatus: string;
+  lastError: string;
+  lastObjectKey: string;
+  lastRestoreAt?: string | null;
+  lastRestoreStatus: string;
+  lastRestoreError: string;
+  lastRestoreObjectKey: string;
+};
+
+export type BackupSettingsInput = {
+  enabled: boolean;
+  endpoint: string;
+  region: string;
+  bucket: string;
+  prefix: string;
+  accessKeyId: string;
+  secretAccessKey?: string;
+  usePathStyle: boolean;
+  scheduleHour: number;
+  retentionDays: number;
+};
+
+export type BackupObject = {
+  key: string;
+  sizeBytes: number;
+  lastModified: string;
+};
+
+export type BackupRunResult = {
+  status: string;
+  objectKey?: string;
+  sizeBytes?: number;
+  startedAt: string;
+  finishedAt: string;
+  error?: string;
+};
+
+export type BackupRestoreResult = {
+  status: string;
+  objectKey?: string;
+  safetySnapshotPath?: string;
+  startedAt: string;
+  finishedAt: string;
+  error?: string;
+};
+
 export type SessionResponse = {
   authenticated: boolean;
   user: User | null;
@@ -387,6 +445,30 @@ export async function changePassword(input: ChangePasswordInput): Promise<void> 
   }
 }
 
+export async function fetchBackupSettings(): Promise<BackupSettings> {
+  return apiGet('/api/v1/backups/settings');
+}
+
+export async function updateBackupSettings(input: BackupSettingsInput): Promise<BackupSettings> {
+  return apiJSON('/api/v1/backups/settings', 'PUT', input);
+}
+
+export async function testBackupConnection(input?: BackupSettingsInput): Promise<{ ok: boolean; message: string }> {
+  return apiJSON('/api/v1/backups/test', 'POST', input ?? {});
+}
+
+export async function runBackupNow(): Promise<BackupRunResult> {
+  return apiJSON('/api/v1/backups/run', 'POST', {});
+}
+
+export async function fetchBackupObjects(): Promise<{ objects: BackupObject[] }> {
+  return apiGet('/api/v1/backups/objects');
+}
+
+export async function restoreBackup(input: { objectKey?: string; latest?: boolean; confirm: boolean }): Promise<BackupRestoreResult> {
+  return apiJSON('/api/v1/backups/restore', 'POST', input);
+}
+
 export async function fetchOverview(): Promise<Overview> {
   return apiGet('/api/v1/overview');
 }
@@ -643,6 +725,18 @@ export async function resetPassword(token: string, newPassword: string): Promise
   }
 }
 
+async function readApiError(response: Response): Promise<string> {
+  try {
+    const payload = (await response.json()) as { error?: string };
+    if (payload.error?.trim()) {
+      return payload.error;
+    }
+  } catch {
+    // ignore non-json error bodies
+  }
+  return `request_failed:${response.status}`;
+}
+
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(path, {
     credentials: 'include',
@@ -655,7 +749,7 @@ async function apiGet<T>(path: string): Promise<T> {
   return response.json();
 }
 
-async function apiJSON<T>(path: string, method: 'POST' | 'PATCH', body: unknown): Promise<T> {
+async function apiJSON<T>(path: string, method: 'POST' | 'PATCH' | 'PUT', body: unknown): Promise<T> {
   const response = await fetch(path, {
     method,
     headers: {
@@ -666,7 +760,7 @@ async function apiJSON<T>(path: string, method: 'POST' | 'PATCH', body: unknown)
   });
 
   if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
+    throw new Error(await readApiError(response));
   }
 
   return response.json();

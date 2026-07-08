@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (planned — not yet implemented).
+Accepted.
 
 ## Context
 

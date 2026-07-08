@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/leotime/leotime/apps/api/internal/backup"
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/db"
 	"github.com/leotime/leotime/apps/api/internal/notify"
@@ -953,7 +954,8 @@ func newTestRouter(t *testing.T) http.Handler {
 
 	outboxStore := outbox.NewStore(database)
 	passwordReset := notify.NewPasswordResetService(st, outboxStore, cfg)
-	return NewRouter(cfg, st, passwordReset)
+	backupService := backup.NewService(cfg, st, database)
+	return NewRouter(cfg, st, passwordReset, backupService)
 }
 
 func loginCookies(t *testing.T, router http.Handler) []*http.Cookie {
@@ -1068,7 +1070,9 @@ func TestResetPasswordWithToken(t *testing.T) {
 		PasswordResetTTL:  time.Hour,
 		MailMaxAttempts:   5,
 	}
-	router := NewRouter(cfg, st, notify.NewPasswordResetService(st, outbox.NewStore(database), cfg))
+	passwordReset := notify.NewPasswordResetService(st, outbox.NewStore(database), cfg)
+	backupService := backup.NewService(cfg, st, database)
+	router := NewRouter(cfg, st, passwordReset, backupService)
 
 	resetResponse := httptest.NewRecorder()
 	resetRequest := httptest.NewRequest(http.MethodPost, "/api/v1/auth/reset-password", bytes.NewBufferString(`{"token":"`+rawToken+`","newPassword":"brand-new-password"}`))

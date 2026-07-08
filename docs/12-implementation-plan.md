@@ -39,6 +39,7 @@ Every product slice should include:
 - In-process scheduler for still-running timer notifications with Prometheus metrics.
 - Timer notification settings in profile API and Settings UI.
 - Password reset email with one-time tokens, outbox delivery, and login/reset UI.
+- S3 daily backups with encrypted credentials, scheduler, CLI, restore, and Settings UI.
 - GitHub Actions CI for API tests, web build, Playwright, Docker build, and smoke checks.
 
 ## Post-MVP Delivery Slices
@@ -48,7 +49,7 @@ Every product slice should include:
 | Timer notification settings UI | Done | Profile API + Ajustes toggle and hours field |
 | Solidtime import `still_active_email_sent_at` | Done | Persisted on import create/update |
 | Password reset email | Done | Outbox mail + login/reset UI |
-| S3 daily backups + restore | Next | Spec and plan in `docs/31-s3-daily-backups.md`; 01:00 default, 365d retention, UI + CLI + scheduler |
+| S3 daily backups + restore | Done | Spec in `docs/31-s3-daily-backups.md`; 01:00 default, 365d retention, UI + CLI + scheduler |
 
 All MVP slices in the original plan are complete. Next product slice: S3 backups (unless scope changes).
 
@@ -80,10 +81,4 @@ When port `8080` is already occupied by a local process without static assets, r
 
 ## Current Next Task
 
-Implement **S3 daily backups with restore** per `docs/31-s3-daily-backups.md` and `docs/superpowers/plans/2026-07-07-s3-daily-backups.md`:
-
-- Backend: encrypted settings, snapshot, S3 upload, 365-day retention, restore
-- Scheduler tick (extends existing in-process scheduler)
-- CLI: `leotime backup run|list|restore`
-- Frontend: Settings → Backups panel with restore picker
-- Defaults: schedule hour **1** (01:00 local), retention **365** days
+Backlog engineering items such as seed data or frontend feature splits unless product scope changes.

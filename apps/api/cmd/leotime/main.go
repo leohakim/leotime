@@ -15,6 +15,7 @@ import (
 
 	_ "time/tzdata"
 
+	"github.com/leotime/leotime/apps/api/internal/backup"
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/db"
 	"github.com/leotime/leotime/apps/api/internal/httpapi"
@@ -31,6 +32,12 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "import" {
 		if err := runImportCommand(context.Background(), os.Args[2:]); err != nil {
 			log.Fatalf("import failed: %v", err)
+		}
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "backup" {
+		if err := runBackupCommand(context.Background(), os.Args[2:]); err != nil {
+			log.Fatalf("backup failed: %v", err)
 		}
 		return
 	}
@@ -75,7 +82,8 @@ func main() {
 		RetryPolicy: outbox.DefaultRetryPolicy(cfg.MailRetryBase, cfg.MailRetryMax),
 		OnSent:      notifier.HandleSent,
 	})
-	backgroundScheduler := scheduler.New(cfg, notifier, processor)
+	backupService := backup.NewService(cfg, st, database)
+	backgroundScheduler := scheduler.New(cfg, notifier, processor, backupService)
 
 	go func() {
 		if cfg.SchedulerEnabled {
@@ -83,12 +91,15 @@ func main() {
 		} else {
 			log.Printf("scheduler scan disabled; outbox=%s mail=%s", cfg.OutboxProcessInterval, cfg.MailMode)
 		}
+		if cfg.BackupSchedulerEnabled {
+			log.Printf("backup scheduler enabled: interval=%s", cfg.BackupSchedulerInterval)
+		}
 		backgroundScheduler.Run(runCtx)
 	}()
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(cfg, st, passwordReset),
+		Handler:           httpapi.NewRouter(cfg, st, passwordReset, backupService),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

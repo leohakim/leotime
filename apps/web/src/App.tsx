@@ -72,6 +72,7 @@ import { AppRoute, routeHref, routeShowsTimerBar, routeUsesTimeEntries, useAppRo
 import { AuthScreen } from './lib/authUi';
 import { PlaceholderPage } from './lib/placeholderPageUi';
 import { ProfileSettingsPanel } from './lib/profileSettingsUi';
+import { BackupSettingsPanel } from './lib/backupSettingsUi';
 import {
   patchClientsCache,
   patchProjectsCache,
@@ -516,15 +517,18 @@ function Dashboard({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode,
           {route === 'import-export' ? <ImportExportPanel t={t} /> : null}
 
           {route === 'settings' || route === 'profile' ? (
-            <ProfileSettingsPanel
-              focusSection={route === 'settings' ? 'settings' : undefined}
-              setLayoutMode={setLayoutMode}
-              setLocale={setLocale}
-              setThemeMode={setThemeMode}
-              t={t}
-              themeMode={themeMode}
-              user={user}
-            />
+            <>
+              <ProfileSettingsPanel
+                focusSection={route === 'settings' ? 'settings' : undefined}
+                setLayoutMode={setLayoutMode}
+                setLocale={setLocale}
+                setThemeMode={setThemeMode}
+                t={t}
+                themeMode={themeMode}
+                user={user}
+              />
+              <BackupSettingsPanel t={t} />
+            </>
           ) : null}
         </div>
       </main>

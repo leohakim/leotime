@@ -89,7 +89,7 @@ The owner configures:
 Actions:
 
 - **Save** — persist settings (credentials encrypted at rest)
-- **Test connection** — upload `.../leotime-connection-test.txt`, then delete it
+- **Test connection** — uses the current form values (no save required); uploads `.../leotime-connection-test.txt`, then deletes it
 - **Run now** — immediate backup
 - **Restore** — pick a backup from the list and confirm (see Restore safety)
 
@@ -112,10 +112,32 @@ path-style: false
 **MinIO**
 
 ```text
-endpoint:   https://minio.example.com
+endpoint:   http://minio:9000
 region:     us-east-1
-bucket:     leotime
-path-style: true
+bucket:     leotime-backups
+prefix:     leotime/backups/
+access key: leotime_backups
+secret key: <password from mc admin user add>
+path-style: true (optional — auto-enabled for non-AWS endpoints)
+```
+
+Important for Docker/VPS:
+
+1. The **endpoint must be reachable from the leotime container**, not only from your laptop. Use the Docker service name (`http://minio:9000`) or the internal VPS IP, not a hostname that resolves only outside the stack.
+2. **Access key** = MinIO username (`leotime_backups`). **Secret key** = the password you passed to `mc admin user add`.
+3. Path-style is enabled automatically when the endpoint is not `amazonaws.com`. You can still check the box explicitly.
+4. **Test connection** sends the current form values; you do not need to save first. If it fails, the API now returns the underlying S3 error (for example `Access Denied`, `connection refused`, or `404`).
+5. Verify from the leotime container:
+
+```bash
+docker compose exec leotime /app/leotime backup run --force
+```
+
+Or test with mc using the same credentials:
+
+```bash
+docker exec -it <minio-container> mc alias set test http://127.0.0.1:9000 leotime_backups '<password>'
+docker exec -it <minio-container> mc cp /etc/hosts test/leotime-backups/leotime-connection-test.txt
 ```
 
 **Backblaze B2 (S3-compatible)**
@@ -195,7 +217,26 @@ If `secretAccessKey` is omitted or empty and a secret is already stored, the exi
 
 ### POST /api/v1/backups/test
 
-Uses the saved settings (or optional body override for unsaved drafts). Uploads a small test object, verifies success, deletes the test object.
+Uses saved settings, or optional body override for unsaved drafts (same shape as PUT settings). Uploads a small test object, verifies success, deletes the test object.
+
+Optional body example:
+
+```json
+{
+  "enabled": true,
+  "endpoint": "http://minio:9000",
+  "region": "us-east-1",
+  "bucket": "leotime-backups",
+  "prefix": "leotime/backups/",
+  "accessKeyId": "leotime_backups",
+  "secretAccessKey": "your-password",
+  "usePathStyle": true,
+  "scheduleHour": 1,
+  "retentionDays": 365
+}
+```
+
+On failure the API returns HTTP `502` with the underlying S3 error in `error`.
 
 Response:
 

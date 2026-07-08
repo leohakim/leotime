@@ -35,7 +35,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Still-running timer email | In-process scheduler, outbox, SMTP/log, docs. |
 | Done | Timer notification settings UI | Threshold + toggle in profile settings. |
 | Done | Password reset email | Outbox mail + login/reset UI. |
-| Next | S3 daily backups + restore | UI, CLI, scheduler; 01:00 default, 365d retention; `docs/31-s3-daily-backups.md` |
+| Done | S3 daily backups + restore | UI, CLI, scheduler; 01:00 default, 365d retention; `docs/31-s3-daily-backups.md` |
 | Later | Tauri desktop app | Desktop packaging after web MVP works. |
 | Later | Idle detection | Helpful but not needed for first deployable MVP. |
 | Later | Activity tracking | Backlog from original scope, not MVP. |
@@ -52,7 +52,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Backlog | Visual regression checks | Add screenshot checks after core UI stabilizes. |
 | Backlog | API error codes | Move from plain error text to structured validation errors. |
 | Backlog | Seed/dev data command | Make UI development easier without manual entry. |
-| Next | S3 backup/restore | Snapshot, S3 upload, scheduler, CLI, in-app restore; see `docs/31-s3-daily-backups.md` |
+| Done | S3 backup/restore | Snapshot, S3 upload, scheduler, CLI, in-app restore; see `docs/31-s3-daily-backups.md` |
 | Done | CI pipeline | GitHub Actions: tests, build, Docker, smoke |
 
 ## Documentation Backlog
@@ -76,6 +76,6 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Offline queue MVP | `docs/27-offline-queue-mvp.md`. |
 | Done | Email notifications | `docs/29-email-notifications.md`. |
 | Done | Password reset | `docs/30-password-reset.md`. |
-| Next | S3 daily backups | `docs/31-s3-daily-backups.md`. |
+| Done | S3 daily backups | `docs/31-s3-daily-backups.md`. |
 | Backlog | API reference index | One index linking each resource doc. |
 | Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers. |
