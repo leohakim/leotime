@@ -127,12 +127,12 @@ func (s *Store) InvoiceByID(ctx context.Context, userID string, invoiceID string
 func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, input InvoiceDraftFromTimeInput) (*Invoice, error) {
 	clientID := strings.TrimSpace(input.ClientID)
 	if clientID == "" {
-		return nil, fmt.Errorf("%w: client is required", ErrInvalidInvoiceInput)
+		return nil, validationError(ErrInvalidInvoiceInput, "clientId", "required", "client is required")
 	}
 	from := strings.TrimSpace(input.From)
 	to := strings.TrimSpace(input.To)
 	if from == "" || to == "" {
-		return nil, fmt.Errorf("%w: from and to are required", ErrInvalidInvoiceInput)
+		return nil, validationError(ErrInvalidInvoiceInput, "from", "required", "from and to are required")
 	}
 
 	client, err := s.ClientByID(ctx, userID, clientID)
@@ -150,7 +150,7 @@ func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, i
 		return nil, err
 	}
 	if len(entries) == 0 {
-		return nil, fmt.Errorf("%w: no billable uninvoiced time entries in range", ErrInvalidInvoiceInput)
+		return nil, validationError(ErrInvalidInvoiceInput, "from", "invalid", "no billable uninvoiced time entries in range")
 	}
 
 	projectRates, err := s.projectRateMap(ctx, userID)
@@ -160,11 +160,11 @@ func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, i
 
 	taxRate := input.TaxRateBasisPoints
 	if taxRate < 0 {
-		return nil, fmt.Errorf("%w: tax rate cannot be negative", ErrInvalidInvoiceInput)
+		return nil, validationError(ErrInvalidInvoiceInput, "taxRateBasisPoints", "invalid", "tax rate cannot be negative")
 	}
 	withholding := input.WithholdingMinor
 	if withholding < 0 {
-		return nil, fmt.Errorf("%w: withholding cannot be negative", ErrInvalidInvoiceInput)
+		return nil, validationError(ErrInvalidInvoiceInput, "withholdingBasisPoints", "invalid", "withholding cannot be negative")
 	}
 
 	sellerName := strings.TrimSpace(input.SellerName)
@@ -202,7 +202,7 @@ func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, i
 		})
 	}
 	if len(lineDrafts) == 0 {
-		return nil, fmt.Errorf("%w: no billable time with positive duration", ErrInvalidInvoiceInput)
+		return nil, validationError(ErrInvalidInvoiceInput, "from", "invalid", "no billable time with positive duration")
 	}
 
 	totals := computeInvoiceTotals(lineDrafts, withholding)
@@ -290,14 +290,14 @@ func (s *Store) UpdateInvoice(ctx context.Context, userID string, invoiceID stri
 	}
 	if input.WithholdingMinor != nil {
 		if *input.WithholdingMinor < 0 {
-			return nil, fmt.Errorf("%w: withholding cannot be negative", ErrInvalidInvoiceInput)
+			return nil, validationError(ErrInvalidInvoiceInput, "withholdingBasisPoints", "invalid", "withholding cannot be negative")
 		}
 		invoice.WithholdingMinor = *input.WithholdingMinor
 	}
 
 	if input.TaxRateBasisPoints != nil {
 		if *input.TaxRateBasisPoints < 0 {
-			return nil, fmt.Errorf("%w: tax rate cannot be negative", ErrInvalidInvoiceInput)
+			return nil, validationError(ErrInvalidInvoiceInput, "taxRateBasisPoints", "invalid", "tax rate cannot be negative")
 		}
 		for index := range invoice.Lines {
 			invoice.Lines[index].TaxRateBasisPoints = *input.TaxRateBasisPoints
@@ -353,7 +353,7 @@ func (s *Store) UpdateInvoiceStatus(ctx context.Context, userID string, invoiceI
 	switch status {
 	case "draft", "issued", "paid", "cancelled":
 	default:
-		return nil, fmt.Errorf("%w: invalid status", ErrInvalidInvoiceInput)
+		return nil, validationError(ErrInvalidInvoiceInput, "status", "invalid", "invalid status")
 	}
 
 	invoice, err := s.InvoiceByID(ctx, userID, invoiceID)

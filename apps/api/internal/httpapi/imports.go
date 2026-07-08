@@ -18,31 +18,31 @@ type solidtimeImportResponse struct {
 
 func (s *Server) importSolidtime(w http.ResponseWriter, r *http.Request, user *store.User) {
 	if err := r.ParseMultipartForm(maxSolidtimeImportBytes); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid multipart form")
+		writeError(w, http.StatusBadRequest, "invalid_multipart", "invalid multipart form")
 		return
 	}
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "file is required")
+		writeError(w, http.StatusBadRequest, "file_required", "file is required")
 		return
 	}
 	defer file.Close()
 
 	if header.Size > maxSolidtimeImportBytes {
-		writeError(w, http.StatusBadRequest, "file exceeds 32MB limit")
+		writeError(w, http.StatusBadRequest, "file_too_large", "file exceeds 32MB limit")
 		return
 	}
 
 	filename := strings.ToLower(strings.TrimSpace(header.Filename))
 	if filename != "" && !strings.HasSuffix(filename, ".zip") {
-		writeError(w, http.StatusBadRequest, "file must be a .zip export")
+		writeError(w, http.StatusBadRequest, "invalid_file_type", "file must be a .zip export")
 		return
 	}
 
 	tempFile, err := os.CreateTemp("", "leotime-solidtime-*.zip")
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "create temp file failed")
+		writeError(w, http.StatusInternalServerError, "temp_file_failed", "create temp file failed")
 		return
 	}
 	tempPath := tempFile.Name()
@@ -51,15 +51,15 @@ func (s *Server) importSolidtime(w http.ResponseWriter, r *http.Request, user *s
 
 	written, err := io.Copy(tempFile, io.LimitReader(file, maxSolidtimeImportBytes+1))
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "read upload failed")
+		writeError(w, http.StatusInternalServerError, "upload_read_failed", "read upload failed")
 		return
 	}
 	if written > maxSolidtimeImportBytes {
-		writeError(w, http.StatusBadRequest, "file exceeds 32MB limit")
+		writeError(w, http.StatusBadRequest, "file_too_large", "file exceeds 32MB limit")
 		return
 	}
 	if err := tempFile.Close(); err != nil {
-		writeError(w, http.StatusInternalServerError, "save upload failed")
+		writeError(w, http.StatusInternalServerError, "upload_save_failed", "save upload failed")
 		return
 	}
 

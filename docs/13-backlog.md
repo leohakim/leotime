@@ -51,7 +51,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | --- | --- | --- |
 | Done | Split frontend features | CRUD panels and dashboard shell under `apps/web/src/features/` |
 | Backlog | Visual regression checks | Add screenshot checks after core UI stabilizes. |
-| Backlog | API error codes | Move from plain error text to structured validation errors. |
+| Done | API error codes | Structured `{ error: { code, message, fields } }` responses for validation and domain errors |
 | Done | Seed/dev data command | `make seed` / `leotime seed` loads demo clients, time entries, open timer |
 | Done | S3 backup/restore | Snapshot, S3 upload, scheduler, CLI, in-app restore; see `docs/31-s3-daily-backups.md` |
 | Done | CI pipeline | GitHub Actions: tests, build, Docker, smoke |
@@ -78,5 +78,6 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Email notifications | `docs/29-email-notifications.md`. |
 | Done | Password reset | `docs/30-password-reset.md`. |
 | Done | S3 daily backups | `docs/31-s3-daily-backups.md`. |
+| Done | API error responses | `docs/32-api-errors.md`. |
 | Backlog | API reference index | One index linking each resource doc. |
 | Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers. |

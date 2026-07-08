@@ -226,16 +226,16 @@ func normalizeClientInput(input ClientInput) (ClientInput, error) {
 	}
 
 	if input.Name == "" {
-		return ClientInput{}, fmt.Errorf("%w: name is required", ErrInvalidClientInput)
+		return ClientInput{}, validationError(ErrInvalidClientInput, "name", "required", "name is required")
 	}
 	if !validCurrency(input.DefaultCurrency) {
-		return ClientInput{}, fmt.Errorf("%w: defaultCurrency must be a 3-letter code", ErrInvalidClientInput)
+		return ClientInput{}, validationError(ErrInvalidClientInput, "defaultCurrency", "invalid", "defaultCurrency must be a 3-letter code")
 	}
 	if input.Email != "" && !validEmail(input.Email) {
-		return ClientInput{}, fmt.Errorf("%w: email must be valid", ErrInvalidClientInput)
+		return ClientInput{}, validationError(ErrInvalidClientInput, "email", "invalid", "email must be valid")
 	}
 	if input.DefaultHourlyRateMinor < 0 {
-		return ClientInput{}, fmt.Errorf("%w: defaultHourlyRateMinor must be non-negative", ErrInvalidClientInput)
+		return ClientInput{}, validationError(ErrInvalidClientInput, "defaultHourlyRateMinor", "invalid", "defaultHourlyRateMinor must be non-negative")
 	}
 
 	return input, nil

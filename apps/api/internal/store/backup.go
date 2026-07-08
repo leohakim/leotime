@@ -89,7 +89,7 @@ func (s *Store) UpsertBackupSettings(ctx context.Context, userID string, input B
 	}
 
 	if normalized.Enabled && !hasSecret {
-		return nil, fmt.Errorf("%w: secret access key is required when enabled", ErrInvalidBackupSettings)
+		return nil, validationError(ErrInvalidBackupSettings, "secretAccessKey", "required", "secret access key is required when enabled")
 	}
 
 	now := nowString()
@@ -246,18 +246,18 @@ func normalizeBackupSettingsInput(input BackupSettingsInput, hasSecret bool) (Ba
 	}
 
 	if normalized.ScheduleHour < 0 || normalized.ScheduleHour > 23 {
-		return BackupSettingsInput{}, fmt.Errorf("%w: scheduleHour must be between 0 and 23", ErrInvalidBackupSettings)
+		return BackupSettingsInput{}, validationError(ErrInvalidBackupSettings, "scheduleHourUtc", "invalid", "scheduleHour must be between 0 and 23")
 	}
 	if normalized.RetentionDays < 1 || normalized.RetentionDays > 3650 {
-		return BackupSettingsInput{}, fmt.Errorf("%w: retentionDays must be between 1 and 3650", ErrInvalidBackupSettings)
+		return BackupSettingsInput{}, validationError(ErrInvalidBackupSettings, "retentionDays", "invalid", "retentionDays must be between 1 and 3650")
 	}
 
 	if normalized.Enabled {
 		if normalized.Bucket == "" || normalized.AccessKeyID == "" {
-			return BackupSettingsInput{}, fmt.Errorf("%w: bucket and accessKeyId are required when enabled", ErrInvalidBackupSettings)
+			return BackupSettingsInput{}, validationError(ErrInvalidBackupSettings, "bucket", "required", "bucket and accessKeyId are required when enabled")
 		}
 		if normalized.SecretAccessKey == "" && !hasSecret {
-			return BackupSettingsInput{}, fmt.Errorf("%w: secretAccessKey is required when enabled", ErrInvalidBackupSettings)
+			return BackupSettingsInput{}, validationError(ErrInvalidBackupSettings, "secretAccessKey", "required", "secretAccessKey is required when enabled")
 		}
 	}
 

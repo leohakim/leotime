@@ -20,7 +20,7 @@ type invoicesResponse struct {
 func (s *Server) listInvoices(w http.ResponseWriter, r *http.Request, user *store.User) {
 	invoices, err := s.store.ListInvoices(r.Context(), user.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "load invoices failed")
+		writeError(w, http.StatusInternalServerError, "invoices_load_failed", "load invoices failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, invoicesResponse{Invoices: invoices})
@@ -29,7 +29,7 @@ func (s *Server) listInvoices(w http.ResponseWriter, r *http.Request, user *stor
 func (s *Server) createInvoiceDraftFromTime(w http.ResponseWriter, r *http.Request, user *store.User) {
 	var input store.InvoiceDraftFromTimeInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return
 	}
 
@@ -53,7 +53,7 @@ func (s *Server) getInvoice(w http.ResponseWriter, r *http.Request, user *store.
 func (s *Server) updateInvoice(w http.ResponseWriter, r *http.Request, user *store.User) {
 	var input store.InvoiceUpdateInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return
 	}
 
@@ -70,7 +70,7 @@ func (s *Server) updateInvoiceStatus(w http.ResponseWriter, r *http.Request, use
 		Status string `json:"status"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return
 	}
 
@@ -115,7 +115,7 @@ func (s *Server) exportInvoice(w http.ResponseWriter, r *http.Request, user *sto
 	case "csv":
 		payload, err := renderInvoiceCSV(invoice)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "render csv failed")
+			writeError(w, http.StatusInternalServerError, "report_render_failed", "render csv failed")
 			return
 		}
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -123,7 +123,7 @@ func (s *Server) exportInvoice(w http.ResponseWriter, r *http.Request, user *sto
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(payload)
 	default:
-		writeError(w, http.StatusBadRequest, "format must be html, csv, or json")
+		writeError(w, http.StatusBadRequest, "invalid_format", "format must be html, csv, or json")
 	}
 }
 
@@ -165,13 +165,13 @@ func renderInvoiceCSV(invoice *store.Invoice) ([]byte, error) {
 
 func writeInvoiceError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, store.ErrInvalidInvoiceInput):
-		writeError(w, http.StatusBadRequest, err.Error())
+	case store.IsValidation(err, store.ErrInvalidInvoiceInput):
+		writeValidationStoreError(w, err)
 	case errors.Is(err, store.ErrInvoiceNotFound):
-		writeError(w, http.StatusNotFound, "invoice not found")
+		writeError(w, http.StatusNotFound, "invoice_not_found", "invoice not found")
 	case errors.Is(err, store.ErrInvoiceNotEditable):
-		writeError(w, http.StatusConflict, "invoice is not editable")
+		writeError(w, http.StatusConflict, "invoice_not_editable", "invoice is not editable")
 	default:
-		writeError(w, http.StatusInternalServerError, "invoice operation failed")
+		writeError(w, http.StatusInternalServerError, "invoice_operation_failed", "invoice operation failed")
 	}
 }

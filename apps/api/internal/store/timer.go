@@ -115,12 +115,12 @@ func (s *Store) UpdateOpenTimer(ctx context.Context, userID string, timeEntryID 
 	if strings.TrimSpace(input.StartedAt) != "" {
 		startedAt, err := parseRFC3339(input.StartedAt)
 		if err != nil {
-			return nil, fmt.Errorf("%w: startedAt must be RFC3339", ErrInvalidTimeEntryInput)
+			return nil, validationError(ErrInvalidTimeEntryInput, "startedAt", "invalid", "startedAt must be RFC3339")
 		}
 		startedAt = truncateToMinute(startedAt)
 		now := truncateToMinute(time.Now().UTC())
 		if startedAt.After(now) {
-			return nil, fmt.Errorf("%w: startedAt cannot be in the future", ErrInvalidTimeEntryInput)
+			return nil, validationError(ErrInvalidTimeEntryInput, "startedAt", "invalid", "startedAt cannot be in the future")
 		}
 		startedAtUpdate = &startedAt
 
@@ -304,7 +304,7 @@ func (s *Store) normalizeTimeEntryRelations(ctx context.Context, userID string, 
 			return TimeEntryInput{}, err
 		}
 		if !ok {
-			return TimeEntryInput{}, fmt.Errorf("%w: clientId must reference an active client", ErrInvalidTimeEntryInput)
+			return TimeEntryInput{}, validationError(ErrInvalidTimeEntryInput, "clientId", "invalid", "clientId must reference an active client")
 		}
 	}
 
@@ -312,18 +312,18 @@ func (s *Store) normalizeTimeEntryRelations(ctx context.Context, userID string, 
 		task, err := s.TaskByID(ctx, userID, input.TaskID)
 		if err != nil {
 			if errors.Is(err, ErrTaskNotFound) {
-				return TimeEntryInput{}, fmt.Errorf("%w: taskId must reference an active task", ErrInvalidTimeEntryInput)
+				return TimeEntryInput{}, validationError(ErrInvalidTimeEntryInput, "taskId", "invalid", "taskId must reference an active task")
 			}
 			return TimeEntryInput{}, err
 		}
 		if task.ArchivedAt != "" {
-			return TimeEntryInput{}, fmt.Errorf("%w: taskId must reference an active task", ErrInvalidTimeEntryInput)
+			return TimeEntryInput{}, validationError(ErrInvalidTimeEntryInput, "taskId", "invalid", "taskId must reference an active task")
 		}
 		if task.ProjectID != "" {
 			if input.ProjectID == "" {
 				input.ProjectID = task.ProjectID
 			} else if input.ProjectID != task.ProjectID {
-				return TimeEntryInput{}, fmt.Errorf("%w: projectId must match the selected task project", ErrInvalidTimeEntryInput)
+				return TimeEntryInput{}, validationError(ErrInvalidTimeEntryInput, "projectId", "invalid", "projectId must match the selected task project")
 			}
 		}
 	}
@@ -332,18 +332,18 @@ func (s *Store) normalizeTimeEntryRelations(ctx context.Context, userID string, 
 		project, err := s.ProjectByID(ctx, userID, input.ProjectID)
 		if err != nil {
 			if errors.Is(err, ErrProjectNotFound) {
-				return TimeEntryInput{}, fmt.Errorf("%w: projectId must reference an active project", ErrInvalidTimeEntryInput)
+				return TimeEntryInput{}, validationError(ErrInvalidTimeEntryInput, "projectId", "invalid", "projectId must reference an active project")
 			}
 			return TimeEntryInput{}, err
 		}
 		if project.ArchivedAt != "" {
-			return TimeEntryInput{}, fmt.Errorf("%w: projectId must reference an active project", ErrInvalidTimeEntryInput)
+			return TimeEntryInput{}, validationError(ErrInvalidTimeEntryInput, "projectId", "invalid", "projectId must reference an active project")
 		}
 		if project.ClientID != "" {
 			if input.ClientID == "" {
 				input.ClientID = project.ClientID
 			} else if input.ClientID != project.ClientID {
-				return TimeEntryInput{}, fmt.Errorf("%w: clientId must match the selected project client", ErrInvalidTimeEntryInput)
+				return TimeEntryInput{}, validationError(ErrInvalidTimeEntryInput, "clientId", "invalid", "clientId must match the selected project client")
 			}
 		}
 	}

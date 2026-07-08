@@ -24,7 +24,7 @@ func (s *Server) listTimeEntries(w http.ResponseWriter, r *http.Request, user *s
 
 	entries, err := s.store.ListTimeEntries(r.Context(), user.ID, options)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "load time entries failed")
+		writeError(w, http.StatusInternalServerError, "time_entries_load_failed", "load time entries failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, timeEntriesResponse{TimeEntries: entries})
@@ -78,7 +78,7 @@ func (s *Server) deleteTimeEntry(w http.ResponseWriter, r *http.Request, user *s
 func decodeTimeEntryInput(w http.ResponseWriter, r *http.Request) (store.TimeEntryInput, bool) {
 	var input store.TimeEntryInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return store.TimeEntryInput{}, false
 	}
 	return input, true
@@ -86,11 +86,11 @@ func decodeTimeEntryInput(w http.ResponseWriter, r *http.Request) (store.TimeEnt
 
 func writeTimeEntryError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, store.ErrInvalidTimeEntryInput):
-		writeError(w, http.StatusBadRequest, err.Error())
+	case store.IsValidation(err, store.ErrInvalidTimeEntryInput):
+		writeValidationStoreError(w, err)
 	case errors.Is(err, store.ErrTimeEntryNotFound):
-		writeError(w, http.StatusNotFound, "time entry not found")
+		writeError(w, http.StatusNotFound, "time_entry_not_found", "time entry not found")
 	default:
-		writeError(w, http.StatusInternalServerError, "time entry operation failed")
+		writeError(w, http.StatusInternalServerError, "time_entry_operation_failed", "time entry operation failed")
 	}
 }

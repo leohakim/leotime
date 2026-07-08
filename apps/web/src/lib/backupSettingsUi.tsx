@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import {
   fetchBackupObjects,
   fetchBackupSettings,
+  isApiError,
   restoreBackup,
   runBackupNow,
   testBackupConnection,
@@ -108,7 +109,9 @@ export function BackupSettingsPanel({ t }: { t: Translator }) {
       toast.success(t('backupSettingsSaved'));
     },
     onError: (error: Error) => {
-      const message = error.message.includes('503') ? t('backupSecretsKeyMissing') : t('backupSettingsSaveFailed');
+      const secretsMissing =
+        isApiError(error) && (error.status === 503 || error.code === 'backup_secrets_key_missing');
+      const message = secretsMissing ? t('backupSecretsKeyMissing') : t('backupSettingsSaveFailed');
       setErrors({ form: message });
       toast.error(message);
     },

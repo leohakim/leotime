@@ -55,8 +55,9 @@ Every product slice should include:
 | Backup/restore email notifications | Done | Profile toggles, outbox kinds, localized templates; see `docs/29-email-notifications.md` |
 | Seed/dev data command | Done | `make seed` / `leotime seed`; see `docs/10-operations.md` |
 | Frontend feature split | Done | CRUD panels and `DashboardShell` under `apps/web/src/features/` |
+| API error codes | Done | Structured JSON error payloads with validation `fields` |
 
-All MVP slices in the original plan are complete. Next engineering slice: structured API error codes unless product scope changes.
+All MVP slices in the original plan are complete. Next engineering slice: visual regression checks unless product scope changes.
 
 ## Quality Gates By Slice
 
@@ -86,4 +87,4 @@ When port `8080` is already occupied by a local process without static assets, r
 
 ## Current Next Task
 
-Backlog engineering items such as structured API error codes unless product scope changes.
+Backlog engineering items such as visual regression checks unless product scope changes.

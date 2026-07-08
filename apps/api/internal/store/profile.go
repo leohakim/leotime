@@ -224,10 +224,10 @@ func (s *Store) ChangePassword(ctx context.Context, userID string, input ChangeP
 	currentPassword := strings.TrimSpace(input.CurrentPassword)
 	newPassword := strings.TrimSpace(input.NewPassword)
 	if currentPassword == "" || newPassword == "" {
-		return fmt.Errorf("%w: current and new password are required", ErrInvalidPasswordChange)
+		return validationError(ErrInvalidPasswordChange, "currentPassword", "required", "current and new password are required")
 	}
 	if len(newPassword) < 8 {
-		return fmt.Errorf("%w: new password must be at least 8 characters", ErrInvalidPasswordChange)
+		return validationError(ErrInvalidPasswordChange, "newPassword", "invalid", "new password must be at least 8 characters")
 	}
 
 	var passwordHash string
@@ -238,7 +238,7 @@ func (s *Store) ChangePassword(ctx context.Context, userID string, input ChangeP
 		return fmt.Errorf("query password hash: %w", err)
 	}
 	if !auth.VerifyPassword(passwordHash, currentPassword) {
-		return fmt.Errorf("%w: current password is incorrect", ErrInvalidPasswordChange)
+		return validationError(ErrInvalidPasswordChange, "currentPassword", "invalid", "current password is incorrect")
 	}
 
 	nextHash, err := auth.HashPassword(newPassword)
@@ -276,40 +276,40 @@ func normalizeProfileInput(input ProfileUpdateInput) (ProfileUpdateInput, error)
 	}
 
 	if normalized.Name == "" {
-		return ProfileUpdateInput{}, fmt.Errorf("%w: name is required", ErrInvalidProfileInput)
+		return ProfileUpdateInput{}, validationError(ErrInvalidProfileInput, "name", "required", "name is required")
 	}
 	if normalized.Email == "" {
-		return ProfileUpdateInput{}, fmt.Errorf("%w: email is required", ErrInvalidProfileInput)
+		return ProfileUpdateInput{}, validationError(ErrInvalidProfileInput, "email", "required", "email is required")
 	}
 	if _, err := mail.ParseAddress(normalized.Email); err != nil {
-		return ProfileUpdateInput{}, fmt.Errorf("%w: email is invalid", ErrInvalidProfileInput)
+		return ProfileUpdateInput{}, validationError(ErrInvalidProfileInput, "email", "invalid", "email is invalid")
 	}
 	if normalized.Locale != "es" && normalized.Locale != "en" {
-		return ProfileUpdateInput{}, fmt.Errorf("%w: locale must be es or en", ErrInvalidProfileInput)
+		return ProfileUpdateInput{}, validationError(ErrInvalidProfileInput, "locale", "invalid", "locale must be es or en")
 	}
 	if normalized.LayoutMode != "solid" && normalized.LayoutMode != "minimal" && normalized.LayoutMode != "compact" {
-		return ProfileUpdateInput{}, fmt.Errorf("%w: layoutMode is invalid", ErrInvalidProfileInput)
+		return ProfileUpdateInput{}, validationError(ErrInvalidProfileInput, "layoutMode", "invalid", "layoutMode is invalid")
 	}
 	if normalized.ThemeMode != "solid" && normalized.ThemeMode != "light" && normalized.ThemeMode != "dark" && normalized.ThemeMode != "minimal" {
-		return ProfileUpdateInput{}, fmt.Errorf("%w: themeMode is invalid", ErrInvalidProfileInput)
+		return ProfileUpdateInput{}, validationError(ErrInvalidProfileInput, "themeMode", "invalid", "themeMode is invalid")
 	}
 	if normalized.DefaultCurrency == "" {
 		normalized.DefaultCurrency = "EUR"
 	}
 	if len(normalized.DefaultCurrency) != 3 {
-		return ProfileUpdateInput{}, fmt.Errorf("%w: defaultCurrency must be a 3-letter code", ErrInvalidProfileInput)
+		return ProfileUpdateInput{}, validationError(ErrInvalidProfileInput, "defaultCurrency", "invalid", "defaultCurrency must be a 3-letter code")
 	}
 	if normalized.Timezone == "" {
 		normalized.Timezone = "Europe/Madrid"
 	}
 	if _, err := time.LoadLocation(normalized.Timezone); err != nil {
-		return ProfileUpdateInput{}, fmt.Errorf("%w: timezone is invalid", ErrInvalidProfileInput)
+		return ProfileUpdateInput{}, validationError(ErrInvalidProfileInput, "timezone", "invalid", "timezone is invalid")
 	}
 	if normalized.TimerStillRunningHours <= 0 {
 		normalized.TimerStillRunningHours = 8
 	}
 	if normalized.TimerStillRunningHours > 24 {
-		return ProfileUpdateInput{}, fmt.Errorf("%w: timerStillRunningHours must be between 1 and 24", ErrInvalidProfileInput)
+		return ProfileUpdateInput{}, validationError(ErrInvalidProfileInput, "timerStillRunningHours", "invalid", "timerStillRunningHours must be between 1 and 24")
 	}
 
 	return normalized, nil

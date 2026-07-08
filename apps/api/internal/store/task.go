@@ -213,7 +213,7 @@ func (s *Store) normalizeTaskInput(ctx context.Context, userID string, input Tas
 	input.Name = strings.TrimSpace(input.Name)
 
 	if input.Name == "" {
-		return TaskInput{}, fmt.Errorf("%w: name is required", ErrInvalidTaskInput)
+		return TaskInput{}, validationError(ErrInvalidTaskInput, "name", "required", "name is required")
 	}
 
 	required, err := s.taskProjectRequired(ctx, userID)
@@ -221,7 +221,7 @@ func (s *Store) normalizeTaskInput(ctx context.Context, userID string, input Tas
 		return TaskInput{}, err
 	}
 	if required && input.ProjectID == "" {
-		return TaskInput{}, fmt.Errorf("%w: projectId is required by user settings", ErrInvalidTaskInput)
+		return TaskInput{}, validationError(ErrInvalidTaskInput, "projectId", "required", "projectId is required by user settings")
 	}
 	if input.ProjectID != "" {
 		ok, err := s.activeProjectExists(ctx, userID, input.ProjectID)
@@ -229,7 +229,7 @@ func (s *Store) normalizeTaskInput(ctx context.Context, userID string, input Tas
 			return TaskInput{}, err
 		}
 		if !ok {
-			return TaskInput{}, fmt.Errorf("%w: projectId must reference an active project", ErrInvalidTaskInput)
+			return TaskInput{}, validationError(ErrInvalidTaskInput, "projectId", "invalid", "projectId must reference an active project")
 		}
 	}
 

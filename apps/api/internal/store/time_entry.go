@@ -322,25 +322,25 @@ func (s *Store) normalizeTimeEntryInput(ctx context.Context, userID string, time
 	input.EndedAt = strings.TrimSpace(input.EndedAt)
 
 	if input.StartedAt == "" || input.EndedAt == "" {
-		return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: startedAt and endedAt are required", ErrInvalidTimeEntryInput)
+		return TimeEntryInput{}, time.Time{}, time.Time{}, validationError(ErrInvalidTimeEntryInput, "startedAt", "required", "startedAt and endedAt are required")
 	}
 
 	startedAt, err := parseRFC3339(input.StartedAt)
 	if err != nil {
-		return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: startedAt must be RFC3339", ErrInvalidTimeEntryInput)
+		return TimeEntryInput{}, time.Time{}, time.Time{}, validationError(ErrInvalidTimeEntryInput, "startedAt", "invalid", "startedAt must be RFC3339")
 	}
 	endedAt, err := parseRFC3339(input.EndedAt)
 	if err != nil {
-		return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: endedAt must be RFC3339", ErrInvalidTimeEntryInput)
+		return TimeEntryInput{}, time.Time{}, time.Time{}, validationError(ErrInvalidTimeEntryInput, "endedAt", "invalid", "endedAt must be RFC3339")
 	}
 
 	startedAt = truncateToMinute(startedAt)
 	endedAt = truncateToMinute(endedAt)
 	if !endedAt.After(startedAt) {
-		return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: endedAt must be after startedAt", ErrInvalidTimeEntryInput)
+		return TimeEntryInput{}, time.Time{}, time.Time{}, validationError(ErrInvalidTimeEntryInput, "endedAt", "invalid", "endedAt must be after startedAt")
 	}
 	if endedAt.Sub(startedAt) < time.Minute {
-		return TimeEntryInput{}, time.Time{}, time.Time{}, fmt.Errorf("%w: duration must be at least one minute", ErrInvalidTimeEntryInput)
+		return TimeEntryInput{}, time.Time{}, time.Time{}, validationError(ErrInvalidTimeEntryInput, "durationSeconds", "invalid", "duration must be at least one minute")
 	}
 
 	relations, err := s.normalizeTimeEntryRelations(ctx, userID, input)
@@ -360,7 +360,7 @@ func (s *Store) validateTagIDs(ctx context.Context, userID string, tagIDs []stri
 		}
 		if _, err := s.TagByID(ctx, userID, tagID); err != nil {
 			if errors.Is(err, ErrTagNotFound) {
-				return fmt.Errorf("%w: tagIds must reference existing tags", ErrInvalidTimeEntryInput)
+				return validationError(ErrInvalidTimeEntryInput, "tagIds", "invalid", "tagIds must reference existing tags")
 			}
 			return err
 		}

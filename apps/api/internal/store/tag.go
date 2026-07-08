@@ -86,7 +86,7 @@ func (s *Store) CreateTag(ctx context.Context, userID string, input TagInput) (*
 		VALUES (?, ?, ?, ?, ?, ?)
 	`, tagID, userID, normalized.Name, normalized.Color, now, now); err != nil {
 		if isUniqueConstraintError(err) {
-			return nil, fmt.Errorf("%w: name must be unique", ErrDuplicateTagName)
+			return nil, validationError(ErrDuplicateTagName, "name", "duplicate", "name must be unique")
 		}
 		return nil, fmt.Errorf("insert tag: %w", err)
 	}
@@ -107,7 +107,7 @@ func (s *Store) UpdateTag(ctx context.Context, userID string, tagID string, inpu
 	`, normalized.Name, normalized.Color, nowString(), userID, tagID)
 	if err != nil {
 		if isUniqueConstraintError(err) {
-			return nil, fmt.Errorf("%w: name must be unique", ErrDuplicateTagName)
+			return nil, validationError(ErrDuplicateTagName, "name", "duplicate", "name must be unique")
 		}
 		return nil, fmt.Errorf("update tag: %w", err)
 	}
@@ -194,10 +194,10 @@ func (s *Store) normalizeTagInput(ctx context.Context, userID string, tagID stri
 	}
 
 	if input.Name == "" {
-		return TagInput{}, fmt.Errorf("%w: name is required", ErrInvalidTagInput)
+		return TagInput{}, validationError(ErrInvalidTagInput, "name", "required", "name is required")
 	}
 	if !validHexColor(input.Color) {
-		return TagInput{}, fmt.Errorf("%w: color must be a hex color", ErrInvalidTagInput)
+		return TagInput{}, validationError(ErrInvalidTagInput, "color", "invalid", "color must be a hex color")
 	}
 
 	exists, err := s.tagNameTaken(ctx, userID, input.Name, tagID)
@@ -205,7 +205,7 @@ func (s *Store) normalizeTagInput(ctx context.Context, userID string, tagID stri
 		return TagInput{}, err
 	}
 	if exists {
-		return TagInput{}, fmt.Errorf("%w: name must be unique", ErrDuplicateTagName)
+		return TagInput{}, validationError(ErrDuplicateTagName, "name", "duplicate", "name must be unique")
 	}
 
 	return input, nil

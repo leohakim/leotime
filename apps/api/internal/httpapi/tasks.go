@@ -18,7 +18,7 @@ func (s *Server) listTasks(w http.ResponseWriter, r *http.Request, user *store.U
 	projectID := r.URL.Query().Get("projectId")
 	tasks, err := s.store.ListTasks(r.Context(), user.ID, includeArchived, projectID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "load tasks failed")
+		writeError(w, http.StatusInternalServerError, "tasks_load_failed", "load tasks failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, tasksResponse{Tasks: tasks})
@@ -81,7 +81,7 @@ func (s *Server) restoreTask(w http.ResponseWriter, r *http.Request, user *store
 func decodeTaskInput(w http.ResponseWriter, r *http.Request) (store.TaskInput, bool) {
 	var input store.TaskInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return store.TaskInput{}, false
 	}
 	return input, true
@@ -89,11 +89,11 @@ func decodeTaskInput(w http.ResponseWriter, r *http.Request) (store.TaskInput, b
 
 func writeTaskError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, store.ErrInvalidTaskInput):
-		writeError(w, http.StatusBadRequest, err.Error())
+	case store.IsValidation(err, store.ErrInvalidTaskInput):
+		writeValidationStoreError(w, err)
 	case errors.Is(err, store.ErrTaskNotFound):
-		writeError(w, http.StatusNotFound, "task not found")
+		writeError(w, http.StatusNotFound, "task_not_found", "task not found")
 	default:
-		writeError(w, http.StatusInternalServerError, "task operation failed")
+		writeError(w, http.StatusInternalServerError, "task_operation_failed", "task operation failed")
 	}
 }

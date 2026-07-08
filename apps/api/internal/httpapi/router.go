@@ -130,23 +130,23 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return
 	}
 
 	user, err := s.store.Authenticate(r.Context(), request.Email, request.Password)
 	if err != nil {
 		if errors.Is(err, store.ErrInvalidCredentials) {
-			writeError(w, http.StatusUnauthorized, "invalid credentials")
+			writeError(w, http.StatusUnauthorized, "invalid_credentials", "invalid credentials")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "login failed")
+		writeError(w, http.StatusInternalServerError, "login_failed", "login failed")
 		return
 	}
 
 	token, expiresAt, err := s.store.CreateSession(r.Context(), user.ID, s.cfg.SessionTTL)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "create session failed")
+		writeError(w, http.StatusInternalServerError, "session_create_failed", "create session failed")
 		return
 	}
 
@@ -184,7 +184,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) overview(w http.ResponseWriter, r *http.Request, user *store.User) {
 	overview, err := s.store.Overview(r.Context(), user.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "load overview failed")
+		writeError(w, http.StatusInternalServerError, "overview_load_failed", "load overview failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, overview)
@@ -194,7 +194,7 @@ func (s *Server) requireUser(next func(http.ResponseWriter, *http.Request, *stor
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := s.currentUser(r)
 		if !ok {
-			writeError(w, http.StatusUnauthorized, "authentication required")
+			writeError(w, http.StatusUnauthorized, "authentication_required", "authentication required")
 			return
 		}
 		next(w, r, user)
@@ -215,12 +215,12 @@ func (s *Server) currentUser(r *http.Request) (*store.User, bool) {
 
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/api/") {
-		writeError(w, http.StatusNotFound, "not found")
+		writeError(w, http.StatusNotFound, "not_found", "not found")
 		return
 	}
 
 	if s.cfg.StaticDir == "" {
-		writeError(w, http.StatusNotFound, "not found")
+		writeError(w, http.StatusNotFound, "not_found", "not found")
 		return
 	}
 
@@ -242,5 +242,5 @@ func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeError(w, http.StatusNotFound, "not found")
+	writeError(w, http.StatusNotFound, "not_found", "not found")
 }

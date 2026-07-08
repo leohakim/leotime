@@ -734,15 +734,57 @@ export async function resetPassword(token: string, newPassword: string): Promise
 }
 
 async function readApiError(response: Response): Promise<string> {
+  return (await parseApiErrorPayload(response)).message;
+}
+
+export type ApiFieldError = {
+  field: string;
+  code: string;
+  message: string;
+};
+
+export type ApiErrorPayload = {
+  code: string;
+  message: string;
+  fields?: ApiFieldError[];
+};
+
+export class ApiError extends Error {
+  readonly code: string;
+  readonly fields: ApiFieldError[];
+  readonly status: number;
+
+  constructor(status: number, payload: ApiErrorPayload) {
+    super(payload.message);
+    this.name = 'ApiError';
+    this.code = payload.code;
+    this.fields = payload.fields ?? [];
+    this.status = status;
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
+async function parseApiErrorPayload(response: Response): Promise<ApiErrorPayload> {
   try {
-    const payload = (await response.json()) as { error?: string };
-    if (payload.error?.trim()) {
-      return payload.error;
+    const payload = (await response.json()) as { error?: string | ApiErrorPayload };
+    if (typeof payload.error === 'string' && payload.error.trim()) {
+      return { code: 'request_failed', message: payload.error.trim() };
+    }
+    if (payload.error && typeof payload.error === 'object') {
+      const body = payload.error as ApiErrorPayload;
+      return {
+        code: body.code?.trim() || 'request_failed',
+        message: body.message?.trim() || `request_failed:${response.status}`,
+        fields: body.fields,
+      };
     }
   } catch {
     // ignore non-json error bodies
   }
-  return `request_failed:${response.status}`;
+  return { code: 'request_failed', message: `request_failed:${response.status}` };
 }
 
 async function apiGet<T>(path: string): Promise<T> {
@@ -768,7 +810,7 @@ async function apiJSON<T>(path: string, method: 'POST' | 'PATCH' | 'PUT', body: 
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response));
+    throw new ApiError(response.status, await parseApiErrorPayload(response));
   }
 
   return response.json();

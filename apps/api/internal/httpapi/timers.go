@@ -16,7 +16,7 @@ type timersResponse struct {
 func (s *Server) listTimers(w http.ResponseWriter, r *http.Request, user *store.User) {
 	timers, err := s.store.ListOpenTimers(r.Context(), user.ID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "load timers failed")
+		writeError(w, http.StatusInternalServerError, "timers_load_failed", "load timers failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, timersResponse{Timers: timers})
@@ -70,7 +70,7 @@ func (s *Server) discardTimer(w http.ResponseWriter, r *http.Request, user *stor
 func decodeTimerStartInput(w http.ResponseWriter, r *http.Request) (store.TimerStartInput, bool) {
 	var input store.TimerStartInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return store.TimerStartInput{}, false
 	}
 	return input, true
@@ -78,11 +78,11 @@ func decodeTimerStartInput(w http.ResponseWriter, r *http.Request) (store.TimerS
 
 func writeTimerError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, store.ErrInvalidTimeEntryInput):
-		writeError(w, http.StatusBadRequest, err.Error())
+	case store.IsValidation(err, store.ErrInvalidTimeEntryInput):
+		writeValidationStoreError(w, err)
 	case errors.Is(err, store.ErrTimerNotFound):
-		writeError(w, http.StatusNotFound, "timer not found")
+		writeError(w, http.StatusNotFound, "timer_not_found", "timer not found")
 	default:
-		writeError(w, http.StatusInternalServerError, "timer operation failed")
+		writeError(w, http.StatusInternalServerError, "timer_operation_failed", "timer operation failed")
 	}
 }

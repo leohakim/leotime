@@ -284,7 +284,7 @@ func parseActivityMonth(value string) (time.Time, error) {
 	}
 	parsed, err := time.Parse("2006-01", value)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("%w: activityMonth must be YYYY-MM", ErrInvalidDashboardInput)
+		return time.Time{}, validationError(ErrInvalidDashboardInput, "activityMonth", "invalid", "activityMonth must be YYYY-MM")
 	}
 	return time.Date(parsed.Year(), parsed.Month(), 1, 0, 0, 0, 0, time.UTC), nil
 }

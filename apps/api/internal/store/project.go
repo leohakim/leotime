@@ -224,13 +224,13 @@ func (s *Store) normalizeProjectInput(ctx context.Context, userID string, input 
 	}
 
 	if input.Name == "" {
-		return ProjectInput{}, fmt.Errorf("%w: name is required", ErrInvalidProjectInput)
+		return ProjectInput{}, validationError(ErrInvalidProjectInput, "name", "required", "name is required")
 	}
 	if !validHexColor(input.Color) {
-		return ProjectInput{}, fmt.Errorf("%w: color must be a hex color", ErrInvalidProjectInput)
+		return ProjectInput{}, validationError(ErrInvalidProjectInput, "color", "invalid", "color must be a hex color")
 	}
 	if input.DefaultHourlyRateMinor != nil && *input.DefaultHourlyRateMinor < 0 {
-		return ProjectInput{}, fmt.Errorf("%w: defaultHourlyRateMinor must be non-negative", ErrInvalidProjectInput)
+		return ProjectInput{}, validationError(ErrInvalidProjectInput, "defaultHourlyRateMinor", "invalid", "defaultHourlyRateMinor must be non-negative")
 	}
 	if input.ClientID != "" {
 		ok, err := s.activeClientExists(ctx, userID, input.ClientID)
@@ -238,7 +238,7 @@ func (s *Store) normalizeProjectInput(ctx context.Context, userID string, input 
 			return ProjectInput{}, err
 		}
 		if !ok {
-			return ProjectInput{}, fmt.Errorf("%w: clientId must reference an active client", ErrInvalidProjectInput)
+			return ProjectInput{}, validationError(ErrInvalidProjectInput, "clientId", "invalid", "clientId must reference an active client")
 		}
 	}
 

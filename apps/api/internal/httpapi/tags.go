@@ -17,7 +17,7 @@ func (s *Server) listTags(w http.ResponseWriter, r *http.Request, user *store.Us
 	includeArchived := r.URL.Query().Get("includeArchived") == "true"
 	tags, err := s.store.ListTags(r.Context(), user.ID, includeArchived)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "load tags failed")
+		writeError(w, http.StatusInternalServerError, "tags_load_failed", "load tags failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, tagsResponse{Tags: tags})
@@ -80,7 +80,7 @@ func (s *Server) restoreTag(w http.ResponseWriter, r *http.Request, user *store.
 func decodeTagInput(w http.ResponseWriter, r *http.Request) (store.TagInput, bool) {
 	var input store.TagInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return store.TagInput{}, false
 	}
 	return input, true
@@ -88,11 +88,11 @@ func decodeTagInput(w http.ResponseWriter, r *http.Request) (store.TagInput, boo
 
 func writeTagError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, store.ErrInvalidTagInput), errors.Is(err, store.ErrDuplicateTagName):
-		writeError(w, http.StatusBadRequest, err.Error())
+	case store.IsValidation(err, store.ErrInvalidTagInput), store.IsValidation(err, store.ErrDuplicateTagName):
+		writeValidationStoreError(w, err)
 	case errors.Is(err, store.ErrTagNotFound):
-		writeError(w, http.StatusNotFound, "tag not found")
+		writeError(w, http.StatusNotFound, "tag_not_found", "tag not found")
 	default:
-		writeError(w, http.StatusInternalServerError, "tag operation failed")
+		writeError(w, http.StatusInternalServerError, "tag_operation_failed", "tag operation failed")
 	}
 }

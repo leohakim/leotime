@@ -20,7 +20,7 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request, user *store.
 func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request, user *store.User) {
 	var input store.ProfileUpdateInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return
 	}
 
@@ -35,7 +35,7 @@ func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request, user *sto
 func (s *Server) changePassword(w http.ResponseWriter, r *http.Request, user *store.User) {
 	var input store.ChangePasswordInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return
 	}
 
@@ -49,14 +49,14 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request, user *st
 func writeProfileError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrProfileNotFound):
-		writeError(w, http.StatusNotFound, "profile not found")
-	case errors.Is(err, store.ErrInvalidProfileInput):
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusNotFound, "profile_not_found", "profile not found")
+	case store.IsValidation(err, store.ErrInvalidProfileInput):
+		writeValidationStoreError(w, err)
 	case errors.Is(err, store.ErrEmailTaken):
-		writeError(w, http.StatusConflict, "email already in use")
-	case errors.Is(err, store.ErrInvalidPasswordChange):
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusConflict, "email_taken", "email already in use")
+	case store.IsValidation(err, store.ErrInvalidPasswordChange):
+		writeValidationStoreError(w, err)
 	default:
-		writeError(w, http.StatusInternalServerError, "profile operation failed")
+		writeError(w, http.StatusInternalServerError, "profile_operation_failed", "profile operation failed")
 	}
 }

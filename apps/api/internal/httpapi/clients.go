@@ -17,7 +17,7 @@ func (s *Server) listClients(w http.ResponseWriter, r *http.Request, user *store
 	includeArchived := r.URL.Query().Get("includeArchived") == "true"
 	clients, err := s.store.ListClients(r.Context(), user.ID, includeArchived)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "load clients failed")
+		writeError(w, http.StatusInternalServerError, "clients_load_failed", "load clients failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, clientsResponse{Clients: clients})
@@ -80,7 +80,7 @@ func (s *Server) restoreClient(w http.ResponseWriter, r *http.Request, user *sto
 func decodeClientInput(w http.ResponseWriter, r *http.Request) (store.ClientInput, bool) {
 	var input store.ClientInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return store.ClientInput{}, false
 	}
 	return input, true
@@ -88,11 +88,11 @@ func decodeClientInput(w http.ResponseWriter, r *http.Request) (store.ClientInpu
 
 func writeClientError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, store.ErrInvalidClientInput):
-		writeError(w, http.StatusBadRequest, err.Error())
+	case store.IsValidation(err, store.ErrInvalidClientInput):
+		writeValidationStoreError(w, err)
 	case errors.Is(err, store.ErrClientNotFound):
-		writeError(w, http.StatusNotFound, "client not found")
+		writeError(w, http.StatusNotFound, "client_not_found", "client not found")
 	default:
-		writeError(w, http.StatusInternalServerError, "client operation failed")
+		writeError(w, http.StatusInternalServerError, "client_operation_failed", "client operation failed")
 	}
 }

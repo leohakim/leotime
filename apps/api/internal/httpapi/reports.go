@@ -19,7 +19,7 @@ func (s *Server) getTimeReport(w http.ResponseWriter, r *http.Request, user *sto
 
 	report, err := s.store.BuildTimeReport(r.Context(), user.ID, options)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "build report failed")
+		writeError(w, http.StatusInternalServerError, "report_build_failed", "build report failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, report)
@@ -38,7 +38,7 @@ func (s *Server) exportTimeReport(w http.ResponseWriter, r *http.Request, user *
 
 	report, err := s.store.BuildTimeReport(r.Context(), user.ID, options)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "build report failed")
+		writeError(w, http.StatusInternalServerError, "report_build_failed", "build report failed")
 		return
 	}
 
@@ -49,7 +49,7 @@ func (s *Server) exportTimeReport(w http.ResponseWriter, r *http.Request, user *
 	case "csv":
 		payload, err := renderTimeReportCSV(report)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "render csv failed")
+			writeError(w, http.StatusInternalServerError, "report_render_failed", "render csv failed")
 			return
 		}
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -57,7 +57,7 @@ func (s *Server) exportTimeReport(w http.ResponseWriter, r *http.Request, user *
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(payload)
 	default:
-		writeError(w, http.StatusBadRequest, "format must be csv or json")
+		writeError(w, http.StatusBadRequest, "invalid_format", "format must be csv or json")
 	}
 }
 
@@ -65,7 +65,7 @@ func parseTimeReportOptions(w http.ResponseWriter, r *http.Request) (store.TimeR
 	from := strings.TrimSpace(r.URL.Query().Get("from"))
 	to := strings.TrimSpace(r.URL.Query().Get("to"))
 	if from == "" || to == "" {
-		writeError(w, http.StatusBadRequest, "from and to are required")
+		writeError(w, http.StatusBadRequest, "date_range_required", "from and to are required")
 		return store.TimeReportOptions{}, false
 	}
 

@@ -13,12 +13,12 @@ func (s *Server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 		Email string `json:"email"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return
 	}
 
 	if err := s.passwordReset.RequestReset(r.Context(), request.Email); err != nil {
-		writeError(w, http.StatusInternalServerError, "password reset request failed")
+		writeError(w, http.StatusInternalServerError, "password_reset_request_failed", "password reset request failed")
 		return
 	}
 
@@ -31,16 +31,16 @@ func (s *Server) resetPassword(w http.ResponseWriter, r *http.Request) {
 		NewPassword string `json:"newPassword"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return
 	}
 
 	if err := s.passwordReset.ResetPassword(r.Context(), request.Token, request.NewPassword); err != nil {
-		if errors.Is(err, store.ErrInvalidPasswordReset) {
-			writeError(w, http.StatusBadRequest, err.Error())
+		if errors.Is(err, store.ErrInvalidPasswordReset) || store.IsValidation(err, store.ErrInvalidPasswordReset) {
+			writeValidationStoreError(w, err)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "password reset failed")
+		writeError(w, http.StatusInternalServerError, "password_reset_failed", "password reset failed")
 		return
 	}
 

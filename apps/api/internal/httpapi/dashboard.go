@@ -11,10 +11,10 @@ func (s *Server) getDashboardStats(w http.ResponseWriter, r *http.Request, user 
 	stats, err := s.store.BuildDashboardStats(r.Context(), user.ID, r.URL.Query().Get("activityMonth"))
 	if err != nil {
 		if errors.Is(err, store.ErrInvalidDashboardInput) {
-			writeError(w, http.StatusBadRequest, err.Error())
+			writeValidationStoreError(w, err)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "load dashboard stats failed")
+		writeError(w, http.StatusInternalServerError, "dashboard_load_failed", "load dashboard stats failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, stats)

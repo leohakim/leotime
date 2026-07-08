@@ -86,10 +86,10 @@ func (s *Store) ResetPasswordWithToken(ctx context.Context, rawToken string, new
 	rawToken = strings.TrimSpace(rawToken)
 	newPassword = strings.TrimSpace(newPassword)
 	if rawToken == "" {
-		return fmt.Errorf("%w: token is required", ErrInvalidPasswordReset)
+		return validationError(ErrInvalidPasswordReset, "token", "required", "token is required")
 	}
 	if len(newPassword) < 8 {
-		return fmt.Errorf("%w: new password must be at least 8 characters", ErrInvalidPasswordReset)
+		return validationError(ErrInvalidPasswordReset, "newPassword", "invalid", "new password must be at least 8 characters")
 	}
 
 	var tokenID string

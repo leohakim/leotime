@@ -164,6 +164,46 @@ func TestProfileHTTPLifecycle(t *testing.T) {
 	}
 }
 
+func TestClientCreateValidationReturnsStructuredError(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/clients", bytes.NewBufferString(`{
+		"name": "",
+		"defaultCurrency": "EUR"
+	}`))
+	for _, cookie := range cookies {
+		request.AddCookie(cookie)
+	}
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
+	}
+
+	var payload struct {
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+			Fields  []struct {
+				Field   string `json:"field"`
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			} `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode error payload: %v", err)
+	}
+	if payload.Error.Code != "validation_failed" {
+		t.Fatalf("unexpected error code: %s", payload.Error.Code)
+	}
+	if len(payload.Error.Fields) != 1 || payload.Error.Fields[0].Field != "name" || payload.Error.Fields[0].Code != "required" {
+		t.Fatalf("unexpected fields: %+v", payload.Error.Fields)
+	}
+}
+
 func TestClientHTTPLifecycle(t *testing.T) {
 	router := newTestRouter(t)
 	cookies := loginCookies(t, router)

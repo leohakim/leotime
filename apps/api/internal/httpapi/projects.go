@@ -18,7 +18,7 @@ func (s *Server) listProjects(w http.ResponseWriter, r *http.Request, user *stor
 	clientID := r.URL.Query().Get("clientId")
 	projects, err := s.store.ListProjects(r.Context(), user.ID, includeArchived, clientID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "load projects failed")
+		writeError(w, http.StatusInternalServerError, "projects_load_failed", "load projects failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, projectsResponse{Projects: projects})
@@ -81,7 +81,7 @@ func (s *Server) restoreProject(w http.ResponseWriter, r *http.Request, user *st
 func decodeProjectInput(w http.ResponseWriter, r *http.Request) (store.ProjectInput, bool) {
 	var input store.ProjectInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json body")
+		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
 		return store.ProjectInput{}, false
 	}
 	return input, true
@@ -89,11 +89,11 @@ func decodeProjectInput(w http.ResponseWriter, r *http.Request) (store.ProjectIn
 
 func writeProjectError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, store.ErrInvalidProjectInput):
-		writeError(w, http.StatusBadRequest, err.Error())
+	case store.IsValidation(err, store.ErrInvalidProjectInput):
+		writeValidationStoreError(w, err)
 	case errors.Is(err, store.ErrProjectNotFound):
-		writeError(w, http.StatusNotFound, "project not found")
+		writeError(w, http.StatusNotFound, "project_not_found", "project not found")
 	default:
-		writeError(w, http.StatusInternalServerError, "project operation failed")
+		writeError(w, http.StatusInternalServerError, "project_operation_failed", "project operation failed")
 	}
 }
