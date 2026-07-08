@@ -79,21 +79,17 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 
 **Fix:** When `LEOTIME_ENV=production`, startup fails unless `LEOTIME_BOOTSTRAP_PASSWORD` is explicitly set and not `change-me-now`.
 
-### H5. Structured `ApiError` only on `apiJSON` paths
+### H5. Structured `ApiError` only on `apiJSON` paths — **Fixed**
 
 **Location:** `apps/web/src/lib/api.ts`
 
-**Issue:** GET/DELETE/auth helpers still throw plain `Error('request_failed:…')`.
+**Fix:** Shared `ensureOk` / `apiGet` / `apiDelete` / `apiPost` helpers using `parseApiErrorPayload`; GET, DELETE, auth, and most mutations migrated.
 
-**Fix:** Shared `apiFetch` wrapper using `parseApiErrorPayload`.
-
-### H6. `taskProjectRequired` not enforced in UI
+### H6. `taskProjectRequired` not enforced in UI — **Fixed**
 
 **Location:** Profile setting vs `TaskPanel`, timer picker, manual entry
 
-**Issue:** Backend rejects tasks without project when setting is on; frontend still treats project as optional.
-
-**Fix:** Load profile flag in shell; validate forms and map server field errors.
+**Fix:** Shell loads profile flag; forms validate with `validateProjectRequired` and map server field errors.
 
 ### H7. Manual time entry list uses week-scoped query
 
@@ -103,13 +99,11 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 
 **Fix:** Dedicated query (broader range) and honest count label or pagination.
 
-### H8. Offline queue stops on first failure
+### H8. Offline queue stops on first failure — **Fixed**
 
 **Location:** `apps/web/src/lib/offline/sync.ts` (`flushOfflineQueue`)
 
-**Issue:** One bad mutation blocks all later sync.
-
-**Fix:** Continue independent ops where safe; skip/retry UI.
+**Fix:** Continue flushing independent ops after a failed mutation; unit test in `offline.test.ts`.
 
 ### H9. Inline timesheet save used wrong cache key — **Fixed**
 
@@ -119,13 +113,11 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 
 **Fix:** Use `patchTimeEntriesCache`.
 
-### H10. Offline scope is create-heavy only
+### H10. Offline scope is create-heavy only — **Fixed**
 
 **Location:** CRUD panels call API directly for update/archive/delete
 
-**Issue:** Edits/deletes fail offline without queue fallback.
-
-**Fix:** Extend queue or document “offline = create timers/entries only” prominently in UI.
+**Fix:** UI documents limitation via `offlineCreatesOnly` when offline with no pending queue items.
 
 ---
 
@@ -149,12 +141,12 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 | M14 | JSON body size unlimited (except import) — **Fixed** | `httpapi/json_body.go` | 1 MiB default via `MaxBytesReader` |
 | M15 | Report date params unvalidated | `httpapi/reports.go` | Return 400 on bad range |
 | M16 | Dashboard restart timer bypasses offline | `dashboardUi.tsx` | Use offline mutations |
-| M17 | Profile forms ignore `ApiError.fields` | `profileSettingsUi.tsx` | Map field errors |
+| M17 | Profile forms ignore `ApiError.fields` — **Fixed** | `profileSettingsUi.tsx` | Map field errors on profile and password |
 | M18 | Report export before preview | `reportUi.tsx` | Disable until preview OK |
 | M19 | Import invalidates wrong query key — **Fixed** | `importExportUi.tsx` | Use `dashboard-stats` |
 | M20 | `fetchOverview` unused; nav “Overview” is reports | shell + `api.ts` | Wire or rename nav |
 | M21 | Multiple open timers; UI controls first only | `DashboardShell.tsx` | Product decision |
-| M22 | Shell queries lack error states | CRUD panels | Show error pill |
+| M22 | Shell queries lack error states — **Fixed** | CRUD panels | `QueryErrorBanner` with retry |
 | M23 | Locale/theme dual localStorage vs profile | App + profile | Single source of truth |
 | M24 | Backup restore does not refresh app state — **Fixed** | `backupSettingsUi.tsx` | Full reload when `requiresRestart` |
 | M25 | Invoice draft with local client IDs | `invoiceUi.tsx` | Filter `isLocalId` |

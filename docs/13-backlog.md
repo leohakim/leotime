@@ -16,8 +16,8 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | --- | --- | --- |
 | **0** | Production hardening (restore safety, static files, metrics, bootstrap password, rate limits, JSON body limits) | **Done** |
 | **1** | Backup stability (restore latest sort, validation, generic errors, HTTP tests, prune best-effort) | **Done** |
-| **2** | UX/API coherence (`ApiError` everywhere, `taskProjectRequired`, offline queue, profile field errors) | **Next** |
-| **3** | ADR 0004 billing documents (official PDFs, fiscal series, Work Protocol) | Backlog |
+| **2** | UX/API coherence (`ApiError` everywhere, `taskProjectRequired`, offline queue, profile field errors) | **Done** |
+| **3** | ADR 0004 billing documents (official PDFs, fiscal series, Work Protocol) | **Next** |
 | **4** | Product polish (remaining audit medium/low items) | Backlog |
 | **5** | UI/UX experience themes (10-sprint design spec) | Backlog |
 | **6** | Tooling (visual regression, contributor tutorial) | Backlog |
@@ -81,17 +81,17 @@ See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*,
 | M11 | Backup HTTP tests | Auth, confirm, secrets key, status, generic remote errors |
 | M24 | Restore reload UX | Done in Phase 0 via `requiresRestart` |
 
-## Phase 2 — UX / API Coherence (Next)
+## Phase 2 — UX / API Coherence (Done)
 
 | ID | Item | Notes |
 | --- | --- | --- |
-| H5 | `ApiError` on all fetch paths | GET/DELETE/auth helpers |
-| H6 | `taskProjectRequired` in UI | Tasks, timer, manual entry |
-| H7 | Manual entry directory query | Not week-scoped only |
-| H8 | Offline queue resilient flush | Continue independent ops; retry UI |
-| H10 | Offline update/delete scope | Extend queue or document limitation |
-| M17 | Profile `ApiError.fields` | Map field errors in UI |
-| M22 | CRUD error states | Error pill in panels |
+| H5 | `ApiError` on all fetch paths | `apiGet`/`apiDelete`/`apiPost` helpers; auth and CRUD migrated |
+| H6 | `taskProjectRequired` in UI | Tasks, timer, manual entry, inline timesheet |
+| H7 | Manual entry directory query | Not week-scoped only — deferred to Phase 4 |
+| H8 | Offline queue resilient flush | Continue independent ops after failure |
+| H10 | Offline update/delete scope | Documented in UI (`offlineCreatesOnly`) |
+| M17 | Profile `ApiError.fields` | Map field errors in profile and password forms |
+| M22 | CRUD error states | `QueryErrorBanner` + retry in shell panels |
 
 ## Accepted ADRs and designs (not implemented)
 
@@ -111,7 +111,7 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | Done | Seed/dev data command | `make seed` / `leotime seed` |
 | Done | S3 backup/restore | Snapshot, S3 upload, scheduler, CLI, in-app restore |
 | Done | CI pipeline | GitHub Actions: tests, build, Docker, smoke |
-| Done | Phase 0 production hardening | Maintenance mode, metrics auth, rate limits, body limits |
+| Done | Phase 2 UX/API coherence | ApiError helpers, taskProjectRequired, offline flush, profile fields, query error banners |
 | Backlog | Visual regression checks | Add screenshot checks after core UI stabilizes |
 | Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers |
 

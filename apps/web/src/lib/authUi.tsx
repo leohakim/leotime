@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { ArrowLeft, Languages, Mail, Play, Save } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
-import { login, requestPasswordReset, resetPassword, type Locale } from './api';
+import { login, isApiError, requestPasswordReset, resetPassword, type Locale } from './api';
 import type { MessageKey } from './i18n';
 import { LeotimeLogo } from './leotimeLogo';
 import { useToast } from './toast';
@@ -55,7 +55,9 @@ export function AuthScreen({
     onSuccess: () => {
       onAuthenticated();
     },
-    onError: () => toast.error(t('loginFailed')),
+    onError: (error) => {
+      toast.error(isApiError(error) && error.code === 'invalid_credentials' ? t('loginFailed') : isApiError(error) ? error.message : t('loginFailed'));
+    },
   });
 
   const forgotMutation = useMutation({

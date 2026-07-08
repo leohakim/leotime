@@ -440,18 +440,7 @@ export async function updateProfile(input: ProfileUpdateInput): Promise<Profile>
 }
 
 export async function changePassword(input: ChangePasswordInput): Promise<void> {
-  const response = await fetch('/api/v1/profile/change-password', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify(input),
-  });
-
-  if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
-  }
+  await apiPostNoContent('/api/v1/profile/change-password', input);
 }
 
 export async function fetchBackupSettings(): Promise<BackupSettings> {
@@ -549,16 +538,7 @@ export async function startTimer(input: TimerStartInput): Promise<TimeEntry> {
 }
 
 export async function stopTimer(timeEntryId: string): Promise<TimeEntry> {
-  const response = await fetch(`/api/v1/timers/${timeEntryId}/stop`, {
-    method: 'POST',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
-  }
-
-  return response.json();
+  return apiPost<TimeEntry>(`/api/v1/timers/${timeEntryId}/stop`, {});
 }
 
 export async function updateTimer(timeEntryId: string, input: TimerStartInput): Promise<TimeEntry> {
@@ -574,14 +554,7 @@ export async function updateClient(clientId: string, input: ClientInput): Promis
 }
 
 export async function archiveClient(clientId: string): Promise<void> {
-  const response = await fetch(`/api/v1/clients/${clientId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
-  }
+  await apiDelete(`/api/v1/clients/${clientId}`);
 }
 
 export async function restoreClient(clientId: string): Promise<Client> {
@@ -597,14 +570,7 @@ export async function updateProject(projectId: string, input: ProjectInput): Pro
 }
 
 export async function archiveProject(projectId: string): Promise<void> {
-  const response = await fetch(`/api/v1/projects/${projectId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
-  }
+  await apiDelete(`/api/v1/projects/${projectId}`);
 }
 
 export async function restoreProject(projectId: string): Promise<Project> {
@@ -620,14 +586,7 @@ export async function updateTask(taskId: string, input: TaskInput): Promise<Task
 }
 
 export async function archiveTask(taskId: string): Promise<void> {
-  const response = await fetch(`/api/v1/tasks/${taskId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
-  }
+  await apiDelete(`/api/v1/tasks/${taskId}`);
 }
 
 export async function restoreTask(taskId: string): Promise<Task> {
@@ -643,14 +602,7 @@ export async function updateTag(tagId: string, input: TagInput): Promise<Tag> {
 }
 
 export async function archiveTag(tagId: string): Promise<void> {
-  const response = await fetch(`/api/v1/tags/${tagId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
-  }
+  await apiDelete(`/api/v1/tags/${tagId}`);
 }
 
 export async function restoreTag(tagId: string): Promise<Tag> {
@@ -666,31 +618,11 @@ export async function updateTimeEntry(timeEntryId: string, input: TimeEntryInput
 }
 
 export async function deleteTimeEntry(timeEntryId: string): Promise<void> {
-  const response = await fetch(`/api/v1/time-entries/${timeEntryId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
-  }
+  await apiDelete(`/api/v1/time-entries/${timeEntryId}`);
 }
 
 export async function login(email: string, password: string): Promise<SessionResponse> {
-  const response = await fetch('/api/v1/auth/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!response.ok) {
-    throw new Error('login_failed');
-  }
-
-  return response.json();
+  return apiPost<SessionResponse>('/api/v1/auth/login', { email, password });
 }
 
 export async function logout(): Promise<void> {
@@ -698,44 +630,15 @@ export async function logout(): Promise<void> {
     method: 'POST',
     credentials: 'include',
   });
-
-  if (!response.ok) {
-    throw new Error('logout_failed');
-  }
+  await ensureOk(response);
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  const response = await fetch('/api/v1/auth/forgot-password', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify({ email }),
-  });
-
-  if (!response.ok) {
-    throw new Error('password_reset_request_failed');
-  }
+  await apiPostNoContent('/api/v1/auth/forgot-password', { email });
 }
 
 export async function resetPassword(token: string, newPassword: string): Promise<void> {
-  const response = await fetch('/api/v1/auth/reset-password', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify({ token, newPassword }),
-  });
-
-  if (!response.ok) {
-    throw new Error('password_reset_failed');
-  }
-}
-
-async function readApiError(response: Response): Promise<string> {
-  return (await parseApiErrorPayload(response)).message;
+  await apiPostNoContent('/api/v1/auth/reset-password', { token, newPassword });
 }
 
 export type ApiFieldError = {
@@ -768,6 +671,24 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
+export function mapApiFieldErrors<T extends string>(
+  error: unknown,
+  mapping: Record<string, T>,
+): Partial<Record<T, string>> {
+  if (!isApiError(error) || error.fields.length === 0) {
+    return {};
+  }
+
+  const mapped: Partial<Record<T, string>> = {};
+  for (const field of error.fields) {
+    const key = mapping[field.field];
+    if (key) {
+      mapped[key] = field.message;
+    }
+  }
+  return mapped;
+}
+
 async function parseApiErrorPayload(response: Response): Promise<ApiErrorPayload> {
   try {
     const payload = (await response.json()) as { error?: string | ApiErrorPayload };
@@ -788,16 +709,51 @@ async function parseApiErrorPayload(response: Response): Promise<ApiErrorPayload
   return { code: 'request_failed', message: `request_failed:${response.status}` };
 }
 
+async function ensureOk(response: Response): Promise<void> {
+  if (!response.ok) {
+    throw new ApiError(response.status, await parseApiErrorPayload(response));
+  }
+}
+
 async function apiGet<T>(path: string): Promise<T> {
   const response = await fetch(path, {
     credentials: 'include',
   });
+  await ensureOk(response);
+  return response.json() as Promise<T>;
+}
 
-  if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
-  }
+async function apiDelete(path: string): Promise<void> {
+  const response = await fetch(path, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  await ensureOk(response);
+}
 
-  return response.json();
+async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+  await ensureOk(response);
+  return response.json() as Promise<T>;
+}
+
+async function apiPostNoContent(path: string, body: unknown): Promise<void> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  });
+  await ensureOk(response);
 }
 
 async function apiJSON<T>(path: string, method: 'POST' | 'PATCH' | 'PUT', body: unknown): Promise<T> {
@@ -844,11 +800,7 @@ export async function downloadTimeReportExport(params: TimeReportParams, format:
   const response = await fetch(`/api/v1/reports/time/export?${buildTimeReportSearch({ ...params, format })}`, {
     credentials: 'include',
   });
-
-  if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
-  }
-
+  await ensureOk(response);
   return response.blob();
 }
 
@@ -873,25 +825,14 @@ export async function updateInvoiceStatus(invoiceId: string, status: InvoiceStat
 }
 
 export async function deleteInvoice(invoiceId: string): Promise<void> {
-  const response = await fetch(`/api/v1/invoices/${invoiceId}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
-  }
+  await apiDelete(`/api/v1/invoices/${invoiceId}`);
 }
 
 export async function downloadInvoiceExport(invoiceId: string, format: 'html' | 'csv' | 'json'): Promise<Blob> {
   const response = await fetch(`/api/v1/invoices/${invoiceId}/export?format=${format}`, {
     credentials: 'include',
   });
-
-  if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
-  }
-
+  await ensureOk(response);
   return response.blob();
 }
 

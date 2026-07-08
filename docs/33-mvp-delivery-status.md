@@ -85,7 +85,7 @@ Documented in [Backlog](13-backlog.md) as **Later** or **Backlog**:
 
 ## Next Recommended Work
 
-1. **Phase 2** UX/API coherence in [Backlog](13-backlog.md) (H5, H6, H8, H10, M17, M22).
-2. **Phase 3** ADR 0004 billing documents after Phase 2 hardening.
+1. **Phase 3** ADR 0004 billing documents in [Backlog](13-backlog.md) (official PDFs, fiscal series, Work Protocol).
+2. **Phase 4** polish items (H7 manual entry directory, remaining audit medium/low).
 
 After deploying to production, set `LEOTIME_ENV=production`, a strong `LEOTIME_BOOTSTRAP_PASSWORD`, `LEOTIME_METRICS_TOKEN`, and configure SMTP + S3 backup. See [VPS deployment](06-deploy-vps.md).

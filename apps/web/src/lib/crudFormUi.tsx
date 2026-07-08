@@ -1,3 +1,5 @@
+import { CircleAlert } from 'lucide-react';
+import { isApiError } from './api';
 import type { Translator } from './translator';
 
 export function fieldClass(error?: string) {
@@ -60,4 +62,39 @@ export function initials(value: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join('');
+}
+
+export function validateProjectRequired(projectId: string, taskProjectRequired: boolean, t: Translator): string | undefined {
+  if (taskProjectRequired && !projectId.trim()) {
+    return t('taskProjectRequired');
+  }
+  return undefined;
+}
+
+export function QueryErrorBanner({
+  error,
+  onRetry,
+  t,
+}: {
+  error: unknown;
+  onRetry?: () => void;
+  t: Translator;
+}) {
+  if (!error) {
+    return null;
+  }
+
+  const message = isApiError(error) ? error.message : t('directoryLoadFailed');
+
+  return (
+    <div className="query-error-banner" role="alert">
+      <CircleAlert aria-hidden="true" />
+      <span>{message}</span>
+      {onRetry ? (
+        <button type="button" onClick={onRetry}>
+          {t('retry')}
+        </button>
+      ) : null}
+    </div>
+  );
 }

@@ -71,6 +71,7 @@ export function TimerCommandRow({
   projects,
   stoppingTimerId,
   tags,
+  taskProjectRequired,
   tasks,
   timers,
   t,
@@ -79,6 +80,7 @@ export function TimerCommandRow({
   projects: Project[];
   stoppingTimerId: string | null;
   tags: Tag[];
+  taskProjectRequired: boolean;
   tasks: Task[];
   timers: TimeEntry[];
   t: Translator;
@@ -268,6 +270,11 @@ export function TimerCommandRow({
 
   function submitStart(event: FormEvent) {
     event.preventDefault();
+    if (taskProjectRequired && !form.projectId.trim()) {
+      setError(t('taskProjectRequired'));
+      return;
+    }
+    setError('');
     startMutation.mutate(buildTimerInput(form, projects, null, { description: form.description.trim() }));
   }
 

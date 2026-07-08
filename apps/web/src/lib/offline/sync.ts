@@ -189,7 +189,6 @@ export async function flushOfflineQueue(): Promise<FlushOfflineQueueResult> {
         retryCount: mutation.retryCount + 1,
         lastError,
       });
-      break;
     }
   }
 

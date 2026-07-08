@@ -3,13 +3,15 @@ import { CircleAlert, CircleCheck, DollarSign, ListTodo, Pencil, Plus, RotateCcw
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   archiveTask,
+  isApiError,
+  mapApiFieldErrors,
   restoreTask,
   updateTask,
   type Project,
   type Task,
   type TaskInput,
 } from '../../lib/api';
-import { DirectoryInactiveHeading, FieldError, fieldClass, hasErrors } from '../../lib/crudFormUi';
+import { DirectoryInactiveHeading, FieldError, fieldClass, hasErrors, validateProjectRequired } from '../../lib/crudFormUi';
 import { patchTasksCache, refreshOverviewIfOnline } from '../../lib/offline/cache';
 import { useOfflineStatus } from '../../lib/offline/offlineContext';
 import { createTask, isLocalId } from '../../lib/offline/mutations';
@@ -37,11 +39,13 @@ const emptyTaskForm: TaskFormState = {
 export function TaskPanel({
   isLoading,
   projects,
+  taskProjectRequired,
   tasks,
   t,
 }: {
   isLoading: boolean;
   projects: Project[];
+  taskProjectRequired: boolean;
   tasks: Task[];
   t: Translator;
 }) {
@@ -52,6 +56,19 @@ export function TaskPanel({
   const [form, setForm] = useState<TaskFormState>(emptyTaskForm);
   const [errors, setErrors] = useState<TaskFormErrors>({});
   const sortedTasks = useMemo(() => sortTasksByNewest(tasks), [tasks]);
+
+  function applyTaskSaveError(error: unknown) {
+    const fieldErrors = mapApiFieldErrors<keyof TaskFormState>(error, {
+      projectId: 'projectId',
+      name: 'name',
+    });
+    setErrors((current) => ({
+      ...current,
+      ...fieldErrors,
+      form: Object.keys(fieldErrors).length > 0 ? undefined : isApiError(error) ? error.message : t('taskSaveFailed'),
+    }));
+    toast.error(isApiError(error) ? error.message : t('taskSaveFailed'));
+  }
 
   const createMutation = useMutation({
     mutationFn: (input: TaskInput) => createTask(input, { projects }),
@@ -66,10 +83,7 @@ export function TaskPanel({
       }
       toastMutationSuccess(toast, t, 'taskCreated', created.id);
     },
-    onError: () => {
-      setErrors((current) => ({ ...current, form: t('taskSaveFailed') }));
-      toast.error(t('taskSaveFailed'));
-    },
+    onError: applyTaskSaveError,
   });
 
   const updateMutation = useMutation({
@@ -100,10 +114,7 @@ export function TaskPanel({
       queryClient.invalidateQueries({ queryKey: ['overview'] });
       toast.success(t('taskUpdated'));
     },
-    onError: () => {
-      setErrors((current) => ({ ...current, form: t('taskSaveFailed') }));
-      toast.error(t('taskSaveFailed'));
-    },
+    onError: applyTaskSaveError,
   });
 
   const inlineUpdateMutation = useMutation({
@@ -173,7 +184,7 @@ export function TaskPanel({
 
   function submitTask(event: FormEvent) {
     event.preventDefault();
-    const validation = validateTaskForm(form, t);
+    const validation = validateTaskForm(form, t, taskProjectRequired);
     setErrors(validation);
     if (hasErrors(validation)) {
       return;
@@ -197,7 +208,7 @@ export function TaskPanel({
     const next = { ...form, [field]: value };
     setForm(next);
     if (hasErrors(errors)) {
-      setErrors(validateTaskForm(next, t));
+      setErrors(validateTaskForm(next, t, taskProjectRequired));
     }
   }
 
@@ -502,7 +513,7 @@ function TaskInlineNameInput({
   );
 }
 
-function validateTaskForm(form: TaskFormState, t: Translator): TaskFormErrors {
+function validateTaskForm(form: TaskFormState, t: Translator, taskProjectRequired: boolean): TaskFormErrors {
   const errors: TaskFormErrors = {};
   const name = form.name.trim();
 
@@ -510,6 +521,11 @@ function validateTaskForm(form: TaskFormState, t: Translator): TaskFormErrors {
     errors.name = t('taskNameRequired');
   } else if (name.length < 2) {
     errors.name = t('taskNameTooShort');
+  }
+
+  const projectError = validateProjectRequired(form.projectId, taskProjectRequired, t);
+  if (projectError) {
+    errors.projectId = projectError;
   }
 
   return errors;

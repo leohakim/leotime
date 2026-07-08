@@ -21,6 +21,7 @@ import {
 import { useEffect, useMemo } from 'react';
 import {
   fetchClients,
+  fetchProfile,
   fetchProjects,
   fetchTags,
   fetchTasks,
@@ -40,7 +41,7 @@ import { LeotimeMark } from '../../lib/leotimeLogo';
 import { AppRoute, routeHref, routeShowsTimerBar, routeUsesTimeEntries, useAppRoute } from '../../lib/appRoutes';
 import { ProfileSettingsPanel } from '../../lib/profileSettingsUi';
 import { BackupSettingsPanel } from '../../lib/backupSettingsUi';
-import { initials } from '../../lib/crudFormUi';
+import { initials, QueryErrorBanner } from '../../lib/crudFormUi';
 import {
   patchTimeEntriesCache,
   refreshOverviewIfOnline,
@@ -159,6 +160,12 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
     queryKey: ['clients'],
     queryFn: () => fetchClients({ includeArchived: true }),
   });
+  const profileQuery = useQuery({
+    queryKey: ['profile'],
+    queryFn: fetchProfile,
+    retry: 1,
+  });
+  const taskProjectRequired = profileQuery.data?.settings.taskProjectRequired ?? false;
   const projectsQuery = useQuery({
     queryKey: ['projects'],
     queryFn: () => fetchProjects({ includeArchived: true }),
@@ -339,6 +346,7 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
               projects={projectsQuery.data?.projects ?? []}
               stoppingTimerId={stopTimerMutation.isPending ? (stopTimerMutation.variables ?? null) : null}
               tags={tagsQuery.data?.tags ?? []}
+              taskProjectRequired={taskProjectRequired}
               tasks={tasksQuery.data?.tasks ?? []}
               timers={openTimers}
               t={t}
@@ -352,18 +360,22 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
           ) : null}
 
           {route === 'timesheet' ? (
-            <TimeEntriesList
-              entries={timeEntriesQuery.data?.timeEntries ?? []}
-              isLoading={timeEntriesQuery.isLoading}
-              locale={locale}
-              onNextWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, 1).toISOString().slice(0, 10))}
-              onPreviousWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, -1).toISOString().slice(0, 10))}
-              onTodayWeek={() => setWeekAnchorIso(new Date().toISOString().slice(0, 10))}
-              projects={projectsQuery.data?.projects ?? []}
-              tasks={tasksQuery.data?.tasks ?? []}
-              t={t}
-              weekAnchor={weekAnchor}
-            />
+            <>
+              <QueryErrorBanner error={timeEntriesQuery.error} onRetry={() => void timeEntriesQuery.refetch()} t={t} />
+              <TimeEntriesList
+                entries={timeEntriesQuery.data?.timeEntries ?? []}
+                isLoading={timeEntriesQuery.isLoading}
+                locale={locale}
+                onNextWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, 1).toISOString().slice(0, 10))}
+                onPreviousWeek={() => setWeekAnchorIso(addWeeks(weekAnchor, -1).toISOString().slice(0, 10))}
+                onTodayWeek={() => setWeekAnchorIso(new Date().toISOString().slice(0, 10))}
+                projects={projectsQuery.data?.projects ?? []}
+                taskProjectRequired={taskProjectRequired}
+                tasks={tasksQuery.data?.tasks ?? []}
+                t={t}
+                weekAnchor={weekAnchor}
+              />
+            </>
           ) : null}
 
           {route === 'calendar' ? (
@@ -405,28 +417,51 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
               locale={locale}
               projects={projectsQuery.data?.projects ?? []}
               tags={tagsQuery.data?.tags ?? []}
+              taskProjectRequired={taskProjectRequired}
               tasks={tasksQuery.data?.tasks ?? []}
               t={t}
               timeEntries={timeEntriesQuery.data?.timeEntries ?? []}
             />
           ) : null}
 
-          {route === 'clients' ? <ClientPanel clients={clientsQuery.data?.clients ?? []} isLoading={clientsQuery.isLoading} t={t} /> : null}
+          {route === 'clients' ? (
+            <>
+              <QueryErrorBanner error={clientsQuery.error} onRetry={() => void clientsQuery.refetch()} t={t} />
+              <ClientPanel clients={clientsQuery.data?.clients ?? []} isLoading={clientsQuery.isLoading} t={t} />
+            </>
+          ) : null}
 
           {route === 'projects' ? (
-            <ProjectPanel
-              clients={clientsQuery.data?.clients ?? []}
-              isLoading={projectsQuery.isLoading}
-              projects={projectsQuery.data?.projects ?? []}
-              t={t}
-            />
+            <>
+              <QueryErrorBanner error={projectsQuery.error} onRetry={() => void projectsQuery.refetch()} t={t} />
+              <ProjectPanel
+                clients={clientsQuery.data?.clients ?? []}
+                isLoading={projectsQuery.isLoading}
+                projects={projectsQuery.data?.projects ?? []}
+                t={t}
+              />
+            </>
           ) : null}
 
           {route === 'tasks' ? (
-            <TaskPanel isLoading={tasksQuery.isLoading} projects={projectsQuery.data?.projects ?? []} tasks={tasksQuery.data?.tasks ?? []} t={t} />
+            <>
+              <QueryErrorBanner error={tasksQuery.error} onRetry={() => void tasksQuery.refetch()} t={t} />
+              <TaskPanel
+                isLoading={tasksQuery.isLoading}
+                projects={projectsQuery.data?.projects ?? []}
+                taskProjectRequired={taskProjectRequired}
+                tasks={tasksQuery.data?.tasks ?? []}
+                t={t}
+              />
+            </>
           ) : null}
 
-          {route === 'tags' ? <TagPanel isLoading={tagsQuery.isLoading} tags={tagsQuery.data?.tags ?? []} t={t} /> : null}
+          {route === 'tags' ? (
+            <>
+              <QueryErrorBanner error={tagsQuery.error} onRetry={() => void tagsQuery.refetch()} t={t} />
+              <TagPanel isLoading={tagsQuery.isLoading} tags={tagsQuery.data?.tags ?? []} t={t} />
+            </>
+          ) : null}
 
           {route === 'import-export' ? <ImportExportPanel t={t} /> : null}
 

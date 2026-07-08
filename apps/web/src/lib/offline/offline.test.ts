@@ -1,7 +1,25 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { buildOptimisticTimeEntry, buildOptimisticTimer } from './optimistic';
-import { createLocalId, isLocalId, remapProjectInput, remapTaskInput } from './sync';
-import { resetOfflineStorageForTests, setServerId } from './db';
+import { createLocalId, enqueueMutation, flushOfflineQueue, isLocalId, remapProjectInput, remapTaskInput } from './sync';
+import { clearQueuedMutations, resetOfflineStorageForTests, setServerId } from './db';
+
+vi.mock('../api', async () => {
+  const actual = await vi.importActual<typeof import('../api')>('../api');
+  return {
+    ...actual,
+    createClient: vi.fn(async () => {
+      throw new Error('first mutation failed');
+    }),
+    createTag: vi.fn(async () => ({
+      id: 'tag_synced',
+      name: 'Synced',
+      color: '#000000',
+      archivedAt: '',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    })),
+  };
+});
 
 describe('offline helpers', () => {
   test('creates stable local id prefix', () => {
@@ -88,5 +106,25 @@ describe('offline helpers', () => {
     });
 
     expect(remapped.projectId).toBe('prj_server_1');
+  });
+
+  test('flushOfflineQueue continues after a failed mutation', async () => {
+    resetOfflineStorageForTests();
+    await clearQueuedMutations();
+
+    await enqueueMutation({
+      operation: 'createClient',
+      localId: 'local_cli_fail',
+      payload: { name: 'Fail', email: '', taxId: '', billingAddress: '', defaultCurrency: 'EUR', defaultHourlyRateMinor: 0 },
+    });
+    await enqueueMutation({
+      operation: 'createTag',
+      localId: 'local_tag_ok',
+      payload: { name: 'Synced', color: '#000000' },
+    });
+
+    const result = await flushOfflineQueue();
+    expect(result.synced).toBe(1);
+    expect(result.failed).toBe(1);
   });
 });

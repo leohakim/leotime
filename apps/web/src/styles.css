@@ -736,6 +736,21 @@ a:focus-visible {
   color: var(--blue);
 }
 
+.query-error-banner {
+  align-items: center;
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: 12px;
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.query-error-banner button {
+  margin-left: auto;
+}
+
 .offline-sync-button {
   background: transparent;
   border: 0;

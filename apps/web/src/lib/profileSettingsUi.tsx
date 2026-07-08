@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   changePassword,
   fetchProfile,
+  isApiError,
+  mapApiFieldErrors,
   updateProfile,
   type ChangePasswordInput,
   type LayoutMode,
@@ -186,9 +188,19 @@ export function ProfileSettingsPanel({
       setErrors({});
       toast.success(t('profileSaved'));
     },
-    onError: () => {
-      setErrors({ form: t('profileSaveFailed') });
-      toast.error(t('profileSaveFailed'));
+    onError: (error) => {
+      const fieldErrors = mapApiFieldErrors<keyof ProfileFormState>(error, {
+        name: 'name',
+        email: 'email',
+        defaultCurrency: 'defaultCurrency',
+        timezone: 'timezone',
+        timerStillRunningHours: 'timerStillRunningHours',
+      });
+      setErrors({
+        ...fieldErrors,
+        form: Object.keys(fieldErrors).length > 0 ? undefined : isApiError(error) ? error.message : t('profileSaveFailed'),
+      });
+      toast.error(isApiError(error) ? error.message : t('profileSaveFailed'));
     },
   });
 
@@ -201,9 +213,16 @@ export function ProfileSettingsPanel({
       void queryClient.invalidateQueries({ queryKey: ['session'] });
       toast.success(t('passwordChanged'));
     },
-    onError: () => {
-      setPasswordErrors({ form: t('passwordChangeFailed') });
-      toast.error(t('passwordChangeFailed'));
+    onError: (error) => {
+      const fieldErrors = mapApiFieldErrors<keyof PasswordFormState>(error, {
+        currentPassword: 'currentPassword',
+        newPassword: 'newPassword',
+      });
+      setPasswordErrors({
+        ...fieldErrors,
+        form: Object.keys(fieldErrors).length > 0 ? undefined : isApiError(error) ? error.message : t('passwordChangeFailed'),
+      });
+      toast.error(isApiError(error) ? error.message : t('passwordChangeFailed'));
     },
   });
 

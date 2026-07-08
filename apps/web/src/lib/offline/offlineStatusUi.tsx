@@ -16,7 +16,7 @@ export function OfflineStatusPill({ t }: { t: Translator }) {
     : !online
       ? pendingCount > 0
         ? t('offlinePendingCount').replace('{count}', String(pendingCount))
-        : t('offlineMode')
+        : t('offlineCreatesOnly')
       : pendingCount > 0
         ? t('offlinePendingCount').replace('{count}', String(pendingCount))
         : lastSyncError

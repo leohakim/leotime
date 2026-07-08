@@ -11,6 +11,7 @@ import {
   type TimeEntry,
   type TimeEntryInput,
 } from './api';
+import { validateProjectRequired } from './crudFormUi';
 import { patchTimeEntriesCache, refreshOverviewIfOnline } from './offline/cache';
 import { useOfflineStatus } from './offline/offlineContext';
 import { createTimeEntry, isLocalId, updateTimeEntry } from './offline/mutations';
@@ -41,6 +42,7 @@ export function TimeEntriesList({
   onPreviousWeek,
   onTodayWeek,
   projects,
+  taskProjectRequired = false,
   tasks,
   t,
   weekAnchor,
@@ -52,6 +54,7 @@ export function TimeEntriesList({
   onPreviousWeek: () => void;
   onTodayWeek: () => void;
   projects: Project[];
+  taskProjectRequired?: boolean;
   tasks: Task[];
   t: Translator;
   weekAnchor: Date;
@@ -105,7 +108,15 @@ export function TimeEntriesList({
       </div>
       <div className="time-entry-list" role="table" aria-label={t('timesheet')}>
         {groupedDays.map((day) => (
-          <TimesheetDaySection day={day} key={day.date} locale={locale} projects={projects} tasks={tasks} t={t} />
+          <TimesheetDaySection
+            day={day}
+            key={day.date}
+            locale={locale}
+            projects={projects}
+            taskProjectRequired={taskProjectRequired}
+            tasks={tasks}
+            t={t}
+          />
         ))}
       </div>
     </section>
@@ -116,12 +127,14 @@ function TimesheetDaySection({
   day,
   locale,
   projects,
+  taskProjectRequired = false,
   tasks,
   t,
 }: {
   day: TimesheetDayGroup;
   locale: Locale;
   projects: Project[];
+  taskProjectRequired?: boolean;
   tasks: Task[];
   t: Translator;
 }) {
@@ -151,7 +164,15 @@ function TimesheetDaySection({
         <strong>{formatDuration(day.totalSeconds)}</strong>
       </div>
       {day.entries.map((entry) => (
-        <TimesheetEntryRow entry={entry} key={entry.id} locale={locale} projects={projects} tasks={tasks} t={t} />
+        <TimesheetEntryRow
+          entry={entry}
+          key={entry.id}
+          locale={locale}
+          projects={projects}
+          taskProjectRequired={taskProjectRequired}
+          tasks={tasks}
+          t={t}
+        />
       ))}
     </div>
   );
@@ -236,6 +257,7 @@ export function ManualTimeEntryPanel({
   locale,
   projects,
   tags,
+  taskProjectRequired = false,
   tasks,
   t,
   timeEntries,
@@ -245,6 +267,7 @@ export function ManualTimeEntryPanel({
   locale: Locale;
   projects: Project[];
   tags: TagRecord[];
+  taskProjectRequired?: boolean;
   tasks: Task[];
   t: Translator;
   timeEntries: TimeEntry[];
@@ -328,7 +351,7 @@ export function ManualTimeEntryPanel({
 
   function submitTimeEntry(event: FormEvent) {
     event.preventDefault();
-    const validation = validateManualTimeEntryForm(form, t);
+    const validation = validateManualTimeEntryForm(form, t, taskProjectRequired);
     setErrors(validation);
     if (hasErrors(validation)) {
       return;
@@ -346,7 +369,7 @@ export function ManualTimeEntryPanel({
     const next = applyManualEntryFieldUpdate(form, field, value, projects, tasks);
     setForm(next);
     if (hasErrors(errors)) {
-      setErrors(validateManualTimeEntryForm(next, t));
+      setErrors(validateManualTimeEntryForm(next, t, taskProjectRequired));
     }
   }
 
@@ -585,7 +608,11 @@ function hasErrors(errors: Record<string, string | undefined>) {
   return Object.values(errors).some(Boolean);
 }
 
-function validateManualTimeEntryForm(form: ManualTimeEntryFormState, t: Translator): ManualTimeEntryFormErrors {
+function validateManualTimeEntryForm(
+  form: ManualTimeEntryFormState,
+  t: Translator,
+  taskProjectRequired = false,
+): ManualTimeEntryFormErrors {
   const errors: ManualTimeEntryFormErrors = {};
 
   if (!form.startedAt) {
@@ -604,6 +631,11 @@ function validateManualTimeEntryForm(form: ManualTimeEntryFormState, t: Translat
         errors.endedAt = t('timeEntryMinDuration');
       }
     }
+  }
+
+  const projectError = validateProjectRequired(form.projectId, taskProjectRequired, t);
+  if (projectError) {
+    errors.projectId = projectError;
   }
 
   return errors;
@@ -662,7 +694,7 @@ function entryToInlineForm(entry: TimeEntry): TimeEntryInlineForm {
   };
 }
 
-function validateInlineForm(form: TimeEntryInlineForm, t: Translator): string {
+function validateInlineForm(form: TimeEntryInlineForm, t: Translator, taskProjectRequired = false): string {
   if (!form.startedAt) {
     return t('timeEntryStartRequired');
   }
@@ -680,6 +712,10 @@ function validateInlineForm(form: TimeEntryInlineForm, t: Translator): string {
   if (end.getTime() - start.getTime() < 60_000) {
     return t('timeEntryMinDuration');
   }
+  const projectError = validateProjectRequired(form.projectId, taskProjectRequired, t);
+  if (projectError) {
+    return projectError;
+  }
   return '';
 }
 
@@ -696,12 +732,14 @@ function useTimeEntryInlineEditor({
   autoSave = true,
   entry,
   projects,
+  taskProjectRequired = false,
   tasks,
   t,
 }: {
   autoSave?: boolean;
   entry: TimeEntry;
   projects: Project[];
+  taskProjectRequired?: boolean;
   tasks: Task[];
   t: Translator;
 }) {
@@ -743,7 +781,7 @@ function useTimeEntryInlineEditor({
       return;
     }
 
-    const validationError = validateInlineForm(form, t);
+    const validationError = validateInlineForm(form, t, taskProjectRequired);
     if (validationError) {
       setError(validationError);
       return;
@@ -758,7 +796,7 @@ function useTimeEntryInlineEditor({
     }, 400);
 
     return () => window.clearTimeout(handle);
-  }, [autoSave, form, entry.id, t]);
+  }, [autoSave, form, entry.id, t, taskProjectRequired]);
 
   function updateField<K extends keyof TimeEntryInlineForm>(field: K, value: TimeEntryInlineForm[K]) {
     userEditedRef.current = true;
@@ -785,16 +823,24 @@ export function TimesheetEntryRow({
   entry,
   locale,
   projects,
+  taskProjectRequired = false,
   tasks,
   t,
 }: {
   entry: TimeEntry;
   locale: Locale;
   projects: Project[];
+  taskProjectRequired?: boolean;
   tasks: Task[];
   t: Translator;
 }) {
-  const { error, form, liveDuration, project, updateField } = useTimeEntryInlineEditor({ entry, projects, tasks, t });
+  const { error, form, liveDuration, project, updateField } = useTimeEntryInlineEditor({
+    entry,
+    projects,
+    taskProjectRequired,
+    tasks,
+    t,
+  });
 
   return (
     <div className="time-entry-row" role="row">
