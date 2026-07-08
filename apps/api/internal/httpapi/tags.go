@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -79,8 +78,7 @@ func (s *Server) restoreTag(w http.ResponseWriter, r *http.Request, user *store.
 
 func decodeTagInput(w http.ResponseWriter, r *http.Request) (store.TagInput, bool) {
 	var input store.TagInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &input) {
 		return store.TagInput{}, false
 	}
 	return input, true

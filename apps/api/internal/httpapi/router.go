@@ -1,27 +1,29 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/leotime/leotime/apps/api/internal/backup"
 	"github.com/leotime/leotime/apps/api/internal/config"
+	"github.com/leotime/leotime/apps/api/internal/maintenance"
 	"github.com/leotime/leotime/apps/api/internal/notify"
 	"github.com/leotime/leotime/apps/api/internal/store"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
-	cfg           config.Config
-	store         *store.Store
-	passwordReset *notify.PasswordResetService
-	backups       *backup.Service
+	cfg                   config.Config
+	store                 *store.Store
+	passwordReset         *notify.PasswordResetService
+	backups               *backup.Service
+	loginLimiter          *fixedWindowLimiter
+	forgotPasswordLimiter *fixedWindowLimiter
 }
 
 type sessionResponse struct {
@@ -30,15 +32,23 @@ type sessionResponse struct {
 }
 
 func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.PasswordResetService, backups *backup.Service) http.Handler {
-	server := &Server{cfg: cfg, store: st, passwordReset: passwordReset, backups: backups}
+	server := &Server{
+		cfg:                   cfg,
+		store:                 st,
+		passwordReset:         passwordReset,
+		backups:               backups,
+		loginLimiter:          newFixedWindowLimiter(10, 15*time.Minute),
+		forgotPasswordLimiter: newFixedWindowLimiter(5, time.Hour),
+	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)
+	r.Use(server.maintenanceMiddleware)
 
 	r.Get("/api/health", server.health)
-	r.Handle("/metrics", promhttp.Handler())
+	r.Get("/metrics", server.metrics)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/session", server.session)
@@ -125,12 +135,15 @@ func (s *Server) session(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	if !s.rateLimitAuth(w, r, "login:"+clientIP(r)) {
+		return
+	}
+
 	var request struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &request) {
 		return
 	}
 
@@ -224,23 +237,53 @@ func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cleanPath := filepath.Clean(strings.TrimPrefix(r.URL.Path, "/"))
-	if cleanPath == "." {
-		cleanPath = "index.html"
+	fullPath, ok := safeStaticFilePath(s.cfg.StaticDir, r.URL.Path)
+	if !ok {
+		writeError(w, http.StatusNotFound, "not_found", "not found")
+		return
 	}
 
-	fullPath := filepath.Join(s.cfg.StaticDir, cleanPath)
 	info, err := os.Stat(fullPath)
 	if err == nil && !info.IsDir() {
 		http.ServeFile(w, r, fullPath)
 		return
 	}
 
-	indexPath := filepath.Join(s.cfg.StaticDir, "index.html")
+	indexPath, ok := safeStaticFilePath(s.cfg.StaticDir, "index.html")
+	if !ok {
+		writeError(w, http.StatusNotFound, "not_found", "not found")
+		return
+	}
 	if _, err := os.Stat(indexPath); err == nil {
 		http.ServeFile(w, r, indexPath)
 		return
 	}
 
 	writeError(w, http.StatusNotFound, "not_found", "not found")
+}
+
+func (s *Server) metrics(w http.ResponseWriter, r *http.Request) {
+	if !metricsAuthorized(s.cfg, r) {
+		writeError(w, http.StatusNotFound, "not_found", "not found")
+		return
+	}
+	promhttp.Handler().ServeHTTP(w, r)
+}
+
+func (s *Server) maintenanceMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !maintenance.Enabled() {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == "/api/health" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			writeError(w, http.StatusServiceUnavailable, "maintenance_mode", "server is in maintenance mode; reload the application")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

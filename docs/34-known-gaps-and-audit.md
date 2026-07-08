@@ -15,15 +15,15 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 
 ## Critical
 
-### C1. Live DB restore while API keeps serving writes
+### C1. Live DB restore while API keeps serving writes — **Fixed**
 
-**Location:** `apps/api/internal/backup/service.go` (`Restore`, `copyDatabaseInto`)
+**Location:** `apps/api/internal/backup/service.go` (`Restore`), `apps/api/internal/maintenance`, `apps/api/internal/httpapi/router.go`
 
 **Issue:** Restore hot-swaps the SQLite file while HTTP handlers and the scheduler continue. Concurrent writes can corrupt the database or produce a partial restore.
 
-**Mitigation today:** Run restore only during maintenance; prefer CLI on a stopped container.
+**Fix:** Enter maintenance mode for the duration of restore; middleware returns `503 maintenance_mode` for `/api/*` (except health); scheduler skips work while maintenance is active. Successful restore returns `requiresRestart: true` and the UI reloads the page.
 
-**Recommended fix:** Maintenance mode (reject writes), or restore-then-restart workflow documented and enforced in UI/CLI.
+**CLI note:** Prefer restore with the HTTP server stopped, or use the in-app restore flow.
 
 ### C2. Offline sync did not remap local IDs for projects/tasks — **Fixed**
 
@@ -61,29 +61,23 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 
 **Fix:** `DELETE FROM sessions WHERE user_id = ?` after password hash update. User must log in again after password change.
 
-### H2. Static file handler path traversal risk
+### H2. Static file handler path traversal risk — **Fixed**
 
-**Location:** `apps/api/internal/httpapi/router.go` (`notFound`)
+**Location:** `apps/api/internal/httpapi/security.go` (`safeStaticFilePath`)
 
-**Issue:** `filepath.Join(staticDir, cleanPath)` without verifying the result stays under `StaticDir`.
+**Fix:** Resolve absolute paths and reject any file outside the static root via `filepath.Rel`.
 
-**Fix:** Resolve absolute path and reject if outside static root.
+### H3. `/metrics` unauthenticated — **Fixed**
 
-### H3. `/metrics` unauthenticated
+**Location:** `apps/api/internal/httpapi/router.go` (`metrics`)
 
-**Location:** `apps/api/internal/httpapi/router.go`
+**Fix:** In `LEOTIME_ENV=production`, `/metrics` returns 404 unless `LEOTIME_METRICS_TOKEN` is set; when set, require Bearer token or `?token=` query param.
 
-**Issue:** Prometheus metrics exposed without auth (backup counters, outbox stats).
+### H4. Default bootstrap credentials — **Fixed**
 
-**Fix:** Bind to internal network, reverse-proxy auth, or separate listener.
+**Location:** `apps/api/internal/config/config.go` (`Validate`)
 
-### H4. Default bootstrap credentials
-
-**Location:** `apps/api/internal/config/config.go`
-
-**Issue:** `admin@example.com` / `change-me-now` on empty database.
-
-**Fix:** Fail startup in production without explicit `LEOTIME_BOOTSTRAP_PASSWORD`; document mandatory rotation.
+**Fix:** When `LEOTIME_ENV=production`, startup fails unless `LEOTIME_BOOTSTRAP_PASSWORD` is explicitly set and not `change-me-now`.
 
 ### H5. Structured `ApiError` only on `apiJSON` paths
 
@@ -150,9 +144,9 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 | M9 | `rates` table unused | migration 000001 | Implement or deprecate |
 | M10 | Outbox double-send if MarkSent fails | `outbox/processor.go` | Idempotency / ordering |
 | M11 | No HTTP tests for backup routes | `router_test.go` | Add coverage |
-| M12 | No login/forgot-password rate limits | `httpapi/router.go` | Throttle per IP/email |
+| M12 | No login/forgot-password rate limits — **Fixed** | `httpapi/ratelimit.go` | 10 login / 15 min per IP; 5 forgot-password / hour per IP+email |
 | M13 | Session DB errors returned as 401 | `router.go` `currentUser` | Distinguish 503 |
-| M14 | JSON body size unlimited (except import) | handlers | `MaxBytesReader` helper |
+| M14 | JSON body size unlimited (except import) — **Fixed** | `httpapi/json_body.go` | 1 MiB default via `MaxBytesReader` |
 | M15 | Report date params unvalidated | `httpapi/reports.go` | Return 400 on bad range |
 | M16 | Dashboard restart timer bypasses offline | `dashboardUi.tsx` | Use offline mutations |
 | M17 | Profile forms ignore `ApiError.fields` | `profileSettingsUi.tsx` | Map field errors |
@@ -162,7 +156,7 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 | M21 | Multiple open timers; UI controls first only | `DashboardShell.tsx` | Product decision |
 | M22 | Shell queries lack error states | CRUD panels | Show error pill |
 | M23 | Locale/theme dual localStorage vs profile | App + profile | Single source of truth |
-| M24 | Backup restore does not refresh app state | `backupSettingsUi.tsx` | Full reload after restore |
+| M24 | Backup restore does not refresh app state — **Fixed** | `backupSettingsUi.tsx` | Full reload when `requiresRestart` |
 | M25 | Invoice draft with local client IDs | `invoiceUi.tsx` | Filter `isLocalId` |
 
 ---

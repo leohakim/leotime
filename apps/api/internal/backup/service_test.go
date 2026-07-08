@@ -94,6 +94,9 @@ func TestServiceRunAndRestore(t *testing.T) {
 	if restoreResult.Status != "success" {
 		t.Fatalf("unexpected restore result: %+v", restoreResult)
 	}
+	if !restoreResult.RequiresRestart {
+		t.Fatal("expected requiresRestart after restore")
+	}
 
 	var count int
 	if err := database.QueryRowContext(ctx, "SELECT COUNT(*) FROM clients WHERE id = 'cli_test'").Scan(&count); err != nil {

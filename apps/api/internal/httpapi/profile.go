@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -19,8 +18,7 @@ func (s *Server) getProfile(w http.ResponseWriter, r *http.Request, user *store.
 
 func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request, user *store.User) {
 	var input store.ProfileUpdateInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &input) {
 		return
 	}
 
@@ -34,8 +32,7 @@ func (s *Server) updateProfile(w http.ResponseWriter, r *http.Request, user *sto
 
 func (s *Server) changePassword(w http.ResponseWriter, r *http.Request, user *store.User) {
 	var input store.ChangePasswordInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &input) {
 		return
 	}
 

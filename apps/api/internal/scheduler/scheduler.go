@@ -7,6 +7,7 @@ import (
 
 	"github.com/leotime/leotime/apps/api/internal/backup"
 	"github.com/leotime/leotime/apps/api/internal/config"
+	"github.com/leotime/leotime/apps/api/internal/maintenance"
 	"github.com/leotime/leotime/apps/api/internal/metrics"
 	"github.com/leotime/leotime/apps/api/internal/notify"
 	"github.com/leotime/leotime/apps/api/internal/outbox"
@@ -63,7 +64,7 @@ func (s *Scheduler) Run(ctx context.Context) {
 }
 
 func (s *Scheduler) runScan(ctx context.Context) {
-	if ctx.Err() != nil {
+	if ctx.Err() != nil || maintenance.Enabled() {
 		return
 	}
 
@@ -80,7 +81,7 @@ func (s *Scheduler) runScan(ctx context.Context) {
 }
 
 func (s *Scheduler) runOutbox(ctx context.Context) {
-	if ctx.Err() != nil {
+	if ctx.Err() != nil || maintenance.Enabled() {
 		return
 	}
 
@@ -103,7 +104,7 @@ func (s *Scheduler) runOutbox(ctx context.Context) {
 }
 
 func (s *Scheduler) runBackup(ctx context.Context) {
-	if ctx.Err() != nil || s.backups == nil {
+	if ctx.Err() != nil || s.backups == nil || maintenance.Enabled() {
 		return
 	}
 

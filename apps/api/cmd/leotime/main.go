@@ -52,6 +52,9 @@ func main() {
 	flag.Parse()
 
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("invalid config: %v", err)
+	}
 	ctx := context.Background()
 
 	database, err := db.Open(ctx, cfg.DBPath)

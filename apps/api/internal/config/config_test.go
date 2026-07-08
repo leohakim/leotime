@@ -65,3 +65,41 @@ func TestFromLookupMailAndSchedulerDefaults(t *testing.T) {
 		t.Fatalf("unexpected public base url %q", cfg.PublicBaseURL)
 	}
 }
+
+func TestValidateRequiresBootstrapPasswordInProduction(t *testing.T) {
+	cfg := FromLookup(func(key string) (string, bool) {
+		if key == "LEOTIME_ENV" {
+			return "production", true
+		}
+		return "", false
+	})
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected production validation error")
+	}
+
+	cfg = FromLookup(func(key string) (string, bool) {
+		switch key {
+		case "LEOTIME_ENV":
+			return "production", true
+		case "LEOTIME_BOOTSTRAP_PASSWORD":
+			return "change-me-now", true
+		}
+		return "", false
+	})
+	if err := cfg.Validate(); err != ErrBootstrapPasswordDefault {
+		t.Fatalf("expected default password error, got %v", err)
+	}
+
+	cfg = FromLookup(func(key string) (string, bool) {
+		switch key {
+		case "LEOTIME_ENV":
+			return "production", true
+		case "LEOTIME_BOOTSTRAP_PASSWORD":
+			return "strong-production-password", true
+		}
+		return "", false
+	})
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected valid production config, got %v", err)
+	}
+}

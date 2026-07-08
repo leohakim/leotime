@@ -85,8 +85,8 @@ Documented in [Backlog](13-backlog.md) as **Later** or **Backlog**:
 
 ## Next Recommended Work
 
-1. Hardening items in [Known gaps and audit](34-known-gaps-and-audit.md) (security, offline, restore safety).
-2. Visual regression checks when UI stabilizes.
-3. Contributor tutorial for Django/Python readers.
+1. **Phase 1** backup stability in [Backlog](13-backlog.md) (M1, M2, M3, M7, M11).
+2. **Phase 2** UX/API coherence (H5, H6, H8, H10, M17, M22).
+3. **Phase 3** ADR 0004 billing documents after Phase 1.
 
-After deploying to production, change bootstrap credentials and configure SMTP + S3 backup. See [VPS deployment](06-deploy-vps.md).
+After deploying to production, set `LEOTIME_ENV=production`, a strong `LEOTIME_BOOTSTRAP_PASSWORD`, `LEOTIME_METRICS_TOKEN`, and configure SMTP + S3 backup. See [VPS deployment](06-deploy-vps.md).

@@ -139,9 +139,14 @@ export function BackupSettingsPanel({ t }: { t: Translator }) {
 
   const restoreMutation = useMutation({
     mutationFn: restoreBackup,
-    onSuccess: () => {
+    onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ['backup-settings'] });
       setRestoreConfirm(false);
+      if (result.requiresRestart) {
+        toast.success(t('backupRestoreReload'));
+        window.setTimeout(() => window.location.reload(), 500);
+        return;
+      }
       toast.success(t('backupRestoreSuccess'));
     },
     onError: () => toast.error(t('backupRestoreFailed')),

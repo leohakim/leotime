@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -80,8 +79,7 @@ func (s *Server) restoreTask(w http.ResponseWriter, r *http.Request, user *store
 
 func decodeTaskInput(w http.ResponseWriter, r *http.Request) (store.TaskInput, bool) {
 	var input store.TaskInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &input) {
 		return store.TaskInput{}, false
 	}
 	return input, true

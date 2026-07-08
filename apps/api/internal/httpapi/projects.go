@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -80,8 +79,7 @@ func (s *Server) restoreProject(w http.ResponseWriter, r *http.Request, user *st
 
 func decodeProjectInput(w http.ResponseWriter, r *http.Request) (store.ProjectInput, bool) {
 	var input store.ProjectInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &input) {
 		return store.ProjectInput{}, false
 	}
 	return input, true

@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -69,8 +68,7 @@ func (s *Server) discardTimer(w http.ResponseWriter, r *http.Request, user *stor
 
 func decodeTimerStartInput(w http.ResponseWriter, r *http.Request) (store.TimerStartInput, bool) {
 	var input store.TimerStartInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &input) {
 		return store.TimerStartInput{}, false
 	}
 	return input, true

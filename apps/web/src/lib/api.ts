@@ -113,6 +113,7 @@ export type BackupRestoreResult = {
   safetySnapshotPath?: string;
   startedAt: string;
   finishedAt: string;
+  requiresRestart?: boolean;
   error?: string;
 };
 

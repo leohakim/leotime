@@ -3,7 +3,6 @@ package httpapi
 import (
 	"bytes"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -28,8 +27,7 @@ func (s *Server) listInvoices(w http.ResponseWriter, r *http.Request, user *stor
 
 func (s *Server) createInvoiceDraftFromTime(w http.ResponseWriter, r *http.Request, user *store.User) {
 	var input store.InvoiceDraftFromTimeInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &input) {
 		return
 	}
 
@@ -52,8 +50,7 @@ func (s *Server) getInvoice(w http.ResponseWriter, r *http.Request, user *store.
 
 func (s *Server) updateInvoice(w http.ResponseWriter, r *http.Request, user *store.User) {
 	var input store.InvoiceUpdateInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &input) {
 		return
 	}
 
@@ -69,8 +66,7 @@ func (s *Server) updateInvoiceStatus(w http.ResponseWriter, r *http.Request, use
 	var request struct {
 		Status string `json:"status"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &request) {
 		return
 	}
 

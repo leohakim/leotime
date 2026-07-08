@@ -15,6 +15,7 @@ import (
 	"github.com/leotime/leotime/apps/api/internal/backup/snapshot"
 	"github.com/leotime/leotime/apps/api/internal/backup/storage"
 	"github.com/leotime/leotime/apps/api/internal/config"
+	"github.com/leotime/leotime/apps/api/internal/maintenance"
 	"github.com/leotime/leotime/apps/api/internal/metrics"
 	"github.com/leotime/leotime/apps/api/internal/store"
 	sqlite "modernc.org/sqlite"
@@ -51,6 +52,7 @@ type RestoreResult struct {
 	SafetySnapshotPath string `json:"safetySnapshotPath"`
 	StartedAt          string `json:"startedAt"`
 	FinishedAt         string `json:"finishedAt"`
+	RequiresRestart    bool   `json:"requiresRestart"`
 	Error              string `json:"error,omitempty"`
 }
 
@@ -258,6 +260,9 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 	}
 	defer s.mu.Unlock()
 
+	maintenance.Enter()
+	defer maintenance.Leave()
+
 	started := time.Now().UTC()
 	result := &RestoreResult{StartedAt: started.Format(time.RFC3339)}
 
@@ -402,6 +407,7 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 	result.ObjectKey = objectKey
 	result.SafetySnapshotPath = safetyPath
 	result.FinishedAt = time.Now().UTC().Format(time.RFC3339)
+	result.RequiresRestart = true
 	shouldNotify = true
 	notifySuccess = true
 	notifyObjectKey = objectKey

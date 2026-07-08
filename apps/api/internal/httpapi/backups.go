@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -21,8 +20,7 @@ func (s *Server) getBackupSettings(w http.ResponseWriter, r *http.Request, user 
 
 func (s *Server) putBackupSettings(w http.ResponseWriter, r *http.Request, user *store.User) {
 	var input store.BackupSettingsInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &input) {
 		return
 	}
 
@@ -36,9 +34,14 @@ func (s *Server) putBackupSettings(w http.ResponseWriter, r *http.Request, user 
 
 func (s *Server) testBackupConnection(w http.ResponseWriter, r *http.Request, user *store.User) {
 	var draft *store.BackupSettingsInput
-	var body store.BackupSettingsInput
-	if err := json.NewDecoder(r.Body).Decode(&body); err == nil && backupDraftProvided(body) {
-		draft = &body
+	if r.ContentLength != 0 {
+		var body store.BackupSettingsInput
+		if !decodeJSONBody(w, r, &body) {
+			return
+		}
+		if backupDraftProvided(body) {
+			draft = &body
+		}
 	}
 
 	if err := s.backups.TestConnection(r.Context(), user.ID, draft); err != nil {
@@ -86,8 +89,7 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request, user *sto
 		Latest    bool   `json:"latest"`
 		Confirm   bool   `json:"confirm"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &request) {
 		return
 	}
 	if !request.Confirm {

@@ -1,8 +1,10 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -15,6 +17,10 @@ type Config struct {
 	SessionCookieName string
 	SessionTTL        time.Duration
 	CookieSecure      bool
+	Production        bool
+	MetricsToken      string
+
+	bootstrapPasswordSet bool
 
 	SchedulerEnabled        bool
 	SchedulerScanInterval   time.Duration
@@ -37,20 +43,41 @@ type Config struct {
 	BackupSchedulerInterval time.Duration
 }
 
+var (
+	ErrBootstrapPasswordRequired = errors.New("LEOTIME_BOOTSTRAP_PASSWORD must be set in production")
+	ErrBootstrapPasswordDefault  = errors.New("LEOTIME_BOOTSTRAP_PASSWORD must not use the default value in production")
+)
+
 func Load() Config {
 	return FromLookup(os.LookupEnv)
 }
 
+func (c Config) Validate() error {
+	if !c.Production {
+		return nil
+	}
+	if !c.bootstrapPasswordSet {
+		return ErrBootstrapPasswordRequired
+	}
+	if c.BootstrapPassword == "change-me-now" {
+		return ErrBootstrapPasswordDefault
+	}
+	return nil
+}
+
 func FromLookup(lookup func(string) (string, bool)) Config {
+	bootstrapPassword, bootstrapPasswordSet := lookupString(lookup, "LEOTIME_BOOTSTRAP_PASSWORD", "change-me-now")
 	return Config{
 		HTTPAddr:          stringEnv(lookup, "LEOTIME_HTTP_ADDR", ":8080"),
 		DBPath:            stringEnv(lookup, "LEOTIME_DB_PATH", "data/leotime.db"),
 		StaticDir:         stringEnv(lookup, "LEOTIME_STATIC_DIR", ""),
 		BootstrapEmail:    stringEnv(lookup, "LEOTIME_BOOTSTRAP_EMAIL", "admin@example.com"),
-		BootstrapPassword: stringEnv(lookup, "LEOTIME_BOOTSTRAP_PASSWORD", "change-me-now"),
+		BootstrapPassword: bootstrapPassword,
 		SessionCookieName: stringEnv(lookup, "LEOTIME_SESSION_COOKIE", "leotime_session"),
 		SessionTTL:        durationEnv(lookup, "LEOTIME_SESSION_TTL", 168*time.Hour),
 		CookieSecure:      boolEnv(lookup, "LEOTIME_COOKIE_SECURE", false),
+		Production:        productionEnv(lookup),
+		MetricsToken:      stringEnv(lookup, "LEOTIME_METRICS_TOKEN", ""),
 
 		SchedulerEnabled:        boolEnv(lookup, "LEOTIME_SCHEDULER_ENABLED", true),
 		SchedulerScanInterval:   durationEnv(lookup, "LEOTIME_SCHEDULER_SCAN_INTERVAL", 10*time.Minute),
@@ -71,7 +98,24 @@ func FromLookup(lookup func(string) (string, bool)) Config {
 		SecretsKey:              stringEnv(lookup, "LEOTIME_SECRETS_KEY", ""),
 		BackupSchedulerEnabled:  boolEnv(lookup, "LEOTIME_BACKUP_SCHEDULER_ENABLED", true),
 		BackupSchedulerInterval: durationEnv(lookup, "LEOTIME_BACKUP_SCHEDULER_INTERVAL", time.Minute),
+		bootstrapPasswordSet:    bootstrapPasswordSet,
 	}
+}
+
+func lookupString(lookup func(string) (string, bool), key string, fallback string) (string, bool) {
+	value, ok := lookup(key)
+	if !ok || value == "" {
+		return fallback, false
+	}
+	return value, true
+}
+
+func productionEnv(lookup func(string) (string, bool)) bool {
+	value, ok := lookup("LEOTIME_ENV")
+	if !ok {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(value), "production")
 }
 
 func stringEnv(lookup func(string) (string, bool), key string, fallback string) string {

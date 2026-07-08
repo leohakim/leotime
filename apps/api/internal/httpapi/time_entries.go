@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -77,8 +76,7 @@ func (s *Server) deleteTimeEntry(w http.ResponseWriter, r *http.Request, user *s
 
 func decodeTimeEntryInput(w http.ResponseWriter, r *http.Request) (store.TimeEntryInput, bool) {
 	var input store.TimeEntryInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &input) {
 		return store.TimeEntryInput{}, false
 	}
 	return input, true

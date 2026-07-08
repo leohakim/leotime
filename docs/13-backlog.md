@@ -10,6 +10,20 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 - `Backlog`: planned but not started.
 - `Later`: intentionally outside the MVP.
 
+## Priority Phases
+
+| Phase | Focus | Status |
+| --- | --- | --- |
+| **0** | Production hardening (restore safety, static files, metrics, bootstrap password, rate limits, JSON body limits) | **Done** |
+| **1** | Backup stability (restore latest sort, validation, generic errors, HTTP tests, prune best-effort) | Next |
+| **2** | UX/API coherence (`ApiError` everywhere, `taskProjectRequired`, offline queue, profile field errors) | Backlog |
+| **3** | ADR 0004 billing documents (official PDFs, fiscal series, Work Protocol) | Backlog |
+| **4** | Product polish (remaining audit medium/low items) | Backlog |
+| **5** | UI/UX experience themes (10-sprint design spec) | Backlog |
+| **6** | Tooling (visual regression, contributor tutorial) | Backlog |
+
+See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*, L*).
+
 ## Product Backlog
 
 | Status | Item | Notes |
@@ -45,11 +59,45 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Later | Public API tokens | Useful after core API stabilizes. |
 | Later | Webhooks | Useful after external integrations exist. |
 
+## Phase 0 — Production Hardening (Done)
+
+| ID | Item | Notes |
+| --- | --- | --- |
+| C1 | Restore maintenance mode | Blocks API + scheduler during DB restore; UI reloads after success |
+| H2 | Static file path traversal guard | `safeStaticFilePath` rejects paths outside `StaticDir` |
+| H3 | Metrics auth | Hidden in production without `LEOTIME_METRICS_TOKEN`; Bearer or `?token=` when set |
+| H4 | Production bootstrap password | `LEOTIME_ENV=production` requires explicit non-default `LEOTIME_BOOTSTRAP_PASSWORD` |
+| M12 | Auth rate limits | Login 10/15min per IP; forgot-password 5/hour per IP+email |
+| M14 | JSON body size limit | 1 MiB default on JSON handlers (`body_too_large`) |
+
+## Phase 1 — Backup Stability (Next)
+
+| ID | Item | Notes |
+| --- | --- | --- |
+| M1 | Restore `latest` sort | Sort S3 objects by `LastModified` before picking |
+| M2 | Restore validation | `integrity_check` + migration version checks |
+| M3 | Prune best-effort | Do not fail backup run after successful upload |
+| M7 | Generic backup client errors | Do not leak S3 internals |
+| M11 | Backup HTTP tests | Route coverage in `router_test.go` |
+| M24 | Restore reload UX | Partially done via `requiresRestart`; verify cache clear |
+
+## Phase 2 — UX / API Coherence (Backlog)
+
+| ID | Item | Notes |
+| --- | --- | --- |
+| H5 | `ApiError` on all fetch paths | GET/DELETE/auth helpers |
+| H6 | `taskProjectRequired` in UI | Tasks, timer, manual entry |
+| H7 | Manual entry directory query | Not week-scoped only |
+| H8 | Offline queue resilient flush | Continue independent ops; retry UI |
+| H10 | Offline update/delete scope | Extend queue or document limitation |
+| M17 | Profile `ApiError.fields` | Map field errors in UI |
+| M22 | CRUD error states | Error pill in panels |
+
 ## Accepted ADRs and designs (not implemented)
 
 | Status | Item | Notes |
 | --- | --- | --- |
-| Accepted, backlog | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol; [32-billing-documents.md](32-billing-documents.md), [plan](superpowers/plans/2026-07-08-billing-documents.md) |
+| Accepted, backlog | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol; [32-billing-documents.md](32-billing-documents.md), [plan](superpowers/plans/2026-07-08-billing-documents.md). **Start after Phase 1.** |
 | Approved, backlog | UI/UX experience themes | Six presets + SolidTime Exact; [design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) |
 
 See [ADR index](adr/README.md) for implementation status of all records.
@@ -59,38 +107,18 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | Status | Item | Notes |
 | --- | --- | --- |
 | Done | Split frontend features | CRUD panels and dashboard shell under `apps/web/src/features/` |
-| Backlog | Visual regression checks | Add screenshot checks after core UI stabilizes. |
-| Done | API error codes | Structured `{ error: { code, message, fields } }` responses for validation and domain errors |
-| Done | Seed/dev data command | `make seed` / `leotime seed` loads demo clients, time entries, open timer |
-| Done | S3 backup/restore | Snapshot, S3 upload, scheduler, CLI, in-app restore; see `docs/31-s3-daily-backups.md` |
+| Done | API error codes | Structured `{ error: { code, message, fields } }` responses |
+| Done | Seed/dev data command | `make seed` / `leotime seed` |
+| Done | S3 backup/restore | Snapshot, S3 upload, scheduler, CLI, in-app restore |
 | Done | CI pipeline | GitHub Actions: tests, build, Docker, smoke |
+| Done | Phase 0 production hardening | Maintenance mode, metrics auth, rate limits, body limits |
+| Backlog | Visual regression checks | Add screenshot checks after core UI stabilizes |
+| Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers |
 
 ## Documentation Backlog
 
 | Status | Item | Notes |
 | --- | --- | --- |
-| Done | Product vision | `docs/01-product-vision.md`. |
-| Done | Architecture docs | Go, data model, offline, testing, deploy, operations. |
-| Done | Rust alternative plan | `docs/07-rust-axum-plan.md`. |
-| Done | Implementation plan | `docs/12-implementation-plan.md`. |
-| Done | Backlog | This file. |
-| Done | Projects API | `docs/14-projects-api.md`. |
-| Done | Tasks API | `docs/16-tasks-api.md`. |
-| Done | Tags API | `docs/17-tags-api.md`. |
-| Done | Time entries API | `docs/18-time-entries-api.md`. |
-| Done | Timers API | `docs/19-timers-api.md`. |
-| Done | Invoices API | `docs/23-invoices-api.md`. |
-| Done | Dashboard API | `docs/24-dashboard-api.md`. |
-| Done | Theme selector | `docs/25-theme-selector.md`. |
-| Done | Profile settings | `docs/26-profile-settings-api.md`. |
-| Done | Offline queue MVP | `docs/27-offline-queue-mvp.md`. |
-| Done | Email notifications | `docs/29-email-notifications.md`. |
-| Done | Password reset | `docs/30-password-reset.md`. |
-| Done | S3 daily backups | `docs/31-s3-daily-backups.md`. |
-| Done | API error responses | `docs/32-api-errors.md`. |
-| Done | API reference index | [00-documentation-index.md](00-documentation-index.md) |
-| Done | MVP delivery status | [33-mvp-delivery-status.md](33-mvp-delivery-status.md) |
-| Done | Known gaps audit | [34-known-gaps-and-audit.md](34-known-gaps-and-audit.md) |
-| Done | ADR index | [adr/README.md](adr/README.md) |
-| Done | Billing documents spec (planned) | [32-billing-documents.md](32-billing-documents.md) |
-| Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers. |
+| Done | Product vision through MVP audit | See [00-documentation-index.md](00-documentation-index.md) |
+| Done | Phase 0 env vars | `.env.example` (`LEOTIME_ENV`, `LEOTIME_METRICS_TOKEN`) |
+| Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers |

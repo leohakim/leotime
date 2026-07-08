@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -79,8 +78,7 @@ func (s *Server) restoreClient(w http.ResponseWriter, r *http.Request, user *sto
 
 func decodeClientInput(w http.ResponseWriter, r *http.Request) (store.ClientInput, bool) {
 	var input store.ClientInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &input) {
 		return store.ClientInput{}, false
 	}
 	return input, true

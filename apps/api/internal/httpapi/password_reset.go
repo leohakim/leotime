@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -12,8 +11,10 @@ func (s *Server) forgotPassword(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Email string `json:"email"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &request) {
+		return
+	}
+	if !s.rateLimitForgotPassword(w, r, request.Email) {
 		return
 	}
 
@@ -30,8 +31,7 @@ func (s *Server) resetPassword(w http.ResponseWriter, r *http.Request) {
 		Token       string `json:"token"`
 		NewPassword string `json:"newPassword"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_json", "invalid json body")
+	if !decodeJSONBody(w, r, &request) {
 		return
 	}
 
