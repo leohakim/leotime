@@ -264,17 +264,17 @@ export function BackupSettingsPanel({ t }: { t: Translator }) {
           </div>
         ) : null}
 
-        <div className="client-form-grid">
-          <label className="form-field profile-checkbox-field" htmlFor="backup-enabled">
-            <input
-              checked={form.enabled}
-              id="backup-enabled"
-              onChange={(event) => updateField('enabled', event.target.checked)}
-              type="checkbox"
-            />
-            <span>{t('backupEnabled')}</span>
-          </label>
+        <div className="settings-toggle-row backup-enabled-row">
+          <input
+            checked={form.enabled}
+            id="backup-enabled"
+            onChange={(event) => updateField('enabled', event.target.checked)}
+            type="checkbox"
+          />
+          <label htmlFor="backup-enabled">{t('backupEnabled')}</label>
+        </div>
 
+        <div className="client-form-grid backup-settings-grid">
           <label className={fieldClass(errors.endpoint)} htmlFor="backup-endpoint">
             <span>{t('backupEndpoint')}</span>
             <input
@@ -319,20 +319,23 @@ export function BackupSettingsPanel({ t }: { t: Translator }) {
             />
             {errors.secretAccessKey ? <span className="field-message">{errors.secretAccessKey}</span> : null}
           </label>
+        </div>
 
-          <label className="form-field profile-checkbox-field" htmlFor="backup-path-style">
-            <input
-              checked={form.usePathStyle}
-              id="backup-path-style"
-              onChange={(event) => updateField('usePathStyle', event.target.checked)}
-              type="checkbox"
-            />
-            <span>{t('backupUsePathStyle')}</span>
-          </label>
+        <div className="settings-toggle-row">
+          <input
+            checked={form.usePathStyle}
+            id="backup-path-style"
+            onChange={(event) => updateField('usePathStyle', event.target.checked)}
+            type="checkbox"
+          />
+          <label htmlFor="backup-path-style">{t('backupUsePathStyle')}</label>
+        </div>
 
+        <div className="backup-compact-fields">
           <label className={fieldClass(errors.scheduleHour)} htmlFor="backup-schedule-hour">
             <span>{t('backupScheduleHour')}</span>
             <input
+              className="settings-compact-input"
               id="backup-schedule-hour"
               max={23}
               min={0}
@@ -346,6 +349,7 @@ export function BackupSettingsPanel({ t }: { t: Translator }) {
           <label className={fieldClass(errors.retentionDays)} htmlFor="backup-retention-days">
             <span>{t('backupRetentionDays')}</span>
             <input
+              className="settings-compact-input backup-retention-input"
               id="backup-retention-days"
               max={3650}
               min={1}
@@ -419,15 +423,15 @@ export function BackupSettingsPanel({ t }: { t: Translator }) {
           </div>
         ) : null}
 
-        <label className="form-field profile-checkbox-field" htmlFor="backup-restore-confirm">
+        <div className="settings-toggle-row backup-restore-confirm">
           <input
             checked={restoreConfirm}
             id="backup-restore-confirm"
             onChange={(event) => setRestoreConfirm(event.target.checked)}
             type="checkbox"
           />
-          <span>{t('backupRestoreConfirmLabel')}</span>
-        </label>
+          <label htmlFor="backup-restore-confirm">{t('backupRestoreConfirmLabel')}</label>
+        </div>
 
         <div className="client-form-actions">
           <button disabled={restoreMutation.isPending || !selectedObjectKey} type="submit">

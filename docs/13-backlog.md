@@ -35,7 +35,8 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | Done | Still-running timer email | In-process scheduler, outbox, SMTP/log, docs. |
 | Done | Timer notification settings UI | Threshold + toggle in profile settings. |
 | Done | Password reset email | Outbox mail + login/reset UI. |
-| Done | S3 daily backups + restore | UI, CLI, scheduler; 01:00 default, 365d retention; `docs/31-s3-daily-backups.md` |
+| Done | S3 daily backups + restore | UI, CLI, scheduler; 01:00 default, 365d retention; backup/restore email toggles in profile |
+| Done | Backup/restore email notifications | Profile toggles + outbox; defaults: failure alerts on, success off |
 | Later | Tauri desktop app | Desktop packaging after web MVP works. |
 | Later | Idle detection | Helpful but not needed for first deployable MVP. |
 | Later | Activity tracking | Backlog from original scope, not MVP. |

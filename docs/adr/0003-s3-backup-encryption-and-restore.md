@@ -87,5 +87,5 @@ Tradeoffs:
 
 ## Follow-up
 
-- Optional email alert when daily backup fails (reuse email outbox).
+- Optional email alert when daily backup fails (reuse email outbox). **Done** — profile toggles for backup/restore success and failure; defaults enable failure alerts only.
 - Optional server-side encryption (SSE-S3/SSE-KMS) flags per provider.

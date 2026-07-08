@@ -2,7 +2,10 @@
 
 leotime sends outbound email from the same Go process as the HTTP API. There is no separate queue, scheduler, or mail worker container.
 
-The first supported notification matches Solidtime behavior: **one email when a timer stays open longer than a configurable threshold** (default 8 hours).
+The first supported notifications:
+
+1. **Still-running timer** — one email when a timer stays open longer than a configurable threshold (default 8 hours).
+2. **Backup/restore** — optional emails after S3 backup or restore completes or fails (configured in profile settings).
 
 ## Architecture
 
@@ -11,6 +14,7 @@ main.go
   ├── HTTP server
   └── scheduler (background goroutine)
         ├── scan tick  → detect long-running timers → email_outbox (pending)
+        ├── backup tick → scheduled/manual backup (separate scheduler)
         └── outbox tick → SMTP/log send + retries → mark sent / dead
 ```
 
@@ -114,6 +118,19 @@ Configure in **Settings** (`/settings`):
 
 These map to `app_settings.timer_still_running_enabled` and `app_settings.timer_still_running_hours`.
 
+### Backup and restore alerts (profile settings)
+
+Configure in **Settings → Profile → Email notifications**:
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `backupEmailOnSuccess` | off | Email after a successful S3 backup |
+| `backupEmailOnFailure` | on | Email when a backup fails |
+| `restoreEmailOnSuccess` | off | Email after a successful restore |
+| `restoreEmailOnFailure` | on | Email when a restore fails |
+
+Outbox kinds: `backup_success`, `backup_failure`, `restore_success`, `restore_failure`. See `docs/31-s3-daily-backups.md`.
+
 SQL fallback:
 
 ```sql
@@ -172,17 +189,19 @@ Solidtime exports include `still_active_email_sent_at` on time entries. The impo
 | --- | --- |
 | Scheduler loops | `apps/api/internal/scheduler/scheduler.go` |
 | Timer detection + enqueue | `apps/api/internal/notify/still_running.go` |
-| Email templates | `apps/api/internal/notify/templates.go` |
+| Backup/restore enqueue | `apps/api/internal/notify/backup.go` |
+| Email templates | `apps/api/internal/notify/templates.go`, `backup.go` |
 | Outbox + retries | `apps/api/internal/outbox/` |
 | Mail senders | `apps/api/internal/mail/` |
 | Store queries | `apps/api/internal/store/still_running.go` |
 | Wiring | `apps/api/cmd/leotime/main.go` |
-| Migration | `apps/api/internal/db/migrations/000005_email_notifications.sql` |
+| Migration | `apps/api/internal/db/migrations/000005_email_notifications.sql`, `000008_backup_email_notifications.sql` |
 | Metrics | `apps/api/internal/metrics/metrics.go` |
 
 ## Related docs
 
 - Password reset: `docs/30-password-reset.md`
+- S3 backups: `docs/31-s3-daily-backups.md`
 - VPS SMTP deployment: `docs/06-deploy-vps.md`
 - Operations and footprint: `docs/10-operations.md`
 - Timer API: `docs/19-timers-api.md`

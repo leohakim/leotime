@@ -27,7 +27,11 @@ POST /api/v1/profile/change-password
     "timezone": "Europe/Madrid",
     "themeMode": "solid",
     "timerStillRunningEnabled": true,
-    "timerStillRunningHours": 8
+    "timerStillRunningHours": 8,
+    "backupEmailOnSuccess": false,
+    "backupEmailOnFailure": true,
+    "restoreEmailOnSuccess": false,
+    "restoreEmailOnFailure": true
   },
   "createdAt": "2026-01-01T00:00:00Z",
   "updatedAt": "2026-01-01T00:00:00Z"
@@ -49,7 +53,11 @@ Create and update use the same body:
   "timezone": "America/New_York",
   "themeMode": "dark",
   "timerStillRunningEnabled": true,
-  "timerStillRunningHours": 6
+  "timerStillRunningHours": 6,
+  "backupEmailOnSuccess": true,
+  "backupEmailOnFailure": false,
+  "restoreEmailOnSuccess": false,
+  "restoreEmailOnFailure": true
 }
 ```
 
@@ -86,17 +94,21 @@ User fields live in `users`. App preferences live in `app_settings`:
 - `theme_mode`
 - `timer_still_running_enabled`
 - `timer_still_running_hours`
+- `backup_email_on_success`
+- `backup_email_on_failure`
+- `restore_email_on_success`
+- `restore_email_on_failure`
 
-Migration `000004_profile_settings.sql` adds profile columns. Migration `000005_email_notifications.sql` adds timer notification settings.
+Migration `000004_profile_settings.sql` adds profile columns. Migration `000005_email_notifications.sql` adds timer notification settings. Migration `000008_backup_email_notifications.sql` adds backup/restore email toggles.
 
-Timer notification behavior: `docs/29-email-notifications.md`.
+Timer notification behavior: `docs/29-email-notifications.md`. Backup/restore email behavior: `docs/31-s3-daily-backups.md`.
 
 ## Frontend
 
 The dashboard includes a profile panel at `#profile` with:
 
 - Account fields: name and email.
-- Preferences: language, layout, theme, default currency, timezone, task-project requirement, and still-running timer email settings.
+- Preferences: language, layout, theme, default currency, timezone, task-project requirement, timer email settings, and backup/restore email toggles.
 - Password change form.
 
 On first load, the app hydrates locale, layout, and theme from the saved profile. Saving profile updates the session cache and local UI preferences.
