@@ -19,6 +19,10 @@ export type AppSettings = {
   themeMode: ThemeMode;
   timerStillRunningEnabled: boolean;
   timerStillRunningHours: number;
+  backupEmailOnSuccess: boolean;
+  backupEmailOnFailure: boolean;
+  restoreEmailOnSuccess: boolean;
+  restoreEmailOnFailure: boolean;
 };
 
 export type Profile = {
@@ -43,6 +47,10 @@ export type ProfileUpdateInput = {
   themeMode: ThemeMode;
   timerStillRunningEnabled: boolean;
   timerStillRunningHours: number;
+  backupEmailOnSuccess: boolean;
+  backupEmailOnFailure: boolean;
+  restoreEmailOnSuccess: boolean;
+  restoreEmailOnFailure: boolean;
 };
 
 export type ChangePasswordInput = {

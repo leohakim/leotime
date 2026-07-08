@@ -22,11 +22,17 @@ import (
 
 type ClientFactory func(ctx context.Context, cfg storage.S3Config) (storage.Client, error)
 
+type EmailNotifier interface {
+	EnqueueBackupResult(ctx context.Context, userID, objectKey, errMsg string, success bool, finishedAt time.Time)
+	EnqueueRestoreResult(ctx context.Context, userID, objectKey, errMsg string, success bool, finishedAt time.Time)
+}
+
 type Service struct {
 	cfg           config.Config
 	store         *store.Store
 	db            *sql.DB
 	clientFactory ClientFactory
+	notifier      EmailNotifier
 	mu            sync.Mutex
 }
 
@@ -54,12 +60,13 @@ type ObjectResponse struct {
 	LastModified string `json:"lastModified"`
 }
 
-func NewService(cfg config.Config, st *store.Store, db *sql.DB) *Service {
+func NewService(cfg config.Config, st *store.Store, db *sql.DB, notifier EmailNotifier) *Service {
 	return &Service{
 		cfg:           cfg,
 		store:         st,
 		db:            db,
 		clientFactory: defaultClientFactory,
+		notifier:      notifier,
 	}
 }
 
@@ -124,6 +131,16 @@ func (s *Service) Run(ctx context.Context, userID string, force bool) (*RunResul
 		StartedAt: started.Format(time.RFC3339),
 	}
 
+	var notifySuccess bool
+	var notifyObjectKey string
+	var notifyError string
+	var shouldNotify bool
+	defer func() {
+		if shouldNotify && s.notifier != nil {
+			s.notifier.EnqueueBackupResult(ctx, userID, notifyObjectKey, notifyError, notifySuccess, time.Now().UTC())
+		}
+	}()
+
 	profile, err := s.store.ProfileByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -156,6 +173,9 @@ func (s *Service) Run(ctx context.Context, userID string, force bool) (*RunResul
 		result.Error = err.Error()
 		result.FinishedAt = time.Now().UTC().Format(time.RFC3339)
 		metrics.BackupFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyError = err.Error()
 		return result, err
 	}
 
@@ -173,11 +193,17 @@ func (s *Service) Run(ctx context.Context, userID string, force bool) (*RunResul
 	if err := snapshot.SnapshotToFile(ctx, s.cfg.DBPath, snapshotPath); err != nil {
 		_ = s.store.UpdateBackupRunStatus(ctx, userID, "failed", err.Error(), "")
 		metrics.BackupFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyError = err.Error()
 		return nil, err
 	}
 	if err := snapshot.GzipFile(snapshotPath, gzipPath); err != nil {
 		_ = s.store.UpdateBackupRunStatus(ctx, userID, "failed", err.Error(), "")
 		metrics.BackupFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyError = err.Error()
 		return nil, err
 	}
 
@@ -196,12 +222,20 @@ func (s *Service) Run(ctx context.Context, userID string, force bool) (*RunResul
 	if err := client.Put(ctx, objectKey, file, "application/gzip"); err != nil {
 		_ = s.store.UpdateBackupRunStatus(ctx, userID, "failed", err.Error(), "")
 		metrics.BackupFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyObjectKey = objectKey
+		notifyError = err.Error()
 		return nil, err
 	}
 
 	if err := s.pruneOldBackups(ctx, client, resolved.prefix, settings.RetentionDays, started); err != nil {
 		_ = s.store.UpdateBackupRunStatus(ctx, userID, "failed", err.Error(), objectKey)
 		metrics.BackupFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyObjectKey = objectKey
+		notifyError = err.Error()
 		return nil, err
 	}
 
@@ -212,6 +246,9 @@ func (s *Service) Run(ctx context.Context, userID string, force bool) (*RunResul
 	result.ObjectKey = objectKey
 	result.SizeBytes = info.Size()
 	result.FinishedAt = time.Now().UTC().Format(time.RFC3339)
+	shouldNotify = true
+	notifySuccess = true
+	notifyObjectKey = objectKey
 	return result, nil
 }
 
@@ -223,6 +260,16 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 
 	started := time.Now().UTC()
 	result := &RestoreResult{StartedAt: started.Format(time.RFC3339)}
+
+	var notifySuccess bool
+	var notifyObjectKey string
+	var notifyError string
+	var shouldNotify bool
+	defer func() {
+		if shouldNotify && s.notifier != nil {
+			s.notifier.EnqueueRestoreResult(ctx, userID, notifyObjectKey, notifyError, notifySuccess, time.Now().UTC())
+		}
+	}()
 
 	resolved, client, err := s.loadClient(ctx, userID)
 	if err != nil {
@@ -238,6 +285,9 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 			err = fmt.Errorf("no backup objects found")
 			_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), "")
 			metrics.BackupRestoreFailuresTotal.Inc()
+			shouldNotify = true
+			notifySuccess = false
+			notifyError = err.Error()
 			return nil, err
 		}
 		objectKey = objects[0].Key
@@ -247,12 +297,19 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 		err = fmt.Errorf("objectKey is required")
 		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), "")
 		metrics.BackupRestoreFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyError = err.Error()
 		return nil, err
 	}
 	if !strings.HasPrefix(objectKey, resolved.prefix) {
 		err = fmt.Errorf("object key outside configured prefix")
 		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
 		metrics.BackupRestoreFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyObjectKey = objectKey
+		notifyError = err.Error()
 		return nil, err
 	}
 
@@ -269,6 +326,10 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 	if err != nil {
 		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
 		metrics.BackupRestoreFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyObjectKey = objectKey
+		notifyError = err.Error()
 		return nil, err
 	}
 	file, err := os.Create(gzipPath)
@@ -287,11 +348,19 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 	if err := snapshot.GunzipToFile(gzipPath, restoreDBPath); err != nil {
 		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
 		metrics.BackupRestoreFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyObjectKey = objectKey
+		notifyError = err.Error()
 		return nil, err
 	}
 	if err := snapshot.ValidateDatabase(ctx, restoreDBPath); err != nil {
 		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
 		metrics.BackupRestoreFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyObjectKey = objectKey
+		notifyError = err.Error()
 		return nil, err
 	}
 
@@ -300,17 +369,29 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 	if err := snapshot.SnapshotToFile(ctx, s.cfg.DBPath, safetySnapshot); err != nil {
 		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
 		metrics.BackupRestoreFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyObjectKey = objectKey
+		notifyError = err.Error()
 		return nil, err
 	}
 	if err := snapshot.GzipFile(safetySnapshot, safetyPath); err != nil {
 		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
 		metrics.BackupRestoreFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyObjectKey = objectKey
+		notifyError = err.Error()
 		return nil, err
 	}
 
 	if err := copyDatabaseInto(ctx, restoreDBPath, s.db); err != nil {
 		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
 		metrics.BackupRestoreFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyObjectKey = objectKey
+		notifyError = err.Error()
 		return nil, err
 	}
 
@@ -321,6 +402,9 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 	result.ObjectKey = objectKey
 	result.SafetySnapshotPath = safetyPath
 	result.FinishedAt = time.Now().UTC().Format(time.RFC3339)
+	shouldNotify = true
+	notifySuccess = true
+	notifyObjectKey = objectKey
 	return result, nil
 }
 

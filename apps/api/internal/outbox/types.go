@@ -3,6 +3,10 @@ package outbox
 const (
 	KindTimerStillRunning = "timer_still_running"
 	KindPasswordReset     = "password_reset"
+	KindBackupSuccess     = "backup_success"
+	KindBackupFailure     = "backup_failure"
+	KindRestoreSuccess    = "restore_success"
+	KindRestoreFailure    = "restore_failure"
 
 	StatusPending = "pending"
 	StatusSent    = "sent"

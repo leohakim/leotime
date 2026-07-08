@@ -35,7 +35,7 @@ func TestResolveS3ConfigUsesDraftCredentialsWithoutSavedSettings(t *testing.T) {
 		t.Fatalf("auth: %v", err)
 	}
 
-	service := NewService(config.Config{}, st, database)
+	service := NewService(config.Config{}, st, database, nil)
 	service.clientFactory = func(ctx context.Context, cfg storage.S3Config) (storage.Client, error) {
 		if cfg.Bucket != "leotime-backups" {
 			t.Fatalf("unexpected bucket %q", cfg.Bucket)
@@ -90,7 +90,7 @@ func TestResolveS3ConfigUsesSavedSecretWhenDraftOmitsIt(t *testing.T) {
 	}
 
 	secretsKey := base64.StdEncoding.EncodeToString([]byte("01234567890123456789012345678901"))
-	service := NewService(config.Config{SecretsKey: secretsKey}, st, database)
+	service := NewService(config.Config{SecretsKey: secretsKey}, st, database, nil)
 
 	secretEnc, err := crypto.Encrypt([]byte("saved-secret"), []byte("01234567890123456789012345678901"))
 	if err != nil {

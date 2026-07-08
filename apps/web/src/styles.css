@@ -2736,25 +2736,116 @@ a:focus-visible {
   max-width: 100%;
 }
 
-.profile-timezone-field {
-  grid-column: 1 / -1;
+.profile-behavior-row {
+  margin-top: -2px;
+}
+
+.profile-notifications-header {
+  margin-top: -2px;
+}
+
+.profile-notifications-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 720px;
+}
+
+.profile-notification-subheading {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.04em;
+  margin: 6px 0 0;
+  text-transform: uppercase;
+}
+
+.profile-notification-subheading:first-child {
+  margin-top: 0;
+}
+
+.settings-toggle-row {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+}
+
+.settings-toggle-row input[type='checkbox'] {
+  accent-color: var(--accent);
+  flex: 0 0 18px;
+  height: 18px;
+  margin-top: 2px;
+  width: 18px;
+}
+
+.settings-toggle-row label {
+  color: var(--text);
+  cursor: pointer;
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-normal);
+  letter-spacing: 0;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+.settings-inline-control {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-left: 28px;
+}
+
+.settings-inline-control > label {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.settings-compact-input {
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  flex: 0 0 auto;
+  font-size: var(--text-base);
+  font-weight: var(--fw-normal);
+  height: 36px;
+  min-height: 0;
+  padding: 0 10px;
+  text-transform: none;
+  width: 72px;
+}
+
+.settings-inline-control.has-error .settings-compact-input {
+  border-color: rgb(227 106 106 / 55%);
+}
+
+.settings-inline-control .field-message {
+  flex-basis: 100%;
 }
 
 .profile-checkbox-field {
-  align-items: center;
+  align-items: flex-start;
+  cursor: pointer;
   display: flex;
   flex-direction: row;
   gap: 10px;
-  grid-column: 1 / -1;
-  min-height: 42px;
+  margin: 0;
+  min-height: 0;
   text-transform: none;
 }
 
 .profile-checkbox-field span {
   color: var(--text);
+  flex: 1;
   font-size: var(--text-sm);
   font-weight: var(--fw-normal);
   letter-spacing: 0;
+  line-height: 1.45;
   text-transform: none;
 }
 
@@ -2762,6 +2853,9 @@ a:focus-visible {
   accent-color: var(--accent);
   flex: 0 0 auto;
   height: 18px;
+  margin-top: 1px;
+  min-height: 0;
+  padding: 0;
   width: 18px;
 }
 
@@ -3275,6 +3369,36 @@ a:focus-visible {
 .form-field.has-error select {
   background: rgb(227 106 106 / 8%);
   border-color: rgb(227 106 106 / 62%);
+}
+
+.form-field.profile-checkbox-field {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  grid-column: 1 / -1;
+  min-height: 0;
+  text-transform: none;
+}
+
+.form-field.profile-checkbox-field > span {
+  color: var(--text);
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-normal);
+  letter-spacing: 0;
+  line-height: 1.45;
+  text-transform: none;
+}
+
+.form-field.profile-checkbox-field input[type='checkbox'] {
+  accent-color: var(--accent);
+  flex: 0 0 auto;
+  height: 18px;
+  margin-top: 1px;
+  min-height: 0;
+  padding: 0;
+  width: 18px;
 }
 
 .color-input-row {

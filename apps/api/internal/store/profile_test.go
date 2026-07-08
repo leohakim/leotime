@@ -48,6 +48,12 @@ func TestProfileUpdateAndChangePassword(t *testing.T) {
 	if !profile.Settings.TimerStillRunningEnabled || profile.Settings.TimerStillRunningHours != 8 {
 		t.Fatalf("expected default timer notification settings, got %+v", profile.Settings)
 	}
+	if profile.Settings.BackupEmailOnSuccess || profile.Settings.RestoreEmailOnSuccess {
+		t.Fatalf("expected backup/restore success emails disabled by default, got %+v", profile.Settings)
+	}
+	if !profile.Settings.BackupEmailOnFailure || !profile.Settings.RestoreEmailOnFailure {
+		t.Fatalf("expected backup/restore failure emails enabled by default, got %+v", profile.Settings)
+	}
 
 	updated, err := st.UpdateProfile(ctx, user.ID, ProfileUpdateInput{
 		Name:                     "Leo",
@@ -60,6 +66,10 @@ func TestProfileUpdateAndChangePassword(t *testing.T) {
 		ThemeMode:                "dark",
 		TimerStillRunningEnabled: true,
 		TimerStillRunningHours:   6,
+		BackupEmailOnSuccess:     true,
+		BackupEmailOnFailure:     false,
+		RestoreEmailOnSuccess:    true,
+		RestoreEmailOnFailure:    false,
 	})
 	if err != nil {
 		t.Fatalf("update profile: %v", err)
@@ -72,6 +82,12 @@ func TestProfileUpdateAndChangePassword(t *testing.T) {
 	}
 	if !updated.Settings.TimerStillRunningEnabled || updated.Settings.TimerStillRunningHours != 6 {
 		t.Fatalf("unexpected timer notification settings: %+v", updated.Settings)
+	}
+	if !updated.Settings.BackupEmailOnSuccess || updated.Settings.BackupEmailOnFailure {
+		t.Fatalf("unexpected backup email settings: %+v", updated.Settings)
+	}
+	if !updated.Settings.RestoreEmailOnSuccess || updated.Settings.RestoreEmailOnFailure {
+		t.Fatalf("unexpected restore email settings: %+v", updated.Settings)
 	}
 
 	if err := st.ChangePassword(ctx, user.ID, ChangePasswordInput{

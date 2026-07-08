@@ -44,7 +44,7 @@ func TestServiceRunAndRestore(t *testing.T) {
 	}
 
 	memory := storage.NewMemoryClient()
-	service := NewService(cfg, st, database)
+	service := NewService(cfg, st, database, nil)
 	service.clientFactory = func(ctx context.Context, cfg storage.S3Config) (storage.Client, error) {
 		return memory, nil
 	}
@@ -125,7 +125,7 @@ func TestServiceRunScheduledSkipsWhenDisabled(t *testing.T) {
 		BootstrapEmail:         "admin@example.com",
 		BackupSchedulerEnabled: false,
 	}
-	service := NewService(cfg, st, database)
+	service := NewService(cfg, st, database, nil)
 	if err := service.RunScheduled(ctx); err != nil {
 		t.Fatalf("scheduled run: %v", err)
 	}

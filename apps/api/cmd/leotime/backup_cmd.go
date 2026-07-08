@@ -39,7 +39,7 @@ func runBackupCommand(ctx context.Context, args []string) error {
 		return fmt.Errorf("load bootstrap user: %w", err)
 	}
 
-	service := backup.NewService(cfg, st, database)
+	service := backup.NewService(cfg, st, database, nil)
 
 	switch args[0] {
 	case "run":

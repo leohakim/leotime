@@ -24,6 +24,10 @@ type AppSettings struct {
 	ThemeMode                string `json:"themeMode"`
 	TimerStillRunningEnabled bool   `json:"timerStillRunningEnabled"`
 	TimerStillRunningHours   int    `json:"timerStillRunningHours"`
+	BackupEmailOnSuccess     bool   `json:"backupEmailOnSuccess"`
+	BackupEmailOnFailure     bool   `json:"backupEmailOnFailure"`
+	RestoreEmailOnSuccess    bool   `json:"restoreEmailOnSuccess"`
+	RestoreEmailOnFailure    bool   `json:"restoreEmailOnFailure"`
 }
 
 type Profile struct {
@@ -48,6 +52,10 @@ type ProfileUpdateInput struct {
 	ThemeMode                string `json:"themeMode"`
 	TimerStillRunningEnabled bool   `json:"timerStillRunningEnabled"`
 	TimerStillRunningHours   int    `json:"timerStillRunningHours"`
+	BackupEmailOnSuccess     bool   `json:"backupEmailOnSuccess"`
+	BackupEmailOnFailure     bool   `json:"backupEmailOnFailure"`
+	RestoreEmailOnSuccess    bool   `json:"restoreEmailOnSuccess"`
+	RestoreEmailOnFailure    bool   `json:"restoreEmailOnFailure"`
 }
 
 type ChangePasswordInput struct {
@@ -59,6 +67,10 @@ func (s *Store) ProfileByUserID(ctx context.Context, userID string) (*Profile, e
 	var profile Profile
 	var taskProjectRequired int
 	var timerStillRunningEnabled int
+	var backupEmailOnSuccess int
+	var backupEmailOnFailure int
+	var restoreEmailOnSuccess int
+	var restoreEmailOnFailure int
 	if err := s.db.QueryRowContext(ctx, `
 		SELECT u.id, u.email, u.name, u.locale, u.layout_mode, u.created_at, u.updated_at,
 			COALESCE(a.task_project_required, 0),
@@ -66,7 +78,11 @@ func (s *Store) ProfileByUserID(ctx context.Context, userID string) (*Profile, e
 			COALESCE(NULLIF(a.timezone, ''), 'Europe/Madrid'),
 			COALESCE(a.theme_mode, 'solid'),
 			COALESCE(a.timer_still_running_enabled, 1),
-			COALESCE(a.timer_still_running_hours, 8)
+			COALESCE(a.timer_still_running_hours, 8),
+			COALESCE(a.backup_email_on_success, 0),
+			COALESCE(a.backup_email_on_failure, 1),
+			COALESCE(a.restore_email_on_success, 0),
+			COALESCE(a.restore_email_on_failure, 1)
 		FROM users u
 		LEFT JOIN app_settings a ON a.user_id = u.id
 		WHERE u.id = ?
@@ -84,6 +100,10 @@ func (s *Store) ProfileByUserID(ctx context.Context, userID string) (*Profile, e
 		&profile.Settings.ThemeMode,
 		&timerStillRunningEnabled,
 		&profile.Settings.TimerStillRunningHours,
+		&backupEmailOnSuccess,
+		&backupEmailOnFailure,
+		&restoreEmailOnSuccess,
+		&restoreEmailOnFailure,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrProfileNotFound
@@ -93,6 +113,10 @@ func (s *Store) ProfileByUserID(ctx context.Context, userID string) (*Profile, e
 
 	profile.Settings.TaskProjectRequired = taskProjectRequired != 0
 	profile.Settings.TimerStillRunningEnabled = timerStillRunningEnabled != 0
+	profile.Settings.BackupEmailOnSuccess = backupEmailOnSuccess != 0
+	profile.Settings.BackupEmailOnFailure = backupEmailOnFailure != 0
+	profile.Settings.RestoreEmailOnSuccess = restoreEmailOnSuccess != 0
+	profile.Settings.RestoreEmailOnFailure = restoreEmailOnFailure != 0
 	if profile.Settings.TimerStillRunningHours <= 0 {
 		profile.Settings.TimerStillRunningHours = 8
 	}
@@ -150,12 +174,18 @@ func (s *Store) UpdateProfile(ctx context.Context, userID string, input ProfileU
 			theme_mode = ?,
 			timer_still_running_enabled = ?,
 			timer_still_running_hours = ?,
+			backup_email_on_success = ?,
+			backup_email_on_failure = ?,
+			restore_email_on_success = ?,
+			restore_email_on_failure = ?,
 			default_locale = ?,
 			default_layout_mode = ?,
 			updated_at = ?
 		WHERE user_id = ?
 	`, boolToInt(normalized.TaskProjectRequired), normalized.DefaultCurrency, normalized.Timezone, normalized.ThemeMode,
 		boolToInt(normalized.TimerStillRunningEnabled), normalized.TimerStillRunningHours,
+		boolToInt(normalized.BackupEmailOnSuccess), boolToInt(normalized.BackupEmailOnFailure),
+		boolToInt(normalized.RestoreEmailOnSuccess), boolToInt(normalized.RestoreEmailOnFailure),
 		normalized.Locale, normalized.LayoutMode, now, userID)
 	if err != nil {
 		return nil, fmt.Errorf("update app settings: %w", err)
@@ -170,10 +200,14 @@ func (s *Store) UpdateProfile(ctx context.Context, userID string, input ProfileU
 			INSERT INTO app_settings (
 				user_id, task_project_required, default_currency, timezone, theme_mode,
 				timer_still_running_enabled, timer_still_running_hours,
+				backup_email_on_success, backup_email_on_failure,
+				restore_email_on_success, restore_email_on_failure,
 				default_locale, default_layout_mode, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, userID, boolToInt(normalized.TaskProjectRequired), normalized.DefaultCurrency, normalized.Timezone, normalized.ThemeMode,
 			boolToInt(normalized.TimerStillRunningEnabled), normalized.TimerStillRunningHours,
+			boolToInt(normalized.BackupEmailOnSuccess), boolToInt(normalized.BackupEmailOnFailure),
+			boolToInt(normalized.RestoreEmailOnSuccess), boolToInt(normalized.RestoreEmailOnFailure),
 			normalized.Locale, normalized.LayoutMode, now); err != nil {
 			return nil, fmt.Errorf("insert app settings: %w", err)
 		}
@@ -235,6 +269,10 @@ func normalizeProfileInput(input ProfileUpdateInput) (ProfileUpdateInput, error)
 		ThemeMode:                strings.TrimSpace(strings.ToLower(input.ThemeMode)),
 		TimerStillRunningEnabled: input.TimerStillRunningEnabled,
 		TimerStillRunningHours:   input.TimerStillRunningHours,
+		BackupEmailOnSuccess:     input.BackupEmailOnSuccess,
+		BackupEmailOnFailure:     input.BackupEmailOnFailure,
+		RestoreEmailOnSuccess:    input.RestoreEmailOnSuccess,
+		RestoreEmailOnFailure:    input.RestoreEmailOnFailure,
 	}
 
 	if normalized.Name == "" {

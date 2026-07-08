@@ -954,7 +954,7 @@ func newTestRouter(t *testing.T) http.Handler {
 
 	outboxStore := outbox.NewStore(database)
 	passwordReset := notify.NewPasswordResetService(st, outboxStore, cfg)
-	backupService := backup.NewService(cfg, st, database)
+	backupService := backup.NewService(cfg, st, database, nil)
 	return NewRouter(cfg, st, passwordReset, backupService)
 }
 
@@ -1071,7 +1071,7 @@ func TestResetPasswordWithToken(t *testing.T) {
 		MailMaxAttempts:   5,
 	}
 	passwordReset := notify.NewPasswordResetService(st, outbox.NewStore(database), cfg)
-	backupService := backup.NewService(cfg, st, database)
+	backupService := backup.NewService(cfg, st, database, nil)
 	router := NewRouter(cfg, st, passwordReset, backupService)
 
 	resetResponse := httptest.NewRecorder()

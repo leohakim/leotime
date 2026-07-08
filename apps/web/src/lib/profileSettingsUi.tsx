@@ -61,6 +61,10 @@ function buildFormFromProfile(profile: Profile): ProfileFormState {
     themeMode: profile.settings.themeMode,
     timerStillRunningEnabled: profile.settings.timerStillRunningEnabled,
     timerStillRunningHours: profile.settings.timerStillRunningHours,
+    backupEmailOnSuccess: profile.settings.backupEmailOnSuccess,
+    backupEmailOnFailure: profile.settings.backupEmailOnFailure,
+    restoreEmailOnSuccess: profile.settings.restoreEmailOnSuccess,
+    restoreEmailOnFailure: profile.settings.restoreEmailOnFailure,
   };
 }
 
@@ -76,6 +80,10 @@ function buildFormFromUser(user: User, themeMode: ThemeMode): ProfileFormState {
     themeMode,
     timerStillRunningEnabled: true,
     timerStillRunningHours: 8,
+    backupEmailOnSuccess: false,
+    backupEmailOnFailure: true,
+    restoreEmailOnSuccess: false,
+    restoreEmailOnFailure: true,
   };
 }
 
@@ -400,7 +408,7 @@ export function ProfileSettingsPanel({
               <FieldError id="profile-currency-error" message={errors.defaultCurrency} />
             </label>
 
-            <label className="form-field profile-timezone-field" htmlFor="profile-timezone">
+            <label className="form-field" htmlFor="profile-timezone">
               <span>{t('timezone')}</span>
               <select id="profile-timezone" onChange={(event) => updateField('timezone', event.target.value)} value={form.timezone}>
                 {timezoneOptions.map((timezone) => (
@@ -410,33 +418,44 @@ export function ProfileSettingsPanel({
                 ))}
               </select>
             </label>
+          </div>
 
-            <label className="form-field profile-checkbox-field" htmlFor="profile-task-project-required">
-              <input
-                checked={form.taskProjectRequired}
-                id="profile-task-project-required"
-                onChange={(event) => updateField('taskProjectRequired', event.target.checked)}
-                type="checkbox"
-              />
-              <span>{t('profileTaskProjectRequired')}</span>
-            </label>
+          <div className="settings-toggle-row profile-behavior-row">
+            <input
+              checked={form.taskProjectRequired}
+              id="profile-task-project-required"
+              onChange={(event) => updateField('taskProjectRequired', event.target.checked)}
+              type="checkbox"
+            />
+            <label htmlFor="profile-task-project-required">{t('profileTaskProjectRequired')}</label>
+          </div>
 
-            <label className="form-field profile-checkbox-field" htmlFor="profile-timer-still-running-enabled">
+          <div className="profile-settings-divider" />
+
+          <div className="editor-header profile-notifications-header">
+            <div>
+              <span>{t('profileEmailNotificationsSection')}</span>
+              <h3>{t('profileEmailNotificationsHeading')}</h3>
+            </div>
+          </div>
+
+          <div className="profile-notifications-panel">
+            <p className="profile-notification-subheading">{t('profileTimerNotificationsHeading')}</p>
+
+            <div className="settings-toggle-row">
               <input
                 checked={form.timerStillRunningEnabled}
                 id="profile-timer-still-running-enabled"
                 onChange={(event) => updateField('timerStillRunningEnabled', event.target.checked)}
                 type="checkbox"
               />
-              <span>{t('profileTimerStillRunningEnabled')}</span>
-            </label>
+              <label htmlFor="profile-timer-still-running-enabled">{t('profileTimerStillRunningEnabled')}</label>
+            </div>
 
-            <label
-              className={fieldClass(errors.timerStillRunningHours)}
-              htmlFor="profile-timer-still-running-hours"
-            >
-              <span>{t('profileTimerStillRunningHours')}</span>
+            <div className={`settings-inline-control ${errors.timerStillRunningHours ? 'has-error' : ''}`}>
+              <label htmlFor="profile-timer-still-running-hours">{t('profileTimerStillRunningHours')}</label>
               <input
+                className="settings-compact-input"
                 disabled={!form.timerStillRunningEnabled}
                 id="profile-timer-still-running-hours"
                 min={1}
@@ -447,7 +466,49 @@ export function ProfileSettingsPanel({
                 value={form.timerStillRunningHours}
               />
               <FieldError id="profile-timer-still-running-hours-error" message={errors.timerStillRunningHours} />
-            </label>
+            </div>
+
+            <p className="profile-notification-subheading">{t('profileBackupNotificationsHeading')}</p>
+
+            <div className="settings-toggle-row">
+              <input
+                checked={form.backupEmailOnSuccess}
+                id="profile-backup-email-success"
+                onChange={(event) => updateField('backupEmailOnSuccess', event.target.checked)}
+                type="checkbox"
+              />
+              <label htmlFor="profile-backup-email-success">{t('profileBackupEmailOnSuccess')}</label>
+            </div>
+
+            <div className="settings-toggle-row">
+              <input
+                checked={form.backupEmailOnFailure}
+                id="profile-backup-email-failure"
+                onChange={(event) => updateField('backupEmailOnFailure', event.target.checked)}
+                type="checkbox"
+              />
+              <label htmlFor="profile-backup-email-failure">{t('profileBackupEmailOnFailure')}</label>
+            </div>
+
+            <div className="settings-toggle-row">
+              <input
+                checked={form.restoreEmailOnSuccess}
+                id="profile-restore-email-success"
+                onChange={(event) => updateField('restoreEmailOnSuccess', event.target.checked)}
+                type="checkbox"
+              />
+              <label htmlFor="profile-restore-email-success">{t('profileRestoreEmailOnSuccess')}</label>
+            </div>
+
+            <div className="settings-toggle-row">
+              <input
+                checked={form.restoreEmailOnFailure}
+                id="profile-restore-email-failure"
+                onChange={(event) => updateField('restoreEmailOnFailure', event.target.checked)}
+                type="checkbox"
+              />
+              <label htmlFor="profile-restore-email-failure">{t('profileRestoreEmailOnFailure')}</label>
+            </div>
           </div>
 
           <div className="client-form-actions">

@@ -78,11 +78,12 @@ func main() {
 	outboxStore := outbox.NewStore(database)
 	passwordReset := notify.NewPasswordResetService(st, outboxStore, cfg)
 	notifier := notify.NewStillRunningNotifier(st, outboxStore, cfg)
+	backupNotifier := notify.NewBackupNotifier(st, outboxStore, cfg)
 	processor := outbox.NewProcessor(outboxStore, mailSender, outbox.ProcessorOptions{
 		RetryPolicy: outbox.DefaultRetryPolicy(cfg.MailRetryBase, cfg.MailRetryMax),
 		OnSent:      notifier.HandleSent,
 	})
-	backupService := backup.NewService(cfg, st, database)
+	backupService := backup.NewService(cfg, st, database, backupNotifier)
 	backgroundScheduler := scheduler.New(cfg, notifier, processor, backupService)
 
 	go func() {

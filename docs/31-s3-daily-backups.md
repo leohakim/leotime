@@ -140,6 +140,23 @@ docker exec -it <minio-container> mc alias set test http://127.0.0.1:9000 leotim
 docker exec -it <minio-container> mc cp /etc/hosts test/leotime-backups/leotime-connection-test.txt
 ```
 
+## Email notifications
+
+Backup and restore can send optional emails through the existing outbox (`timer_still_running`, `password_reset`, etc.).
+
+Configure them in **Profile → Email notifications**:
+
+| Setting | Default | When it sends |
+|---------|---------|---------------|
+| Backup success | off | After a manual or scheduled backup finishes with `success` |
+| Backup failure | on | After a backup fails (upload, snapshot, retention, etc.) |
+| Restore success | off | After a restore finishes with `success` |
+| Restore failure | on | After a restore fails |
+
+Emails use the profile locale (`es` / `en`), go to the profile email address, and respect `LEOTIME_MAIL_MODE` (`log` in dev, `smtp` in production).
+
+Outbox kinds: `backup_success`, `backup_failure`, `restore_success`, `restore_failure`.
+
 **Backblaze B2 (S3-compatible)**
 
 ```text
