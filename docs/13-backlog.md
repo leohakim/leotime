@@ -49,7 +49,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 
 | Status | Item | Notes |
 | --- | --- | --- |
-| Backlog | Split frontend features | Move large dashboard sections into feature components. |
+| Done | Split frontend features | CRUD panels and dashboard shell under `apps/web/src/features/` |
 | Backlog | Visual regression checks | Add screenshot checks after core UI stabilizes. |
 | Backlog | API error codes | Move from plain error text to structured validation errors. |
 | Done | Seed/dev data command | `make seed` / `leotime seed` loads demo clients, time entries, open timer |
