@@ -117,6 +117,35 @@ func TestCreateTimeEntrySetsOverlapWarningWithoutBlocking(t *testing.T) {
 	}
 }
 
+func TestCreateTimeEntryInfersClientFromProject(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTimeEntryTestStore(t, ctx)
+
+	client, err := st.CreateClient(ctx, user.ID, ClientInput{Name: "Osoigo", DefaultCurrency: "EUR"})
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+	project, err := st.CreateProject(ctx, user.ID, ProjectInput{ClientID: client.ID, Name: "RTVE", Color: "#2563eb"})
+	if err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+
+	startedAt := time.Date(2026, 7, 1, 9, 0, 0, 0, time.UTC)
+	entry, err := st.CreateTimeEntry(ctx, user.ID, TimeEntryInput{
+		ProjectID:   project.ID,
+		Description: "Broadcast work",
+		StartedAt:   startedAt.Format(time.RFC3339Nano),
+		EndedAt:     startedAt.Add(2 * time.Hour).Format(time.RFC3339Nano),
+		Billable:    true,
+	})
+	if err != nil {
+		t.Fatalf("create time entry: %v", err)
+	}
+	if entry.ClientID != client.ID || entry.ClientName != "Osoigo" {
+		t.Fatalf("expected client inferred from project, got %+v", entry)
+	}
+}
+
 func TestCreateTimeEntryValidatesInput(t *testing.T) {
 	ctx := context.Background()
 	st, user := newTimeEntryTestStore(t, ctx)

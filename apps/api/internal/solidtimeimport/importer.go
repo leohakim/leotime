@@ -534,6 +534,11 @@ func (s *importState) writeTimeEntries(ctx context.Context, entries []TimeEntry)
 
 		clientID := optionalMappedID(s.maps["client"], entry.ClientID)
 		projectID := optionalMappedID(s.maps["project"], entry.ProjectID)
+		if !clientID.Valid && projectID.Valid {
+			if inferred := s.projectClientID(ctx, projectID.String); inferred != "" {
+				clientID = sql.NullString{String: inferred, Valid: true}
+			}
+		}
 		taskID := optionalMappedID(s.maps["task"], entry.TaskID)
 		billable, err := parseBool(entry.Billable)
 		if err != nil {
@@ -581,6 +586,19 @@ func (s *importState) writeTimeEntries(ctx context.Context, entries []TimeEntry)
 		}
 	}
 	return nil
+}
+
+func (s *importState) projectClientID(ctx context.Context, projectID string) string {
+	if projectID == "" {
+		return ""
+	}
+	var clientID sql.NullString
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT client_id FROM projects WHERE id = ? AND user_id = ?
+	`, projectID, s.userID).Scan(&clientID); err != nil || !clientID.Valid {
+		return ""
+	}
+	return clientID.String
 }
 
 func (s *importState) hasOverlap(ctx context.Context, entryID string, startedAt time.Time, endedAt sql.NullTime) (bool, error) {

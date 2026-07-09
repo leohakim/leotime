@@ -58,15 +58,21 @@ type TimeEntryListOptions struct {
 	TaskID    string
 }
 
+const timeEntrySelectSQL = `
+	SELECT te.id,
+		COALESCE(te.client_id, p.client_id, ''),
+		COALESCE(c.name, pc.name, ''),
+		te.project_id, COALESCE(p.name, ''), COALESCE(p.color, ''),
+		te.task_id, COALESCE(t.name, ''), te.description, te.started_at, te.ended_at, te.duration_seconds,
+		te.billable, te.overlap_warning, te.source, te.created_at, te.updated_at
+	FROM time_entries te
+	LEFT JOIN projects p ON p.id = te.project_id AND p.user_id = te.user_id
+	LEFT JOIN clients c ON c.id = te.client_id AND c.user_id = te.user_id
+	LEFT JOIN clients pc ON pc.id = p.client_id AND pc.user_id = te.user_id
+	LEFT JOIN tasks t ON t.id = te.task_id AND t.user_id = te.user_id`
+
 func (s *Store) ListTimeEntries(ctx context.Context, userID string, options TimeEntryListOptions) ([]TimeEntry, error) {
-	query := `
-		SELECT te.id, te.client_id, COALESCE(c.name, ''), te.project_id, COALESCE(p.name, ''), COALESCE(p.color, ''),
-			te.task_id, COALESCE(t.name, ''), te.description, te.started_at, te.ended_at, te.duration_seconds,
-			te.billable, te.overlap_warning, te.source, te.created_at, te.updated_at
-		FROM time_entries te
-		LEFT JOIN clients c ON c.id = te.client_id AND c.user_id = te.user_id
-		LEFT JOIN projects p ON p.id = te.project_id AND p.user_id = te.user_id
-		LEFT JOIN tasks t ON t.id = te.task_id AND t.user_id = te.user_id
+	query := timeEntrySelectSQL + `
 		WHERE te.user_id = ? AND te.ended_at IS NOT NULL
 	`
 	args := []any{userID}
@@ -80,7 +86,7 @@ func (s *Store) ListTimeEntries(ctx context.Context, userID string, options Time
 		args = append(args, strings.TrimSpace(options.To))
 	}
 	if strings.TrimSpace(options.ClientID) != "" {
-		query += " AND te.client_id = ?"
+		query += " AND COALESCE(te.client_id, p.client_id) = ?"
 		args = append(args, strings.TrimSpace(options.ClientID))
 	}
 	if strings.TrimSpace(options.ProjectID) != "" {
@@ -120,14 +126,7 @@ func (s *Store) ListTimeEntries(ctx context.Context, userID string, options Time
 }
 
 func (s *Store) TimeEntryByID(ctx context.Context, userID string, timeEntryID string) (*TimeEntry, error) {
-	entry, err := queryTimeEntry(ctx, s.db, `
-		SELECT te.id, te.client_id, COALESCE(c.name, ''), te.project_id, COALESCE(p.name, ''), COALESCE(p.color, ''),
-			te.task_id, COALESCE(t.name, ''), te.description, te.started_at, te.ended_at, te.duration_seconds,
-			te.billable, te.overlap_warning, te.source, te.created_at, te.updated_at
-		FROM time_entries te
-		LEFT JOIN clients c ON c.id = te.client_id AND c.user_id = te.user_id
-		LEFT JOIN projects p ON p.id = te.project_id AND p.user_id = te.user_id
-		LEFT JOIN tasks t ON t.id = te.task_id AND t.user_id = te.user_id
+	entry, err := queryTimeEntry(ctx, s.db, timeEntrySelectSQL+`
 		WHERE te.user_id = ? AND te.id = ?
 	`, userID, timeEntryID)
 	if err != nil {
@@ -348,6 +347,12 @@ func (s *Store) normalizeTimeEntryInput(ctx context.Context, userID string, time
 		return TimeEntryInput{}, time.Time{}, time.Time{}, err
 	}
 	input = relations
+
+	billable, err := s.resolveBillableFlag(ctx, userID, input.ClientID, input.ProjectID, input.Billable, timeEntryID == "")
+	if err != nil {
+		return TimeEntryInput{}, time.Time{}, time.Time{}, err
+	}
+	input.Billable = billable
 
 	return input, startedAt, endedAt, nil
 }

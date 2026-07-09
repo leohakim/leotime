@@ -7,7 +7,7 @@ func TestLatestMigrationVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("latest migration version: %v", err)
 	}
-	if version < 9 {
-		t.Fatalf("expected at least migration 000009, got %d", version)
+	if version < 11 {
+		t.Fatalf("expected at least migration 000011, got %d", version)
 	}
 }

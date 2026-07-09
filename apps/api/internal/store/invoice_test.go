@@ -163,6 +163,60 @@ func TestUpdateInvoiceStatusSetsIssuedAt(t *testing.T) {
 	}
 }
 
+func TestCreateInvoiceDraftUsesProjectClientForLegacyEntries(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTaskTestStore(t, ctx)
+
+	client, err := st.CreateClient(ctx, user.ID, ClientInput{
+		Name:                   "Osoigo",
+		DefaultCurrency:        "EUR",
+		DefaultHourlyRateMinor: 3500,
+	})
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+	rate := int64(3500)
+	project, err := st.CreateProject(ctx, user.ID, ProjectInput{
+		ClientID:               client.ID,
+		Name:                   "RTVE",
+		Color:                  "#2563eb",
+		DefaultHourlyRateMinor: &rate,
+	})
+	if err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+
+	entryID, err := newID("ten")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := nowString()
+	if _, err := st.db.ExecContext(ctx, `
+		INSERT INTO time_entries (
+			id, user_id, client_id, project_id, description, started_at, ended_at,
+			duration_seconds, billable, overlap_warning, source, sync_state, created_at, updated_at
+		) VALUES (?, ?, NULL, ?, 'Legacy RTVE block', '2026-07-01T09:00:00Z', '2026-07-01T11:00:00Z', 7200, 1, 0, 'manual', 'synced', ?, ?)
+	`, entryID, user.ID, project.ID, now, now); err != nil {
+		t.Fatalf("insert legacy entry: %v", err)
+	}
+
+	invoice, err := st.CreateInvoiceDraftFromTime(ctx, user.ID, InvoiceDraftFromTimeInput{
+		ClientID:           client.ID,
+		From:               "2026-07-01T00:00:00Z",
+		To:                 "2026-07-31T23:59:59Z",
+		TaxRateBasisPoints: 2100,
+	})
+	if err != nil {
+		t.Fatalf("create invoice draft: %v", err)
+	}
+	if len(invoice.Lines) != 1 {
+		t.Fatalf("expected one invoice line, got %+v", invoice.Lines)
+	}
+	if invoice.Lines[0].UnitRateMinor != 3500 {
+		t.Fatalf("expected project rate 3500, got %d", invoice.Lines[0].UnitRateMinor)
+	}
+}
+
 func strPtr(value string) *string {
 	return &value
 }

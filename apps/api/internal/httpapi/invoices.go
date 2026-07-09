@@ -45,6 +45,7 @@ func (s *Server) getInvoice(w http.ResponseWriter, r *http.Request, user *store.
 		writeInvoiceError(w, err)
 		return
 	}
+	attachDocumentDownloadURLs(invoice)
 	writeJSON(w, http.StatusOK, invoice)
 }
 

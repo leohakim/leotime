@@ -70,10 +70,15 @@ All MVP slices in the original plan are complete.
 
 | Item | ADR / spec | Current behavior |
 | --- | --- | --- |
-| Billing documents + official PDFs | [ADR 0004](adr/0004-billing-documents-official-pdfs.md), [32-billing-documents.md](32-billing-documents.md) | [23-invoices-api.md](23-invoices-api.md) |
 | UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [25-theme-selector.md](25-theme-selector.md) (solid/light/dark/minimal only) |
 
-Implementation plans: `docs/superpowers/plans/`. Do not start ADR 0004 until restore/backup hardening in doc 34 is addressed.
+## Recently delivered
+
+| Item | ADR / spec | Notes |
+| --- | --- | --- |
+| Billing documents + official PDFs | [ADR 0004](adr/0004-billing-documents-official-pdfs.md), [32-billing-documents.md](32-billing-documents.md) | [23-invoices-api.md](23-invoices-api.md); document-aware backups in [31-s3-daily-backups.md](31-s3-daily-backups.md) |
+
+Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 

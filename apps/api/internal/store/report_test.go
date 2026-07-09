@@ -88,7 +88,17 @@ func TestBuildTimeReportBillableOnlyFilter(t *testing.T) {
 	ctx := context.Background()
 	st, user := newTaskTestStore(t, ctx)
 
-	_, err := st.CreateTimeEntry(ctx, user.ID, TimeEntryInput{
+	client, err := st.CreateClient(ctx, user.ID, ClientInput{
+		Name:                   "Billable Client",
+		DefaultCurrency:        "EUR",
+		DefaultHourlyRateMinor: 5000,
+	})
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+
+	_, err = st.CreateTimeEntry(ctx, user.ID, TimeEntryInput{
+		ClientID:    client.ID,
 		Description: "Billable",
 		StartedAt:   "2026-07-01T08:00:00Z",
 		EndedAt:     "2026-07-01T09:00:00Z",

@@ -2,16 +2,22 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, FileJson, FileText, Trash2 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import {
+  cancelInvoice,
   createInvoiceDraftFromTime,
   deleteInvoice,
+  downloadInvoiceDocument,
   downloadInvoiceExport,
   fetchInvoice,
+  fetchInvoiceSeries,
   fetchInvoices,
+  issueInvoice,
+  previewInvoice,
   updateInvoiceStatus,
   type Client,
   type Invoice,
   type InvoiceStatus,
   type Locale,
+  type WorkProtocolDetail,
 } from './api';
 import { endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './calendarMonth';
 import type { Translator } from './timeEntryUi';
@@ -24,6 +30,8 @@ type DraftFormState = {
   to: string;
   withholding: string;
   notes: string;
+  seriesId: string;
+  workProtocolDetail: WorkProtocolDetail;
 };
 
 function defaultDraftForm(): DraftFormState {
@@ -36,6 +44,8 @@ function defaultDraftForm(): DraftFormState {
     taxRatePercent: '21',
     withholding: '',
     notes: '',
+    seriesId: '',
+    workProtocolDetail: 'standard',
   };
 }
 
@@ -103,6 +113,12 @@ export function InvoicePanel({
     retry: false,
   });
 
+  const seriesQuery = useQuery({
+    queryKey: ['invoice-series'],
+    queryFn: fetchInvoiceSeries,
+    retry: false,
+  });
+
   const invoiceDetailQuery = useQuery({
     queryKey: ['invoice', selectedInvoiceId],
     queryFn: () => fetchInvoice(selectedInvoiceId as string),
@@ -110,6 +126,8 @@ export function InvoicePanel({
   });
 
   const activeClients = useMemo(() => clients.filter((client) => !client.archivedAt), [clients]);
+  const invoiceSeries = seriesQuery.data?.series ?? [];
+  const defaultSeriesId = invoiceSeries.find((series) => series.default)?.id ?? invoiceSeries[0]?.id ?? '';
   const invoices = invoicesQuery.data?.invoices ?? [];
   const selectedInvoice = invoiceDetailQuery.data ?? invoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
 
@@ -134,6 +152,8 @@ export function InvoicePanel({
         taxRateBasisPoints: Math.round(taxRatePercent * 100),
         withholdingMinor: withholding,
         notes: form.notes.trim(),
+        seriesId: form.seriesId || defaultSeriesId || undefined,
+        workProtocolDetail: form.workProtocolDetail,
       });
     },
     onSuccess: (invoice) => {
@@ -171,6 +191,28 @@ export function InvoicePanel({
     onError: () => toast.error(t('invoiceDeleteFailed')),
   });
 
+  const issueMutation = useMutation({
+    mutationFn: issueInvoice,
+    onSuccess: (invoice) => {
+      setSelectedInvoiceId(invoice.id);
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice', invoice.id] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      toast.success(t('invoiceIssueSuccess'));
+    },
+    onError: () => toast.error(t('invoiceIssueFailed')),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: ({ invoiceId, reason }: { invoiceId: string; reason: string }) => cancelInvoice(invoiceId, reason),
+    onSuccess: (invoice) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice', invoice.id] });
+      toast.success(t('invoiceStatusUpdated'));
+    },
+    onError: () => toast.error(t('invoiceStatusUpdateFailed')),
+  });
+
   function submitDraft(event: FormEvent) {
     event.preventDefault();
     setFormError('');
@@ -188,6 +230,39 @@ export function InvoicePanel({
       setExportError(t('invoiceExportFailed'));
       toast.error(t('invoiceExportFailed'));
     }
+  }
+
+  async function handlePreview(invoice: Invoice) {
+    setExportError('');
+    try {
+      const blob = await previewInvoice(invoice.id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      setExportError(t('invoicePreviewFailed'));
+      toast.error(t('invoicePreviewFailed'));
+    }
+  }
+
+  async function handleDocumentDownload(invoice: Invoice, documentId: string, filename: string) {
+    setExportError('');
+    try {
+      const blob = await downloadInvoiceDocument(invoice.id, documentId);
+      triggerDownload(blob, filename);
+      toast.success(t('invoiceExportSuccess'));
+    } catch {
+      setExportError(t('invoiceExportFailed'));
+      toast.error(t('invoiceExportFailed'));
+    }
+  }
+
+  function handleCancel(invoice: Invoice) {
+    const reason = window.prompt(t('invoiceCancelReason'));
+    if (!reason?.trim()) {
+      return;
+    }
+    cancelMutation.mutate({ invoiceId: invoice.id, reason: reason.trim() });
   }
 
   return (
@@ -217,6 +292,32 @@ export function InvoicePanel({
                 {client.name}
               </option>
             ))}
+          </select>
+        </label>
+        <label className="form-field">
+          {t('invoiceSeries')}
+          <select
+            onChange={(event) => setForm((current) => ({ ...current, seriesId: event.target.value }))}
+            value={form.seriesId || defaultSeriesId}
+          >
+            {invoiceSeries.map((series) => (
+              <option key={series.id} value={series.id}>
+                {series.code} — {series.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="form-field">
+          {t('invoiceWorkProtocolDetail')}
+          <select
+            onChange={(event) =>
+              setForm((current) => ({ ...current, workProtocolDetail: event.target.value as WorkProtocolDetail }))
+            }
+            value={form.workProtocolDetail}
+          >
+            <option value="summary">{t('invoiceWorkProtocolSummary')}</option>
+            <option value="standard">{t('invoiceWorkProtocolStandard')}</option>
+            <option value="detailed">{t('invoiceWorkProtocolDetailed')}</option>
           </select>
         </label>
         <label className="form-field">
@@ -342,8 +443,11 @@ export function InvoicePanel({
               <div className="invoice-actions">
                 {selectedInvoice.status === 'draft' ? (
                   <>
-                    <button disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ invoiceId: selectedInvoice.id, status: 'issued' })} type="button">
-                      {t('invoiceIssue')}
+                    <button onClick={() => void handlePreview(selectedInvoice)} type="button">
+                      {t('invoicePreview')}
+                    </button>
+                    <button disabled={issueMutation.isPending} onClick={() => issueMutation.mutate(selectedInvoice.id)} type="button">
+                      {t('invoiceIssueOfficial')}
                     </button>
                     <button
                       className="danger-button"
@@ -361,16 +465,28 @@ export function InvoicePanel({
                     {t('invoiceMarkPaid')}
                   </button>
                 ) : null}
-                {selectedInvoice.status !== 'cancelled' && selectedInvoice.status !== 'paid' ? (
-                  <button
-                    className="ghost-button"
-                    disabled={statusMutation.isPending}
-                    onClick={() => statusMutation.mutate({ invoiceId: selectedInvoice.id, status: 'cancelled' })}
-                    type="button"
-                  >
+                {selectedInvoice.status === 'issued' ? (
+                  <button className="ghost-button" disabled={cancelMutation.isPending} onClick={() => handleCancel(selectedInvoice)} type="button">
                     {t('invoiceCancel')}
                   </button>
                 ) : null}
+                {(selectedInvoice.documents ?? []).map((document) => (
+                  <button
+                    className="ghost-button"
+                    key={document.id}
+                    onClick={() =>
+                      void handleDocumentDownload(
+                        selectedInvoice,
+                        document.id,
+                        `${selectedInvoice.invoiceNumber}-${document.kind === 'work_protocol_pdf' ? 'work-protocol' : 'invoice'}.pdf`,
+                      )
+                    }
+                    type="button"
+                  >
+                    <Download aria-hidden="true" />
+                    {document.kind === 'work_protocol_pdf' ? t('invoiceDownloadWorkProtocol') : t('invoiceDownloadPdf')}
+                  </button>
+                ))}
                 <button className="ghost-button" onClick={() => handleExport(selectedInvoice, 'html')} type="button">
                   <Download aria-hidden="true" />
                   {t('invoiceDownloadHtml')}

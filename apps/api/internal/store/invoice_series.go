@@ -411,6 +411,21 @@ type queryer interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
+func (s *Store) DefaultInvoiceSeries(ctx context.Context, userID string) (*InvoiceSeries, error) {
+	series, err := queryInvoiceSeries(ctx, s.db, `
+		SELECT id, code, name, pattern, next_sequence, reset_policy, active, is_default, created_at, updated_at
+		FROM invoice_series
+		WHERE user_id = ? AND is_default = 1 AND active = 1
+	`, userID)
+	if err != nil {
+		if errors.Is(err, ErrInvoiceSeriesNotFound) {
+			return nil, ErrInvoiceSeriesNotFound
+		}
+		return nil, err
+	}
+	return series, nil
+}
+
 func boolInt(value bool) int {
 	if value {
 		return 1

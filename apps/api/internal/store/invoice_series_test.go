@@ -34,7 +34,7 @@ func TestInvoiceSeriesCRUD(t *testing.T) {
 	st, user := newTaskTestStore(t, ctx)
 
 	series, err := st.CreateInvoiceSeries(ctx, user.ID, InvoiceSeriesInput{
-		Code:    "main",
+		Code:    "CRAFT",
 		Name:    "Main invoices",
 		Pattern: "{YYYY}-{SEQ:04}",
 		Default: boolPtr(true),
@@ -42,7 +42,7 @@ func TestInvoiceSeriesCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create series: %v", err)
 	}
-	if series.Code != "MAIN" || !series.Default || series.NextSequence != 1 {
+	if series.Code != "CRAFT" || !series.Default || series.NextSequence != 1 {
 		t.Fatalf("unexpected series: %+v", series)
 	}
 
@@ -50,8 +50,8 @@ func TestInvoiceSeriesCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list series: %v", err)
 	}
-	if len(list) != 1 {
-		t.Fatalf("expected one series, got %d", len(list))
+	if len(list) != 2 {
+		t.Fatalf("expected two series, got %d", len(list))
 	}
 
 	updated, err := st.UpdateInvoiceSeries(ctx, user.ID, series.ID, InvoiceSeriesInput{
@@ -71,8 +71,8 @@ func TestNextInvoiceNumberTxIncrementsAndRollsBack(t *testing.T) {
 	st, user := newTaskTestStore(t, ctx)
 
 	series, err := st.CreateInvoiceSeries(ctx, user.ID, InvoiceSeriesInput{
-		Code:    "MAIN",
-		Name:    "Main",
+		Code:    "ALT",
+		Name:    "Alt",
 		Pattern: "{YYYY}-{SEQ:04}",
 	})
 	if err != nil {

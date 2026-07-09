@@ -120,7 +120,7 @@ func (s *Service) ListObjects(ctx context.Context, userID string) ([]ObjectRespo
 
 	response := make([]ObjectResponse, 0, len(objects))
 	for _, object := range objects {
-		if !strings.HasSuffix(object.Key, ".db.gz") {
+		if !isBackupArchiveKey(object.Key) {
 			continue
 		}
 		response = append(response, ObjectResponse{
@@ -202,7 +202,7 @@ func (s *Service) Run(ctx context.Context, userID string, force bool) (*RunResul
 	defer os.RemoveAll(dir)
 
 	snapshotPath := filepath.Join(dir, "snapshot.db")
-	gzipPath := filepath.Join(dir, "snapshot.db.gz")
+	archivePath := filepath.Join(dir, "snapshot.tar.gz")
 	if err := snapshot.SnapshotToFile(ctx, s.cfg.DBPath, snapshotPath); err != nil {
 		_ = s.store.UpdateBackupRunStatus(ctx, userID, "failed", err.Error(), "")
 		metrics.BackupFailuresTotal.Inc()
@@ -211,7 +211,7 @@ func (s *Service) Run(ctx context.Context, userID string, force bool) (*RunResul
 		notifyError = err.Error()
 		return nil, err
 	}
-	if err := snapshot.GzipFile(snapshotPath, gzipPath); err != nil {
+	if err := CreateArchive(snapshotPath, s.cfg.DocumentRoot, archivePath); err != nil {
 		_ = s.store.UpdateBackupRunStatus(ctx, userID, "failed", err.Error(), "")
 		metrics.BackupFailuresTotal.Inc()
 		shouldNotify = true
@@ -220,13 +220,13 @@ func (s *Service) Run(ctx context.Context, userID string, force bool) (*RunResul
 		return nil, err
 	}
 
-	info, err := os.Stat(gzipPath)
+	info, err := os.Stat(archivePath)
 	if err != nil {
 		return nil, err
 	}
 
-	objectKey := resolved.prefix + "leotime-" + started.Format("20060102T150405Z") + ".db.gz"
-	file, err := os.Open(gzipPath)
+	objectKey := resolved.prefix + "leotime-" + started.Format("20060102T150405Z") + ".tar.gz"
+	file, err := os.Open(archivePath)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +329,7 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 	}
 	defer os.RemoveAll(dir)
 
-	gzipPath := filepath.Join(dir, "restore.db.gz")
+	downloadPath := filepath.Join(dir, "restore-download")
 	restoreDBPath := filepath.Join(dir, "restore.db")
 
 	reader, err := client.Get(ctx, objectKey)
@@ -342,7 +342,7 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 		notifyError = err.Error()
 		return nil, wrapRemoteError(err)
 	}
-	file, err := os.Create(gzipPath)
+	file, err := os.Create(downloadPath)
 	if err != nil {
 		reader.Close()
 		return nil, err
@@ -355,14 +355,30 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 	file.Close()
 	reader.Close()
 
-	if err := snapshot.GunzipToFile(gzipPath, restoreDBPath); err != nil {
-		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
-		metrics.BackupRestoreFailuresTotal.Inc()
-		shouldNotify = true
-		notifySuccess = false
-		notifyObjectKey = objectKey
-		notifyError = err.Error()
-		return nil, err
+	extractDir := filepath.Join(dir, "extracted")
+	var restoreDocumentsDir string
+	if strings.HasSuffix(objectKey, ".tar.gz") {
+		if _, err := ExtractArchive(downloadPath, extractDir); err != nil {
+			_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
+			metrics.BackupRestoreFailuresTotal.Inc()
+			shouldNotify = true
+			notifySuccess = false
+			notifyObjectKey = objectKey
+			notifyError = err.Error()
+			return nil, err
+		}
+		restoreDBPath = filepath.Join(extractDir, archiveDBFileName)
+		restoreDocumentsDir = filepath.Join(extractDir, archiveDocumentsDir)
+	} else {
+		if err := snapshot.GunzipToFile(downloadPath, restoreDBPath); err != nil {
+			_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
+			metrics.BackupRestoreFailuresTotal.Inc()
+			shouldNotify = true
+			notifySuccess = false
+			notifyObjectKey = objectKey
+			notifyError = err.Error()
+			return nil, err
+		}
 	}
 	minMigrationVersion, err := db.LatestMigrationVersion()
 	if err != nil {
@@ -407,6 +423,18 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 		notifyObjectKey = objectKey
 		notifyError = err.Error()
 		return nil, err
+	}
+
+	if restoreDocumentsDir != "" {
+		if err := replaceDocumentRoot(restoreDocumentsDir, s.cfg.DocumentRoot); err != nil {
+			_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
+			metrics.BackupRestoreFailuresTotal.Inc()
+			shouldNotify = true
+			notifySuccess = false
+			notifyObjectKey = objectKey
+			notifyError = err.Error()
+			return nil, err
+		}
 	}
 
 	_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "success", "", objectKey)
@@ -486,7 +514,7 @@ func (s *Service) pruneOldBackups(ctx context.Context, client storage.Client, pr
 
 	cutoff := now.AddDate(0, 0, -retentionDays)
 	for _, object := range objects {
-		if !strings.HasSuffix(object.Key, ".db.gz") {
+		if !isBackupArchiveKey(object.Key) {
 			continue
 		}
 		if object.LastModified.Before(cutoff) {

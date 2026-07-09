@@ -16,6 +16,8 @@ time_entry_tags
 rates
 invoices
 invoice_lines
+invoice_series
+billing_documents
 app_settings
 email_outbox
 ```
@@ -75,7 +77,9 @@ Per-user preferences in `app_settings` include:
 
 Invoices are simple but should look official:
 
-- Invoice number.
+- Invoice number (draft reference until issue; official number from fiscal series on issue).
+- Fiscal series (`series_id`, `fiscal_sequence`).
+- Billing period (`period_from`, `period_to`).
 - Issue date.
 - Due date.
 - Currency.
@@ -84,6 +88,23 @@ Invoices are simple but should look official:
 - Tax lines such as IVA.
 - Optional withholding lines such as IRPF.
 - Status: draft, issued, paid, cancelled.
+- Frozen `document_snapshot_json` after issue.
+- `work_protocol_detail`: `summary`, `standard`, or `detailed`.
+- Cancellation metadata (`cancelled_at`, `cancellation_reason`).
+
+### Invoice series
+
+`invoice_series` stores configurable fiscal numbering per user:
+
+- `code`, `name`, `pattern`, `next_sequence`, `reset_policy`, `active`, `is_default`.
+
+### Billing documents
+
+`billing_documents` stores immutable PDF metadata per issued invoice:
+
+- `kind`: `invoice_pdf` or `work_protocol_pdf`
+- `storage_path` relative to `LEOTIME_DOCUMENT_ROOT`
+- `sha256`, `byte_size`, `mime_type`, `render_version`
 
 The MVP does not promise legal compliance. It gives a professional-looking document that the owner can adjust.
 

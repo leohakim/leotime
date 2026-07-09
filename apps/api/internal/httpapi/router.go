@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/leotime/leotime/apps/api/internal/backup"
+	"github.com/leotime/leotime/apps/api/internal/billing"
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/maintenance"
 	"github.com/leotime/leotime/apps/api/internal/notify"
@@ -22,6 +23,9 @@ type Server struct {
 	store                 *store.Store
 	passwordReset         *notify.PasswordResetService
 	backups               *backup.Service
+	issueService          *billing.IssueService
+	documents             *billing.DocumentStore
+	renderer              billing.Renderer
 	loginLimiter          *fixedWindowLimiter
 	forgotPasswordLimiter *fixedWindowLimiter
 }
@@ -32,11 +36,21 @@ type sessionResponse struct {
 }
 
 func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.PasswordResetService, backups *backup.Service) http.Handler {
+	documentStore, err := billing.NewDocumentStore(cfg.DocumentRoot)
+	if err != nil {
+		panic("billing document store: " + err.Error())
+	}
+	renderer := billing.NewRenderer()
+	issueService := billing.NewIssueService(st, renderer, documentStore)
+
 	server := &Server{
 		cfg:                   cfg,
 		store:                 st,
 		passwordReset:         passwordReset,
 		backups:               backups,
+		issueService:          issueService,
+		documents:             documentStore,
+		renderer:              renderer,
 		loginLimiter:          newFixedWindowLimiter(10, 15*time.Minute),
 		forgotPasswordLimiter: newFixedWindowLimiter(5, time.Hour),
 	}
@@ -109,8 +123,17 @@ func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.Passwor
 		r.Get("/invoices/{invoiceID}", server.requireUser(server.getInvoice))
 		r.Patch("/invoices/{invoiceID}", server.requireUser(server.updateInvoice))
 		r.Post("/invoices/{invoiceID}/status", server.requireUser(server.updateInvoiceStatus))
+		r.Post("/invoices/{invoiceID}/preview", server.requireUser(server.previewInvoice))
+		r.Post("/invoices/{invoiceID}/issue", server.requireUser(server.issueInvoice))
+		r.Post("/invoices/{invoiceID}/cancel", server.requireUser(server.cancelInvoice))
+		r.Get("/invoices/{invoiceID}/documents", server.requireUser(server.listInvoiceDocuments))
+		r.Get("/invoices/{invoiceID}/documents/{documentID}/download", server.requireUser(server.downloadInvoiceDocument))
 		r.Delete("/invoices/{invoiceID}", server.requireUser(server.deleteInvoice))
 		r.Get("/invoices/{invoiceID}/export", server.requireUser(server.exportInvoice))
+
+		r.Get("/invoice-series", server.requireUser(server.listInvoiceSeries))
+		r.Post("/invoice-series", server.requireUser(server.createInvoiceSeries))
+		r.Patch("/invoice-series/{seriesID}", server.requireUser(server.updateInvoiceSeries))
 		r.Post("/imports/solidtime", server.requireUser(server.importSolidtime))
 	})
 

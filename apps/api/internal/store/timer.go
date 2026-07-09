@@ -22,14 +22,7 @@ type TimerStartInput struct {
 }
 
 func (s *Store) ListOpenTimers(ctx context.Context, userID string) ([]TimeEntry, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT te.id, te.client_id, COALESCE(c.name, ''), te.project_id, COALESCE(p.name, ''), COALESCE(p.color, ''),
-			te.task_id, COALESCE(t.name, ''), te.description, te.started_at, te.ended_at, te.duration_seconds,
-			te.billable, te.overlap_warning, te.source, te.created_at, te.updated_at
-		FROM time_entries te
-		LEFT JOIN clients c ON c.id = te.client_id AND c.user_id = te.user_id
-		LEFT JOIN projects p ON p.id = te.project_id AND p.user_id = te.user_id
-		LEFT JOIN tasks t ON t.id = te.task_id AND t.user_id = te.user_id
+	rows, err := s.db.QueryContext(ctx, timeEntrySelectSQL+`
 		WHERE te.user_id = ? AND te.ended_at IS NULL AND te.source = 'timer'
 		ORDER BY te.started_at DESC
 	`, userID)
@@ -62,6 +55,12 @@ func (s *Store) StartTimer(ctx context.Context, userID string, input TimerStartI
 	if err != nil {
 		return nil, err
 	}
+
+	billable, err := s.resolveBillableFlag(ctx, userID, normalized.ClientID, normalized.ProjectID, normalized.Billable, true)
+	if err != nil {
+		return nil, err
+	}
+	normalized.Billable = billable
 
 	startedAt := truncateToMinute(time.Now().UTC())
 	overlapWarning, err := s.hasTimeOverlap(ctx, userID, "", startedAt, startedAt.Add(time.Minute))
@@ -248,14 +247,7 @@ func (s *Store) DiscardTimer(ctx context.Context, userID string, timeEntryID str
 }
 
 func (s *Store) openTimerByID(ctx context.Context, userID string, timeEntryID string) (*TimeEntry, error) {
-	entry, err := queryTimeEntry(ctx, s.db, `
-		SELECT te.id, te.client_id, COALESCE(c.name, ''), te.project_id, COALESCE(p.name, ''), COALESCE(p.color, ''),
-			te.task_id, COALESCE(t.name, ''), te.description, te.started_at, te.ended_at, te.duration_seconds,
-			te.billable, te.overlap_warning, te.source, te.created_at, te.updated_at
-		FROM time_entries te
-		LEFT JOIN clients c ON c.id = te.client_id AND c.user_id = te.user_id
-		LEFT JOIN projects p ON p.id = te.project_id AND p.user_id = te.user_id
-		LEFT JOIN tasks t ON t.id = te.task_id AND t.user_id = te.user_id
+	entry, err := queryTimeEntry(ctx, s.db, timeEntrySelectSQL+`
 		WHERE te.user_id = ? AND te.id = ? AND te.ended_at IS NULL AND te.source = 'timer'
 	`, userID, timeEntryID)
 	if err != nil {
@@ -340,11 +332,7 @@ func (s *Store) normalizeTimeEntryRelations(ctx context.Context, userID string, 
 			return TimeEntryInput{}, validationError(ErrInvalidTimeEntryInput, "projectId", "invalid", "projectId must reference an active project")
 		}
 		if project.ClientID != "" {
-			if input.ClientID == "" {
-				input.ClientID = project.ClientID
-			} else if input.ClientID != project.ClientID {
-				return TimeEntryInput{}, validationError(ErrInvalidTimeEntryInput, "clientId", "invalid", "clientId must match the selected project client")
-			}
+			input.ClientID = project.ClientID
 		}
 	}
 

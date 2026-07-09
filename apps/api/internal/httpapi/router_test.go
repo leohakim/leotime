@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -932,6 +933,167 @@ func TestInvoiceDraftFromTimeAndExport(t *testing.T) {
 	}
 }
 
+func TestInvoiceBillingIssuePreviewAndDownload(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	seriesResponse := httptest.NewRecorder()
+	seriesRequest := httptest.NewRequest(http.MethodGet, "/api/v1/invoice-series", nil)
+	for _, cookie := range cookies {
+		seriesRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(seriesResponse, seriesRequest)
+	if seriesResponse.Code != http.StatusOK {
+		t.Fatalf("expected series list 200, got %d: %s", seriesResponse.Code, seriesResponse.Body.String())
+	}
+
+	var seriesPayload struct {
+		Series []struct {
+			ID string `json:"id"`
+		} `json:"series"`
+	}
+	if err := json.Unmarshal(seriesResponse.Body.Bytes(), &seriesPayload); err != nil {
+		t.Fatalf("decode series: %v", err)
+	}
+	if len(seriesPayload.Series) == 0 {
+		t.Fatal("expected bootstrap default invoice series")
+	}
+
+	clientResponse := httptest.NewRecorder()
+	clientRequest := httptest.NewRequest(http.MethodPost, "/api/v1/clients", bytes.NewBufferString(`{
+		"name": "Billing Client",
+		"defaultCurrency": "EUR",
+		"defaultHourlyRateMinor": 12000
+	}`))
+	for _, cookie := range cookies {
+		clientRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(clientResponse, clientRequest)
+	if clientResponse.Code != http.StatusCreated {
+		t.Fatalf("expected client 201, got %d: %s", clientResponse.Code, clientResponse.Body.String())
+	}
+	var client struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(clientResponse.Body.Bytes(), &client); err != nil {
+		t.Fatalf("decode client: %v", err)
+	}
+
+	entryResponse := httptest.NewRecorder()
+	entryRequest := httptest.NewRequest(http.MethodPost, "/api/v1/time-entries", bytes.NewBufferString(`{
+		"clientId": "`+client.ID+`",
+		"description": "Billable work",
+		"startedAt": "2026-07-04T09:00:00Z",
+		"endedAt": "2026-07-04T11:00:00Z",
+		"billable": true
+	}`))
+	for _, cookie := range cookies {
+		entryRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(entryResponse, entryRequest)
+	if entryResponse.Code != http.StatusCreated {
+		t.Fatalf("expected entry 201, got %d: %s", entryResponse.Code, entryResponse.Body.String())
+	}
+
+	draftResponse := httptest.NewRecorder()
+	draftRequest := httptest.NewRequest(http.MethodPost, "/api/v1/invoices/draft-from-time", bytes.NewBufferString(`{
+		"clientId": "`+client.ID+`",
+		"from": "2026-07-01T00:00:00Z",
+		"to": "2026-07-31T23:59:59Z",
+		"seriesId": "`+seriesPayload.Series[0].ID+`",
+		"taxRateBasisPoints": 2100
+	}`))
+	for _, cookie := range cookies {
+		draftRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(draftResponse, draftRequest)
+	if draftResponse.Code != http.StatusCreated {
+		t.Fatalf("expected draft 201, got %d: %s", draftResponse.Code, draftResponse.Body.String())
+	}
+
+	var invoice struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(draftResponse.Body.Bytes(), &invoice); err != nil {
+		t.Fatalf("decode invoice: %v", err)
+	}
+
+	previewResponse := httptest.NewRecorder()
+	previewRequest := httptest.NewRequest(http.MethodPost, "/api/v1/invoices/"+invoice.ID+"/preview", nil)
+	for _, cookie := range cookies {
+		previewRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(previewResponse, previewRequest)
+	if previewResponse.Code != http.StatusOK {
+		t.Fatalf("expected preview 200, got %d: %s", previewResponse.Code, previewResponse.Body.String())
+	}
+	if !strings.Contains(previewResponse.Header().Get("Content-Type"), "text/html") {
+		t.Fatalf("expected html preview, got %q", previewResponse.Header().Get("Content-Type"))
+	}
+	if !strings.Contains(previewResponse.Body.String(), "PREVIEW-") {
+		t.Fatalf("expected preview invoice number in html")
+	}
+
+	issueResponse := httptest.NewRecorder()
+	issueRequest := httptest.NewRequest(http.MethodPost, "/api/v1/invoices/"+invoice.ID+"/issue", nil)
+	for _, cookie := range cookies {
+		issueRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(issueResponse, issueRequest)
+	if issueResponse.Code != http.StatusOK {
+		t.Fatalf("expected issue 200, got %d: %s", issueResponse.Code, issueResponse.Body.String())
+	}
+
+	var issued struct {
+		Status        string `json:"status"`
+		InvoiceNumber string `json:"invoiceNumber"`
+		Documents     []struct {
+			ID          string `json:"id"`
+			Kind        string `json:"kind"`
+			DownloadURL string `json:"downloadUrl"`
+		} `json:"documents"`
+	}
+	if err := json.Unmarshal(issueResponse.Body.Bytes(), &issued); err != nil {
+		t.Fatalf("decode issued invoice: %v", err)
+	}
+	if issued.Status != "issued" || issued.InvoiceNumber != "2026-0001" || len(issued.Documents) != 2 {
+		t.Fatalf("unexpected issued invoice: %+v", issued)
+	}
+
+	downloadResponse := httptest.NewRecorder()
+	downloadRequest := httptest.NewRequest(http.MethodGet, issued.Documents[0].DownloadURL, nil)
+	for _, cookie := range cookies {
+		downloadRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(downloadResponse, downloadRequest)
+	if downloadResponse.Code != http.StatusOK {
+		t.Fatalf("expected download 200, got %d: %s", downloadResponse.Code, downloadResponse.Body.String())
+	}
+	if !strings.HasPrefix(downloadResponse.Body.String(), "%PDF") {
+		t.Fatal("expected pdf download body")
+	}
+
+	cancelResponse := httptest.NewRecorder()
+	cancelRequest := httptest.NewRequest(http.MethodPost, "/api/v1/invoices/"+invoice.ID+"/cancel", bytes.NewBufferString(`{"reason":"Client requested correction"}`))
+	for _, cookie := range cookies {
+		cancelRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(cancelResponse, cancelRequest)
+	if cancelResponse.Code != http.StatusOK {
+		t.Fatalf("expected cancel 200, got %d: %s", cancelResponse.Code, cancelResponse.Body.String())
+	}
+
+	patchResponse := httptest.NewRecorder()
+	patchRequest := httptest.NewRequest(http.MethodPatch, "/api/v1/invoices/"+invoice.ID, bytes.NewBufferString(`{"notes":"changed"}`))
+	for _, cookie := range cookies {
+		patchRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(patchResponse, patchRequest)
+	if patchResponse.Code != http.StatusConflict {
+		t.Fatalf("expected issued invoice patch conflict, got %d", patchResponse.Code)
+	}
+}
+
 func TestDashboardStatsHTTP(t *testing.T) {
 	router := newTestRouter(t)
 	cookies := loginCookies(t, router)
@@ -990,6 +1152,7 @@ func newTestRouter(t *testing.T) http.Handler {
 		PublicBaseURL:     "http://127.0.0.1:8080",
 		PasswordResetTTL:  time.Hour,
 		MailMaxAttempts:   5,
+		DocumentRoot:      filepath.Join(t.TempDir(), "documents"),
 	}
 
 	outboxStore := outbox.NewStore(database)
@@ -1104,6 +1267,7 @@ func TestResetPasswordWithToken(t *testing.T) {
 	}
 
 	cfg := config.Config{
+		DocumentRoot:      filepath.Join(t.TempDir(), "documents"),
 		SessionCookieName: "leotime_session",
 		SessionTTL:        time.Hour,
 		PublicBaseURL:     "http://127.0.0.1:8080",

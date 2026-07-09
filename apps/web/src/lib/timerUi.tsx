@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { type Project, type Tag, type Task, type TimeEntry, type TimerStartInput } from './api';
+import { type Client, type Project, type Tag, type Task, type TimeEntry, type TimerStartInput } from './api';
+import { hasBillableRate } from './billable';
 import { patchTimersCache, refreshOverviewIfOnline } from './offline/cache';
 import { useOfflineStatus } from './offline/offlineContext';
 import { isLocalId, startTimer, updateTimer } from './offline/mutations';
@@ -23,7 +24,7 @@ const emptyTimerForm: TimerStartFormState = {
   taskId: '',
   tagIds: [],
   description: '',
-  billable: true,
+  billable: false,
 };
 
 export function SidebarTimer({
@@ -67,6 +68,7 @@ export function SidebarTimer({
 }
 
 export function TimerCommandRow({
+  clients,
   onStop,
   projects,
   stoppingTimerId,
@@ -76,6 +78,7 @@ export function TimerCommandRow({
   timers,
   t,
 }: {
+  clients: Client[];
   onStop: (timeEntryId: string) => void;
   projects: Project[];
   stoppingTimerId: string | null;
@@ -256,7 +259,11 @@ export function TimerCommandRow({
 
   function patchMeta(next: Partial<TimerMetaSelection>) {
     setForm((current) => {
-      const merged = { ...current, ...next };
+      let merged = { ...current, ...next };
+      if ('projectId' in next) {
+        const project = projects.find((item) => item.id === merged.projectId);
+        merged = { ...merged, billable: hasBillableRate(project, clients) };
+      }
       const timer = activeTimerRef.current;
       if (timer) {
         updateMutation.mutate({

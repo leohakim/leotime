@@ -101,7 +101,29 @@ func (s *Store) BootstrapAdmin(ctx context.Context, email string, password strin
 		return fmt.Errorf("commit bootstrap admin: %w", err)
 	}
 
+	if err := s.ensureDefaultInvoiceSeries(ctx, userID); err != nil {
+		return fmt.Errorf("ensure default invoice series: %w", err)
+	}
+
 	return nil
+}
+
+func (s *Store) ensureDefaultInvoiceSeries(ctx context.Context, userID string) error {
+	series, err := s.ListInvoiceSeries(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if len(series) > 0 {
+		return nil
+	}
+	defaultSeries := true
+	_, err = s.CreateInvoiceSeries(ctx, userID, InvoiceSeriesInput{
+		Code:    "MAIN",
+		Name:    "Main invoices",
+		Pattern: "{YYYY}-{SEQ:04}",
+		Default: &defaultSeries,
+	})
+	return err
 }
 
 func (s *Store) Authenticate(ctx context.Context, email string, password string) (*User, error) {

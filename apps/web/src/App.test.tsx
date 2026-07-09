@@ -988,6 +988,25 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
     return jsonResponse({ invoices: invoicesMock });
   }
 
+  if (url.endsWith('/api/v1/invoice-series') && (!init?.method || init.method === 'GET')) {
+    return jsonResponse({
+      series: [
+        {
+          id: 'ser_main',
+          code: 'MAIN',
+          name: 'Principal',
+          pattern: '{YYYY}-{SEQ:04}',
+          nextSequence: 2,
+          resetPolicy: 'yearly',
+          active: true,
+          default: true,
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    });
+  }
+
   if (url.includes('/api/v1/invoices/') && (!init?.method || init.method === 'GET') && !url.includes('/export')) {
     const invoiceId = url.split('/api/v1/invoices/')[1]?.split('?')[0] ?? '';
     const invoice = invoicesMock.find((item) => item.id === invoiceId);

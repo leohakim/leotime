@@ -342,6 +342,7 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
         <div className="page-content">
           {routeShowsTimerBar(route) ? (
             <TimerCommandRow
+              clients={clientsQuery.data?.clients ?? []}
               onStop={(timeEntryId) => stopTimerMutation.mutate(timeEntryId)}
               projects={projectsQuery.data?.projects ?? []}
               stoppingTimerId={stopTimerMutation.isPending ? (stopTimerMutation.variables ?? null) : null}

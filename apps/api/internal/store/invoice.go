@@ -95,6 +95,10 @@ type InvoiceUpdateInput struct {
 	WithholdingMinor   *int64  `json:"withholdingMinor"`
 	Notes              *string `json:"notes"`
 	TaxRateBasisPoints *int    `json:"taxRateBasisPoints"`
+	SeriesID           *string `json:"seriesId"`
+	PeriodFrom         *string `json:"periodFrom"`
+	PeriodTo           *string `json:"periodTo"`
+	WorkProtocolDetail *string `json:"workProtocolDetail"`
 }
 
 func (s *Store) ListInvoices(ctx context.Context, userID string) ([]Invoice, error) {
@@ -239,7 +243,13 @@ func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, i
 		periodTo = to
 	}
 	workProtocolDetail := normalizeWorkProtocolDetail(input.WorkProtocolDetail)
-	seriesID := nullIfEmpty(strings.TrimSpace(input.SeriesID))
+	seriesIDValue := strings.TrimSpace(input.SeriesID)
+	if seriesIDValue == "" {
+		if defaultSeries, err := s.DefaultInvoiceSeries(ctx, userID); err == nil {
+			seriesIDValue = defaultSeries.ID
+		}
+	}
+	seriesID := nullIfEmpty(seriesIDValue)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -323,6 +333,18 @@ func (s *Store) UpdateInvoice(ctx context.Context, userID string, invoiceID stri
 	if input.Notes != nil {
 		invoice.Notes = strings.TrimSpace(*input.Notes)
 	}
+	if input.SeriesID != nil {
+		invoice.SeriesID = strings.TrimSpace(*input.SeriesID)
+	}
+	if input.PeriodFrom != nil {
+		invoice.PeriodFrom = strings.TrimSpace(*input.PeriodFrom)
+	}
+	if input.PeriodTo != nil {
+		invoice.PeriodTo = strings.TrimSpace(*input.PeriodTo)
+	}
+	if input.WorkProtocolDetail != nil {
+		invoice.WorkProtocolDetail = normalizeWorkProtocolDetail(*input.WorkProtocolDetail)
+	}
 	if input.WithholdingMinor != nil {
 		if *input.WithholdingMinor < 0 {
 			return nil, validationError(ErrInvalidInvoiceInput, "withholdingBasisPoints", "invalid", "withholding cannot be negative")
@@ -355,13 +377,15 @@ func (s *Store) UpdateInvoice(ctx context.Context, userID string, invoiceID stri
 		UPDATE invoices
 		SET issued_at = ?, due_at = ?, seller_name = ?, seller_tax_id = ?, seller_address = ?,
 			client_name = ?, client_tax_id = ?, client_address = ?,
-			subtotal_minor = ?, tax_minor = ?, withholding_minor = ?, total_minor = ?, notes = ?, updated_at = ?
+			subtotal_minor = ?, tax_minor = ?, withholding_minor = ?, total_minor = ?, notes = ?,
+			series_id = ?, period_from = ?, period_to = ?, work_protocol_detail = ?, updated_at = ?
 		WHERE user_id = ? AND id = ?
 	`, nullIfEmpty(invoice.IssuedAt), nullIfEmpty(invoice.DueAt),
 		invoice.SellerName, invoice.SellerTaxID, invoice.SellerAddress,
 		invoice.ClientName, invoice.ClientTaxID, invoice.ClientAddress,
 		invoice.SubtotalMinor, invoice.TaxMinor, invoice.WithholdingMinor, invoice.TotalMinor,
-		invoice.Notes, now, userID, invoiceID)
+		invoice.Notes, nullIfEmpty(invoice.SeriesID), invoice.PeriodFrom, invoice.PeriodTo,
+		invoice.WorkProtocolDetail, now, userID, invoiceID)
 	if err != nil {
 		return nil, fmt.Errorf("update invoice: %w", err)
 	}

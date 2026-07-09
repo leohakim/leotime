@@ -57,7 +57,7 @@ leotime.db-wal
 leotime.db-shm
 ```
 
-Backups use the SQLite backup API (safe with WAL mode). The app creates gzip snapshots and uploads them to your private S3 bucket once per day (default **01:00** in your profile timezone, **365-day** retention).
+Backups use the SQLite backup API (safe with WAL mode). The app creates a gzip tar archive with the database, official invoice PDFs under `LEOTIME_DOCUMENT_ROOT`, and a `manifest.json` integrity manifest, then uploads it to your private S3 bucket once per day (default **01:00** in your profile timezone, **365-day** retention).
 
 ## Reverse Proxy
 

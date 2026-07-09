@@ -100,13 +100,9 @@ func newIssueFixture(t *testing.T, ctx context.Context) (*store.Store, *store.Us
 	t.Helper()
 	st, user := newBillingTestStore(t, ctx)
 
-	series, err := st.CreateInvoiceSeries(ctx, user.ID, store.InvoiceSeriesInput{
-		Code:    "MAIN",
-		Name:    "Main",
-		Pattern: "{YYYY}-{SEQ:04}",
-	})
+	series, err := st.DefaultInvoiceSeries(ctx, user.ID)
 	if err != nil {
-		t.Fatalf("create series: %v", err)
+		t.Fatalf("default series: %v", err)
 	}
 
 	client, err := st.CreateClient(ctx, user.ID, store.ClientInput{

@@ -11,6 +11,7 @@ import {
   type TimeEntry,
   type TimeEntryInput,
 } from './api';
+import { hasBillableRate } from './billable';
 import { validateProjectRequired } from './crudFormUi';
 import { patchTimeEntriesCache, refreshOverviewIfOnline } from './offline/cache';
 import { useOfflineStatus } from './offline/offlineContext';
@@ -205,7 +206,7 @@ function defaultManualTimeEntryForm(): ManualTimeEntryFormState {
     description: '',
     startedAt: toDateTimeLocalValue(start.toISOString()),
     endedAt: toDateTimeLocalValue(end.toISOString()),
-    billable: true,
+    billable: false,
   };
 }
 
@@ -227,6 +228,7 @@ export function applyManualEntryFieldUpdate(
   value: ManualTimeEntryFormState[keyof ManualTimeEntryFormState],
   projects: Project[],
   tasks: Task[],
+  clients: Client[],
 ): ManualTimeEntryFormState {
   const next = { ...form, [field]: value } as ManualTimeEntryFormState;
 
@@ -246,6 +248,9 @@ export function applyManualEntryFieldUpdate(
     if (task?.projectId && task.projectId !== value) {
       next.taskId = '';
     }
+    const project = projects.find((item) => item.id === value);
+    next.clientId = project?.clientId ?? '';
+    next.billable = hasBillableRate(project, clients);
   }
 
   return next;
@@ -342,6 +347,10 @@ export function ManualTimeEntryPanel({
     () => tasksForManualEntryForm(form.projectId, form.taskId, tasks),
     [form.projectId, form.taskId, tasks],
   );
+  const selectedProject = useMemo(
+    () => projects.find((project) => project.id === form.projectId) ?? null,
+    [form.projectId, projects],
+  );
 
   const visibleTags = useMemo(() => {
     const activeTags = tags.filter((tag) => !tag.archivedAt);
@@ -357,7 +366,7 @@ export function ManualTimeEntryPanel({
       return;
     }
 
-    const input = manualTimeEntryFormToInput(form);
+    const input = manualTimeEntryFormToInput(form, projects, clients);
     if (editingEntryId) {
       updateMutation.mutate({ timeEntryId: editingEntryId, input });
       return;
@@ -366,7 +375,7 @@ export function ManualTimeEntryPanel({
   }
 
   function updateField<K extends keyof ManualTimeEntryFormState>(field: K, value: ManualTimeEntryFormState[K]) {
-    const next = applyManualEntryFieldUpdate(form, field, value, projects, tasks);
+    const next = applyManualEntryFieldUpdate(form, field, value, projects, tasks, clients);
     setForm(next);
     if (hasErrors(errors)) {
       setErrors(validateManualTimeEntryForm(next, t, taskProjectRequired));
@@ -514,18 +523,6 @@ export function ManualTimeEntryPanel({
               <FieldError id="time-entry-end-error" message={errors.endedAt} />
             </label>
 
-            <label className="form-field" htmlFor="time-entry-client">
-              <span>{t('projectClient')}</span>
-              <select id="time-entry-client" onChange={(event) => updateField('clientId', event.target.value)} value={form.clientId}>
-                <option value="">{t('projectClientOptional')}</option>
-                {clients.filter((client) => !client.archivedAt).map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
             <label className="form-field" htmlFor="time-entry-project">
               <span>{t('taskProject')}</span>
               <select id="time-entry-project" onChange={(event) => updateField('projectId', event.target.value)} value={form.projectId}>
@@ -537,6 +534,13 @@ export function ManualTimeEntryPanel({
                 ))}
               </select>
             </label>
+
+            {selectedProject?.clientId ? (
+              <p className="form-field form-field-readonly">
+                <span>{t('projectClient')}</span>
+                <span>{selectedProject.clientName || clients.find((client) => client.id === selectedProject.clientId)?.name}</span>
+              </p>
+            ) : null}
 
             <label className="form-field" htmlFor="time-entry-task">
               <span>{t('tasks')}</span>
@@ -561,16 +565,6 @@ export function ManualTimeEntryPanel({
                 ))}
               </div>
             </div>
-
-            <label className="form-field checkbox-field" htmlFor="time-entry-billable">
-              <span>{t('billable')}</span>
-              <input
-                checked={form.billable}
-                id="time-entry-billable"
-                onChange={(event) => updateField('billable', event.target.checked)}
-                type="checkbox"
-              />
-            </label>
           </div>
 
           <div className="client-form-actions">
@@ -641,19 +635,12 @@ function validateManualTimeEntryForm(
   return errors;
 }
 
-function timeEntryToInput(entry: TimeEntry, overrides: Partial<TimeEntryInlineForm>, projects: Project[], tasks: Task[]): TimeEntryInput {
-  const description = overrides.description ?? entry.description;
-  const projectId = overrides.projectId ?? entry.projectId;
-  let taskId = overrides.taskId ?? entry.taskId;
-  const baselineForm = entryToInlineForm(entry);
-  const startedAt =
-    overrides.startedAt !== undefined && overrides.startedAt !== baselineForm.startedAt
-      ? fromDateTimeLocalValue(overrides.startedAt)
-      : entry.startedAt;
-  const endedAt =
-    overrides.endedAt !== undefined && overrides.endedAt !== baselineForm.endedAt
-      ? fromDateTimeLocalValue(overrides.endedAt)
-      : entry.endedAt;
+function timeEntryToInput(entry: TimeEntry, form: TimeEntryInlineForm, projects: Project[], tasks: Task[]): TimeEntryInput {
+  const description = form.description;
+  const projectId = form.projectId;
+  let taskId = form.taskId;
+  const startedAt = fromDateTimeLocalValue(form.startedAt);
+  const endedAt = fromDateTimeLocalValue(form.endedAt);
 
   if (projectId && taskId) {
     const task = tasks.find((item) => item.id === taskId);
@@ -672,7 +659,7 @@ function timeEntryToInput(entry: TimeEntry, overrides: Partial<TimeEntryInlineFo
     description: description.trim(),
     startedAt,
     endedAt,
-    billable: entry.billable,
+    billable: form.billable,
   };
 }
 
@@ -682,6 +669,7 @@ type TimeEntryInlineForm = {
   taskId: string;
   startedAt: string;
   endedAt: string;
+  billable: boolean;
 };
 
 function entryToInlineForm(entry: TimeEntry): TimeEntryInlineForm {
@@ -691,6 +679,7 @@ function entryToInlineForm(entry: TimeEntry): TimeEntryInlineForm {
     taskId: entry.taskId,
     startedAt: toDateTimeLocalValue(entry.startedAt),
     endedAt: toDateTimeLocalValue(entry.endedAt),
+    billable: entry.billable,
   };
 }
 
@@ -812,11 +801,15 @@ function useTimeEntryInlineEditor({
     });
   }
 
+  function toggleBillable() {
+    updateField('billable', !form.billable);
+  }
+
   const project = projects.find((item) => item.id === form.projectId);
   const projectColor = project?.color || entry.projectColor;
   const liveDuration = computeLiveDurationSeconds(form, entry.durationSeconds);
 
-  return { error, form, liveDuration, project, projectColor, updateField };
+  return { error, form, liveDuration, project, projectColor, toggleBillable, updateField };
 }
 
 export function TimesheetEntryRow({
@@ -834,7 +827,7 @@ export function TimesheetEntryRow({
   tasks: Task[];
   t: Translator;
 }) {
-  const { error, form, liveDuration, project, updateField } = useTimeEntryInlineEditor({
+  const { error, form, liveDuration, project, toggleBillable, updateField } = useTimeEntryInlineEditor({
     entry,
     projects,
     taskProjectRequired,
@@ -863,7 +856,15 @@ export function TimesheetEntryRow({
       />
       <div className="entry-flags">
         {entry.tags.length > 0 ? <Tag aria-hidden="true" /> : null}
-        <DollarSign aria-hidden="true" className={entry.billable ? 'billable-on' : undefined} />
+        <button
+          aria-label={form.billable ? t('billable') : t('nonBillable')}
+          aria-pressed={form.billable}
+          className={`quiet-icon-button${form.billable ? ' billable' : ''}`}
+          onClick={toggleBillable}
+          type="button"
+        >
+          <DollarSign aria-hidden="true" className={form.billable ? 'billable-on' : undefined} />
+        </button>
         {entry.overlapWarning ? <CircleAlert aria-hidden="true" className="overlap-warning-icon" /> : null}
       </div>
       <input
@@ -913,7 +914,7 @@ function DirectoryEntryRow({
   tasks: Task[];
   t: Translator;
 }) {
-  const { error, form, liveDuration, projectColor, updateField } = useTimeEntryInlineEditor({
+  const { error, form, liveDuration, projectColor, toggleBillable, updateField } = useTimeEntryInlineEditor({
     autoSave: !pauseInlineSave,
     entry,
     projects,
@@ -960,6 +961,15 @@ function DirectoryEntryRow({
           projects={projects}
           value={form.projectId}
         />
+        <button
+          aria-label={form.billable ? t('billable') : t('nonBillable')}
+          aria-pressed={form.billable}
+          className={`quiet-icon-button${form.billable ? ' billable' : ''}`}
+          onClick={toggleBillable}
+          type="button"
+        >
+          <DollarSign aria-hidden="true" className={form.billable ? 'billable-on' : undefined} />
+        </button>
         <input
           aria-label={t('startedAt')}
           className="entry-inline-datetime"
@@ -986,16 +996,17 @@ function DirectoryEntryRow({
   );
 }
 
-function manualTimeEntryFormToInput(form: ManualTimeEntryFormState): TimeEntryInput {
+function manualTimeEntryFormToInput(form: ManualTimeEntryFormState, projects: Project[], clients: Client[]): TimeEntryInput {
+  const project = projects.find((item) => item.id === form.projectId);
   return {
-    clientId: form.clientId,
+    clientId: project?.clientId ?? form.clientId,
     projectId: form.projectId,
     taskId: form.taskId,
     tagIds: form.tagIds,
     description: form.description.trim(),
     startedAt: fromDateTimeLocalValue(form.startedAt),
     endedAt: fromDateTimeLocalValue(form.endedAt),
-    billable: form.billable,
+    billable: form.billable || hasBillableRate(project, clients),
   };
 }
 

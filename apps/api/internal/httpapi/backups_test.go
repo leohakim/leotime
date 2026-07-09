@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -171,6 +172,7 @@ func newBackupHTTPTestRouterWithSecretsKey(t *testing.T, secretsKey string) (htt
 
 	cfg := config.Config{
 		DBPath:            t.TempDir() + "/leotime-live.db",
+		DocumentRoot:      filepath.Join(t.TempDir(), "documents"),
 		SecretsKey:        secretsKey,
 		BootstrapEmail:    "admin@example.com",
 		BootstrapPassword: "change-me-now",

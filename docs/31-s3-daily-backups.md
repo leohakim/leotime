@@ -24,19 +24,24 @@ CLI (same binary):
 Backup flow:
 
 1. Create a consistent SQLite snapshot through the SQLite backup API (safe with WAL mode).
-2. Compress the snapshot as gzip (`.db.gz`).
-3. Upload to `{prefix}leotime-{UTC-timestamp}.db.gz`.
-4. Delete objects older than the configured retention window.
-5. Persist last run status in `backup_settings`.
+2. Build a `manifest.json` with SHA-256 hashes for the database and every file under `LEOTIME_DOCUMENT_ROOT`.
+3. Package `manifest.json`, `leotime.db`, and `documents/...` into a gzip tar archive (`.tar.gz`).
+4. Upload to `{prefix}leotime-{UTC-timestamp}.tar.gz`.
+5. Delete objects older than the configured retention window.
+6. Persist last run status in `backup_settings`.
+
+Legacy `.db.gz` objects (database only) remain listable and restorable for older backups.
 
 Restore flow:
 
 1. Download the selected object from S3.
-2. Decompress to a temporary SQLite file.
-3. Validate the file opens and has expected tables.
-4. Create a local safety snapshot of the current database before replacing it.
-5. Replace live data through the SQLite backup API (online restore with write lock).
-6. Record restore status in `backup_settings`.
+2. If the object is `.tar.gz`, extract it to a temp directory and validate `manifest.json` hashes.
+3. If the object is legacy `.db.gz`, decompress to a temporary SQLite file.
+4. Validate the database opens, has expected tables, and meets the minimum migration version.
+5. Create a local safety snapshot of the current database before replacing it.
+6. Replace live data through the SQLite backup API (online restore with write lock).
+7. For `.tar.gz` archives, replace `LEOTIME_DOCUMENT_ROOT` with the archived `documents/` tree after validation.
+8. Record restore status in `backup_settings`.
 
 ## Defaults
 
@@ -58,6 +63,9 @@ Add to `.env` (see `.env.example`):
 ```text
 # Required to store S3 credentials from the UI/API (32-byte key)
 LEOTIME_SECRETS_KEY=
+
+# Official invoice PDFs (included in tar backups)
+LEOTIME_DOCUMENT_ROOT=/data/documents
 
 # Optional; backup scheduler respects DB `enabled` flag regardless
 LEOTIME_BACKUP_SCHEDULER_ENABLED=true

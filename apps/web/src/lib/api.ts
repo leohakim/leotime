@@ -361,6 +361,40 @@ export type DashboardStats = {
 
 export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'cancelled';
 
+export type WorkProtocolDetail = 'summary' | 'standard' | 'detailed';
+
+export type BillingDocumentKind = 'invoice_pdf' | 'work_protocol_pdf';
+
+export type BillingDocument = {
+  id: string;
+  invoiceId?: string;
+  kind: BillingDocumentKind;
+  storagePath?: string;
+  sha256: string;
+  byteSize: number;
+  mimeType?: string;
+  renderVersion?: string;
+  createdAt?: string;
+  downloadUrl?: string;
+};
+
+export type InvoiceSeries = {
+  id: string;
+  code: string;
+  name: string;
+  pattern: string;
+  nextSequence: number;
+  resetPolicy: string;
+  active: boolean;
+  default: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InvoiceSeriesResponse = {
+  series: InvoiceSeries[];
+};
+
 export type InvoiceLine = {
   id: string;
   timeEntryId: string;
@@ -391,6 +425,11 @@ export type Invoice = {
   withholdingMinor: number;
   totalMinor: number;
   notes: string;
+  seriesId?: string;
+  periodFrom?: string;
+  periodTo?: string;
+  workProtocolDetail?: WorkProtocolDetail;
+  documents?: BillingDocument[];
   lines: InvoiceLine[];
   createdAt: string;
   updatedAt: string;
@@ -411,6 +450,10 @@ export type InvoiceDraftFromTimeInput = {
   withholdingMinor?: number;
   notes?: string;
   dueAt?: string;
+  seriesId?: string;
+  periodFrom?: string;
+  periodTo?: string;
+  workProtocolDetail?: WorkProtocolDetail;
 };
 
 export type InvoiceUpdateInput = {
@@ -830,6 +873,35 @@ export async function deleteInvoice(invoiceId: string): Promise<void> {
 
 export async function downloadInvoiceExport(invoiceId: string, format: 'html' | 'csv' | 'json'): Promise<Blob> {
   const response = await fetch(`/api/v1/invoices/${invoiceId}/export?format=${format}`, {
+    credentials: 'include',
+  });
+  await ensureOk(response);
+  return response.blob();
+}
+
+export async function fetchInvoiceSeries(): Promise<InvoiceSeriesResponse> {
+  return apiGet('/api/v1/invoice-series');
+}
+
+export async function previewInvoice(invoiceId: string): Promise<Blob> {
+  const response = await fetch(`/api/v1/invoices/${invoiceId}/preview`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  await ensureOk(response);
+  return response.blob();
+}
+
+export async function issueInvoice(invoiceId: string): Promise<Invoice> {
+  return apiJSON(`/api/v1/invoices/${invoiceId}/issue`, 'POST', {});
+}
+
+export async function cancelInvoice(invoiceId: string, reason: string): Promise<Invoice> {
+  return apiJSON(`/api/v1/invoices/${invoiceId}/cancel`, 'POST', { reason });
+}
+
+export async function downloadInvoiceDocument(invoiceId: string, documentId: string): Promise<Blob> {
+  const response = await fetch(`/api/v1/invoices/${invoiceId}/documents/${documentId}/download`, {
     credentials: 'include',
   });
   await ensureOk(response);

@@ -6,11 +6,9 @@ Accepted.
 
 ## Implementation
 
-**Not implemented** (2026-07-08). This ADR and [32-billing-documents.md](../32-billing-documents.md) describe the **next** invoice upgrade. Current production behavior remains [23-invoices-api.md](../23-invoices-api.md) (draft from time, HTML/CSV/JSON export, status workflow).
+**Partially implemented** (2026-07-09). Migration `000009_billing_documents.sql`, fiscal series store, billing package (snapshot, PDF render, issue service), HTTP routes for preview/issue/cancel/documents, invoice UI workflow, and document-aware S3 backups are in tree. See [23-invoices-api.md](../23-invoices-api.md) and [32-billing-documents.md](../32-billing-documents.md).
 
-Planned migration: `000009_billing_documents.sql` (not in tree). Plan: [superpowers/plans/2026-07-08-billing-documents.md](../superpowers/plans/2026-07-08-billing-documents.md).
-
-Do not implement ADR 0004 until hardening items in [34-known-gaps-and-audit.md](../34-known-gaps-and-audit.md) are triaged for restore safety and backup scope.
+Remaining follow-ups: richer fiscal series admin UI, client-level defaults in the dashboard, and any legal/compliance features explicitly out of scope here.
 
 ## Context
 

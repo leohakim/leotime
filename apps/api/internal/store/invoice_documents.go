@@ -21,6 +21,7 @@ type BillingDocument struct {
 	MimeType      string `json:"mimeType"`
 	RenderVersion string `json:"renderVersion"`
 	CreatedAt     string `json:"createdAt"`
+	DownloadURL   string `json:"downloadUrl,omitempty"`
 }
 
 type BillingDocumentInput struct {

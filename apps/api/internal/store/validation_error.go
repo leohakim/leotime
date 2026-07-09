@@ -21,6 +21,10 @@ func validationError(cause error, field, code, message string) error {
 	return &ValidationError{Cause: cause, Field: field, Code: code, Msg: message}
 }
 
+func InvoiceInputError(field, code, message string) error {
+	return validationError(ErrInvalidInvoiceInput, field, code, message)
+}
+
 func IsValidation(err, sentinel error) bool {
 	var validation *ValidationError
 	if errors.As(err, &validation) {

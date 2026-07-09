@@ -1,14 +1,16 @@
 # Invoices API
 
-Las facturas permiten crear borradores desde tiempo facturable, congelar datos del cliente y exportar HTML imprimible, CSV o JSON.
-
-> **Planned upgrade (not shipped):** [ADR 0004](adr/0004-billing-documents-official-pdfs.md) and [32-billing-documents.md](32-billing-documents.md) describe official PDFs, fiscal series, and Work Protocol appendices. Until that delivery lands, this document is the source of truth for invoice API behavior.
+Las facturas permiten crear borradores desde tiempo facturable, previsualizar el documento, emitir PDFs oficiales inmutables con serie fiscal, y exportar HTML, CSV o JSON.
 
 ## Rutas HTTP
 
 Todas las rutas requieren cookie de sesion valida.
 
 ```text
+GET    /api/v1/invoice-series
+POST   /api/v1/invoice-series
+PATCH  /api/v1/invoice-series/{seriesID}
+
 GET    /api/v1/invoices
 POST   /api/v1/invoices/draft-from-time
 GET    /api/v1/invoices/{invoiceID}
@@ -16,7 +18,42 @@ PATCH  /api/v1/invoices/{invoiceID}
 POST   /api/v1/invoices/{invoiceID}/status
 DELETE /api/v1/invoices/{invoiceID}
 GET    /api/v1/invoices/{invoiceID}/export
+
+POST   /api/v1/invoices/{invoiceID}/preview
+POST   /api/v1/invoices/{invoiceID}/issue
+POST   /api/v1/invoices/{invoiceID}/cancel
+GET    /api/v1/invoices/{invoiceID}/documents
+GET    /api/v1/invoices/{invoiceID}/documents/{documentID}/download
 ```
+
+## Series fiscales
+
+Cada usuario tiene al menos una serie fiscal. El bootstrap crea `MAIN` como serie por defecto.
+
+```http
+GET /api/v1/invoice-series
+```
+
+Respuesta:
+
+```json
+{
+  "series": [
+    {
+      "id": "ser_...",
+      "code": "MAIN",
+      "name": "Principal",
+      "pattern": "{YYYY}-{SEQ:04}",
+      "nextSequence": 1,
+      "resetPolicy": "yearly",
+      "active": true,
+      "default": true
+    }
+  ]
+}
+```
+
+El patron admite `{YYYY}`, `{YY}` y `{SEQ:NN}` para el siguiente numero oficial.
 
 ## Crear borrador desde tiempo
 
@@ -34,7 +71,9 @@ Content-Type: application/json
   "sellerTaxId": "12345678Z",
   "sellerAddress": "Madrid",
   "notes": "Gracias por confiar en nosotros",
-  "dueAt": "2026-08-15T00:00:00Z"
+  "dueAt": "2026-08-15T00:00:00Z",
+  "seriesId": "ser_...",
+  "workProtocolDetail": "standard"
 }
 ```
 
@@ -45,6 +84,8 @@ Content-Type: application/json
 | `taxRateBasisPoints` | IVA u otro impuesto por linea. `2100` = 21%. Default `0`. |
 | `withholdingMinor` | Retencion IRPF u otra en unidades menores. Default `0`. |
 | `sellerName` | Opcional. Default: nombre del usuario autenticado. |
+| `seriesId` | Opcional. Serie fiscal para la emision oficial. Default: serie marcada como `default`. |
+| `workProtocolDetail` | `summary`, `standard` o `detailed`. Controla el anexo de protocolo de trabajo. |
 | Entradas | Solo tiempo facturable, finalizado y aun no incluido en otra factura no anulada. |
 
 Cada entrada genera una linea con:
@@ -54,25 +95,69 @@ Cada entrada genera una linea con:
 - tarifa horaria resuelta (proyecto > cliente > 0),
 - subtotal en unidades menores.
 
-El numero de factura se genera como `INV-{YYYY}-{secuencia}`.
+Los borradores usan un numero provisional `DRAFT-{id}` hasta la emision oficial.
 
 ## Estados
 
 | Estado | Regla |
 | --- | --- |
-| `draft` | Editable y eliminable. |
-| `issued` | Congelada. `issued_at` se rellena al emitir si estaba vacio. |
+| `draft` | Editable y eliminable. Permite preview sin numero fiscal. |
+| `issued` | Congelada. Numero fiscal asignado, snapshot guardado, PDFs oficiales en disco. |
 | `paid` | Cobrada. |
-| `cancelled` | Anulada. Las entradas vuelven a estar disponibles para facturar. |
+| `cancelled` | Anulada con motivo. Los PDFs emitidos siguen descargables; las entradas vuelven a estar disponibles para facturar. |
+
+### Emision oficial
+
+```http
+POST /api/v1/invoices/{invoiceID}/issue
+```
+
+- Asigna el siguiente numero de la serie fiscal.
+- Congela un snapshot JSON en la factura.
+- Genera `invoice_pdf` y `work_protocol_pdf` bajo `LEOTIME_DOCUMENT_ROOT`.
+- Guarda metadatos (`sha256`, tamano, ruta) en `billing_documents`.
+- La factura deja de ser editable.
+
+### Vista previa
+
+```http
+POST /api/v1/invoices/{invoiceID}/preview
+```
+
+Devuelve HTML imprimible con numero `PREVIEW-*`. No consume secuencia fiscal ni escribe PDFs.
+
+### Anulacion
+
+```http
+POST /api/v1/invoices/{invoiceID}/cancel
+Content-Type: application/json
+
+{ "reason": "Error en el periodo facturado" }
+```
+
+### Cambio de estado legacy
 
 ```http
 POST /api/v1/invoices/{invoiceID}/status
 Content-Type: application/json
 
-{ "status": "issued" }
+{ "status": "paid" }
 ```
 
-## Exportacion
+`POST /status` con `issued` sigue existiendo por compatibilidad, pero la UI debe usar `POST /issue` para PDFs oficiales.
+
+## Documentos oficiales
+
+```http
+GET /api/v1/invoices/{invoiceID}/documents
+GET /api/v1/invoices/{invoiceID}/documents/{documentID}/download
+```
+
+`GET /invoices/{id}` incluye `documents[]` con `downloadUrl` cuando existen PDFs emitidos.
+
+Los archivos viven en `LEOTIME_DOCUMENT_ROOT` (default `/data/documents`). SQLite guarda solo metadatos y hashes SHA-256.
+
+## Exportacion auxiliar
 
 ```text
 GET /api/v1/invoices/{invoiceID}/export?format=html
@@ -80,7 +165,7 @@ GET /api/v1/invoices/{invoiceID}/export?format=csv
 GET /api/v1/invoices/{invoiceID}/export?format=json
 ```
 
-- **HTML:** documento imprimible listo para guardar como PDF desde el navegador.
+- **HTML:** documento imprimible adicional (no sustituye al PDF oficial).
 - **CSV:** cabecera de totales + lineas.
 - **JSON:** factura completa con lineas.
 
@@ -88,16 +173,17 @@ GET /api/v1/invoices/{invoiceID}/export?format=json
 
 El panel `#invoices` permite:
 
-- elegir cliente y rango de fechas,
+- elegir cliente, serie fiscal y detalle del protocolo de trabajo,
 - definir IVA y retencion,
 - crear borrador,
-- emitir, marcar pagada o anular,
-- descargar HTML, CSV o JSON.
+- previsualizar, emitir oficialmente, marcar pagada o anular,
+- descargar PDFs oficiales y exportar HTML, CSV o JSON.
 
 Los importes se muestran con `Intl.NumberFormat` segun moneda de la factura.
 
 ## Tests
 
-- Store: `apps/api/internal/store/invoice_test.go`
-- HTTP: `TestInvoiceDraftFromTimeAndExport` en `router_test.go`
+- Store: `apps/api/internal/store/invoice_test.go`, `invoice_series_test.go`, `invoice_documents_test.go`
+- Billing: `apps/api/internal/billing/*_test.go`
+- HTTP: `TestInvoiceBillingIssuePreviewAndDownload` en `router_test.go`
 - Web: `renders the invoice panel` en `App.test.tsx`

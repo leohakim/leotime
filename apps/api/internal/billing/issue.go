@@ -2,7 +2,6 @@ package billing
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,19 +36,19 @@ func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRe
 		return nil, err
 	}
 	if invoice.Status != "draft" {
-		return nil, store.ErrInvoiceNotEditable
+		return nil, store.InvoiceInputError("status", "invalid", "invoice is not editable")
 	}
 	if strings.TrimSpace(invoice.SeriesID) == "" {
-		return nil, storeValidation("seriesId", "required", "fiscal series is required")
+		return nil, store.InvoiceInputError("seriesId", "required", "fiscal series is required")
 	}
 	if strings.TrimSpace(invoice.SellerName) == "" {
-		return nil, storeValidation("sellerName", "required", "seller name is required")
+		return nil, store.InvoiceInputError("sellerName", "required", "seller name is required")
 	}
 	if strings.TrimSpace(invoice.ClientName) == "" {
-		return nil, storeValidation("clientName", "required", "client name is required")
+		return nil, store.InvoiceInputError("clientName", "required", "client name is required")
 	}
 	if len(invoice.Lines) == 0 || invoice.TotalMinor <= 0 {
-		return nil, storeValidation("lines", "invalid", "invoice must have positive billable lines")
+		return nil, store.InvoiceInputError("lines", "invalid", "invoice must have positive billable lines")
 	}
 
 	series, err := s.store.InvoiceSeriesByID(ctx, userID, invoice.SeriesID)
@@ -57,7 +56,7 @@ func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRe
 		return nil, err
 	}
 	if !series.Active {
-		return nil, storeValidation("seriesId", "invalid", "invoice series is inactive")
+		return nil, store.InvoiceInputError("seriesId", "invalid", "invoice series is inactive")
 	}
 
 	entries, err := s.store.TimeEntriesForInvoice(ctx, userID, invoice)
@@ -160,32 +159,6 @@ func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRe
 	}
 
 	return s.store.InvoiceByID(ctx, userID, invoice.ID)
-}
-
-func storeValidation(field, code, message string) error {
-	return storeValidationError(field, code, message)
-}
-
-type validationError struct {
-	field   string
-	code    string
-	message string
-}
-
-func (e validationError) Error() string {
-	return e.message
-}
-
-func storeValidationError(field, code, message string) error {
-	return validationError{field: field, code: code, message: message}
-}
-
-func IsValidationError(err error) (validationError, bool) {
-	var target validationError
-	if errors.As(err, &target) {
-		return target, true
-	}
-	return validationError{}, false
 }
 
 type failingRenderer struct {

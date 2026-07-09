@@ -153,6 +153,9 @@ func testSecurityConfig() config.Config {
 
 func newTestRouterWithConfig(t *testing.T, cfg config.Config) http.Handler {
 	t.Helper()
+	if cfg.DocumentRoot == "" {
+		cfg.DocumentRoot = filepath.Join(t.TempDir(), "documents")
+	}
 
 	ctx := context.Background()
 	database, err := db.Open(ctx, t.TempDir()+"/leotime.db")
