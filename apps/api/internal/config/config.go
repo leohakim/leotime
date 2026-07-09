@@ -41,6 +41,7 @@ type Config struct {
 	SecretsKey              string
 	BackupSchedulerEnabled  bool
 	BackupSchedulerInterval time.Duration
+	DocumentRoot            string
 }
 
 var (
@@ -98,6 +99,7 @@ func FromLookup(lookup func(string) (string, bool)) Config {
 		SecretsKey:              stringEnv(lookup, "LEOTIME_SECRETS_KEY", ""),
 		BackupSchedulerEnabled:  boolEnv(lookup, "LEOTIME_BACKUP_SCHEDULER_ENABLED", true),
 		BackupSchedulerInterval: durationEnv(lookup, "LEOTIME_BACKUP_SCHEDULER_INTERVAL", time.Minute),
+		DocumentRoot:            stringEnv(lookup, "LEOTIME_DOCUMENT_ROOT", "/data/documents"),
 		bootstrapPasswordSet:    bootstrapPasswordSet,
 	}
 }

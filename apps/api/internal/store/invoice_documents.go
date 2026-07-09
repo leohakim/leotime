@@ -219,3 +219,55 @@ func queryBillingDocument(ctx context.Context, db queryer, query string, args ..
 	}
 	return &doc, nil
 }
+
+type InvoiceIssueInput struct {
+	InvoiceNumber        string
+	SeriesID             string
+	FiscalSequence       int
+	IssuedAt             string
+	DocumentSnapshotJSON string
+}
+
+func (s *Store) MarkInvoiceIssuedTx(ctx context.Context, tx *sql.Tx, userID, invoiceID string, input InvoiceIssueInput) error {
+	now := nowString()
+	result, err := tx.ExecContext(ctx, `
+		UPDATE invoices
+		SET status = 'issued', invoice_number = ?, series_id = ?, fiscal_sequence = ?,
+			issued_at = ?, document_snapshot_json = ?, updated_at = ?
+		WHERE user_id = ? AND id = ? AND status = 'draft'
+	`, input.InvoiceNumber, input.SeriesID, input.FiscalSequence, input.IssuedAt,
+		input.DocumentSnapshotJSON, now, userID, invoiceID)
+	if err != nil {
+		return fmt.Errorf("mark invoice issued: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("mark invoice issued rows: %w", err)
+	}
+	if rows == 0 {
+		return ErrInvoiceNotEditable
+	}
+	return nil
+}
+
+func (s *Store) TimeEntriesForInvoice(ctx context.Context, userID string, invoice *Invoice) ([]TimeEntry, error) {
+	ids := make([]string, 0, len(invoice.Lines))
+	for _, line := range invoice.Lines {
+		if strings.TrimSpace(line.TimeEntryID) != "" {
+			ids = append(ids, line.TimeEntryID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	entries := make([]TimeEntry, 0, len(ids))
+	for _, id := range ids {
+		entry, err := s.TimeEntryByID(ctx, userID, id)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, *entry)
+	}
+	return entries, nil
+}

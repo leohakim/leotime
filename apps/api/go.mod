@@ -7,6 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.27
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.105.0
 	github.com/go-chi/chi/v5 v5.3.0
+	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/prometheus/client_golang v1.23.2
 	modernc.org/sqlite v1.53.0
 )

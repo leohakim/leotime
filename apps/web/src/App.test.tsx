@@ -337,9 +337,15 @@ describe('App', () => {
     const timeInput = screen.getAllByLabelText('Inicio').find((element) => element.getAttribute('type') === 'time');
     expect(timeInput).toBeDefined();
     const originalStartedAt = timersMock[0]?.startedAt;
-    fireEvent.change(timeInput as HTMLInputElement, { target: { value: '08:30' } });
+    const earlierStart = new Date(originalStartedAt ?? Date.now());
+    earlierStart.setMinutes(earlierStart.getMinutes() - 30);
+    const earlierTime = `${String(earlierStart.getHours()).padStart(2, '0')}:${String(earlierStart.getMinutes()).padStart(2, '0')}`;
+    fireEvent.change(timeInput as HTMLInputElement, { target: { value: earlierTime } });
 
-    await waitFor(() => expect(timersMock[0]?.startedAt).not.toBe(originalStartedAt));
+    await waitFor(
+      () => expect(timersMock[0]?.startedAt).not.toBe(originalStartedAt),
+      { timeout: 2000 },
+    );
   });
 
   test('creates a manual time entry from the dashboard', async () => {

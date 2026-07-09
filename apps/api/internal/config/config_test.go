@@ -64,6 +64,9 @@ func TestFromLookupMailAndSchedulerDefaults(t *testing.T) {
 	if cfg.PublicBaseURL != "http://127.0.0.1:8080" {
 		t.Fatalf("unexpected public base url %q", cfg.PublicBaseURL)
 	}
+	if cfg.DocumentRoot != "/data/documents" {
+		t.Fatalf("expected default document root, got %q", cfg.DocumentRoot)
+	}
 }
 
 func TestValidateRequiresBootstrapPasswordInProduction(t *testing.T) {
