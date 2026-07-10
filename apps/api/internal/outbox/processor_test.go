@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -309,6 +310,58 @@ func TestProcessorMarksMaxAttemptsDead(t *testing.T) {
 	}
 	if updated.Attempts != 2 {
 		t.Fatalf("expected attempts=2 after max retries, got %d", updated.Attempts)
+	}
+}
+
+func TestProcessorQuarantinesAfterSendWhenMarkSentFails(t *testing.T) {
+	ctx := context.Background()
+	outboxStore, st, userID, userEmail := setupOutboxTest(t)
+	timerID := createOpenTimer(t, st, userID)
+	now := time.Date(2026, 7, 7, 9, 0, 0, 0, time.UTC)
+
+	entry := enqueueTestEmail(t, outboxStore, userID, timerID, userEmail, now)
+	if _, err := outboxStore.db.ExecContext(ctx, `
+		CREATE TRIGGER block_mark_sent
+		BEFORE UPDATE ON email_outbox
+		WHEN NEW.status = 'sent' AND OLD.status = 'pending'
+		BEGIN
+			SELECT RAISE(ABORT, 'blocked');
+		END;
+	`); err != nil {
+		t.Fatalf("create mark sent blocker trigger: %v", err)
+	}
+
+	sender := &fakeSender{}
+	processor := NewProcessor(outboxStore, sender, ProcessorOptions{
+		RetryPolicy: DefaultRetryPolicy(time.Minute, 6*time.Hour),
+		Now:         func() time.Time { return now },
+	})
+
+	result, err := processor.ProcessOnce(ctx)
+	if err != nil {
+		t.Fatalf("process once: %v", err)
+	}
+	if result.Sent != 1 || sender.calls != 1 {
+		t.Fatalf("expected one successful send, got result=%+v calls=%d", result, sender.calls)
+	}
+
+	updated, err := outboxStore.ByID(ctx, entry.ID)
+	if err != nil {
+		t.Fatalf("load outbox entry: %v", err)
+	}
+	if updated.Status != StatusDead {
+		t.Fatalf("expected dead status after quarantine, got %q", updated.Status)
+	}
+	if !strings.Contains(updated.LastError, "delivered but mark sent failed") {
+		t.Fatalf("expected quarantine reason, got %q", updated.LastError)
+	}
+
+	second, err := processor.ProcessOnce(ctx)
+	if err != nil {
+		t.Fatalf("second process once: %v", err)
+	}
+	if second.Sent != 0 || sender.calls != 1 {
+		t.Fatalf("expected no resend after quarantine, got result=%+v calls=%d", second, sender.calls)
 	}
 }
 

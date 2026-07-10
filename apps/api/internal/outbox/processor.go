@@ -104,8 +104,8 @@ func (p *Processor) processEmail(ctx context.Context, email Email) (processOutco
 		Body:    email.BodyText,
 	})
 	if err == nil {
-		if err := p.store.MarkSent(ctx, email.ID, p.now()); err != nil {
-			return 0, fmt.Errorf("mark sent %s: %w", email.ID, err)
+		if err := p.markSentAfterDelivery(ctx, email); err != nil {
+			return 0, err
 		}
 		if p.onSent != nil {
 			if err := p.onSent(ctx, email); err != nil {
@@ -131,4 +131,27 @@ func (p *Processor) processEmail(ctx context.Context, email Email) (processOutco
 		return 0, fmt.Errorf("schedule retry %s: %w", email.ID, err)
 	}
 	return outcomeRetried, nil
+}
+
+func (p *Processor) markSentAfterDelivery(ctx context.Context, email Email) error {
+	sentAt := p.now()
+	if err := p.store.MarkSent(ctx, email.ID, sentAt); err == nil {
+		return nil
+	}
+	if existing, getErr := p.store.ByID(ctx, email.ID); getErr == nil && existing.Status == StatusSent {
+		return nil
+	}
+
+	if err := p.store.MarkSent(ctx, email.ID, sentAt); err == nil {
+		return nil
+	}
+	if existing, getErr := p.store.ByID(ctx, email.ID); getErr == nil && existing.Status == StatusSent {
+		return nil
+	}
+
+	// Delivery already succeeded; quarantine the row so the next tick does not resend.
+	if err := p.store.MarkDead(ctx, email.ID, email.MaxAttempts, "delivered but mark sent failed", sentAt); err != nil {
+		return fmt.Errorf("quarantine sent email %s: %w", email.ID, err)
+	}
+	return nil
 }

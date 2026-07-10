@@ -33,8 +33,8 @@ export function AuthScreen({
   const toast = useToast();
   const [view, setView] = useState<AuthView>(() => parseAuthView().view);
   const [resetToken, setResetToken] = useState(() => parseAuthView().resetToken);
-  const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('change-me-now');
+  const [email, setEmail] = useState(import.meta.env.DEV ? 'admin@example.com' : '');
+  const [password, setPassword] = useState(import.meta.env.DEV ? 'change-me-now' : '');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 

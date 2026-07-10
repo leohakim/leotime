@@ -130,7 +130,7 @@ function routePageTitle(route: AppRoute, t: Translator): string {
 }
 
 function isReportingRoute(route: AppRoute): boolean {
-  return route === 'overview' || route === 'detailed' || route === 'shared';
+  return route === 'overview' || route === 'detailed';
 }
 
 export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode, themeMode, t, user, userName }: DashboardShellProps) {
@@ -289,9 +289,6 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
             </a>
             <a className={route === 'detailed' ? 'active' : ''} href={routeHref('detailed')} onClick={(event) => { event.preventDefault(); navigate('detailed'); }}>
               {t('detailed')}
-            </a>
-            <a className={route === 'shared' ? 'active' : ''} href={routeHref('shared')} onClick={(event) => { event.preventDefault(); navigate('shared'); }}>
-              {t('shared')}
             </a>
           </div>
 

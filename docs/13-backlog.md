@@ -108,6 +108,15 @@ See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*,
 | M8 | Backup resolve field errors | **Done** — structured validation errors from S3 config resolve |
 | M20 | Reports nav and cache keys | **Done** — rename to Informes/reporting, drop dead `fetchOverview` |
 | M23 | Profile preference hydration | **Done** — sync locale/layout/theme from profile on login |
+| M10 | Outbox duplicate send guard | **Done** — quarantine row when mark sent fails after delivery |
+| L2 | Timer `ErrInvalidTimerInput` | **Done** — use for `startedAt` validation on start/update |
+| L3 | Backup schedule hour field name | **Done** — validation errors use `scheduleHour` |
+| L5 | Restore safety path in API | **Done** — omit `safetySnapshotPath` from JSON response |
+| L6 | Shared reports nav placeholder | **Done** — hide nav until implemented |
+| L8 | Auth dev credentials in prod | **Done** — empty login defaults outside dev |
+| L9 | Import summary i18n | **Done** — `importEntitySeen` translation key |
+| L10 | Decorative select-all checkbox | **Done** — removed from timesheet toolbar |
+| L11 | Offline 502/503 detection | **Done** — queue mutations on gateway/service errors |
 
 ## Accepted ADRs and designs (not implemented)
 

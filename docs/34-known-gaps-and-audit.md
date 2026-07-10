@@ -134,7 +134,7 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 | M7 | Backup errors leak S3 internals to client — **Fixed** | `httpapi/backups.go` | Generic `backup_remote_storage_failed` |
 | M8 | Backup resolve errors lack `fields` — **Fixed** | `backup/config_resolve.go` | Use `BackupSettingsValidationError` |
 | M9 | `rates` table unused | migration 000001 | Implement or deprecate |
-| M10 | Outbox double-send if MarkSent fails | `outbox/processor.go` | Idempotency / ordering |
+| M10 | Outbox double-send if MarkSent fails — **Fixed** | `outbox/processor.go` | Quarantine after delivery when mark sent cannot complete |
 | M11 | No HTTP tests for backup routes — **Fixed** | `httpapi/backups_test.go` | Auth, confirm, secrets key, remote errors |
 | M12 | No login/forgot-password rate limits — **Fixed** | `httpapi/ratelimit.go` | 10 login / 15 min per IP; 5 forgot-password / hour per IP+email |
 | M13 | Session DB errors returned as 401 — **Fixed** | `router.go` `lookupSessionUser` | Return 503 on lookup failures |
@@ -158,16 +158,16 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 | ID | Title | Notes |
 | --- | --- | --- |
 | L1 | Expired sessions/tokens never purged | Scheduler cleanup job |
-| L2 | `ErrInvalidTimerInput` unused | Remove or use |
-| L3 | Backup field `scheduleHourUtc` vs JSON `scheduleHour` | Align names |
+| L2 | `ErrInvalidTimerInput` unused — **Fixed** | Use for timer `startedAt` validation |
+| L3 | Backup field `scheduleHourUtc` vs JSON `scheduleHour` — **Fixed** | Validation field name aligned to `scheduleHour` |
 | L4 | `writeJSON` ignores encode errors | Log failures |
-| L5 | Restore response exposes filesystem path | Omit from API |
-| L6 | Shared reports nav placeholder | Hide or implement |
+| L5 | Restore response exposes filesystem path — **Fixed** | Omit `safetySnapshotPath` from JSON |
+| L6 | Shared reports nav placeholder — **Fixed** | Hide nav link until feature exists |
 | L7 | Invoice edit UI missing (PATCH exists) | Future slice |
-| L8 | Auth form pre-filled dev credentials | Empty in production builds |
-| L9 | Import summary hardcoded English | i18n keys |
-| L10 | Decorative timesheet “select all” checkbox | Remove or implement |
-| L11 | `isNetworkFailure` only catches `TypeError` | Treat 502/503 as offline |
+| L8 | Auth form pre-filled dev credentials — **Fixed** | Empty defaults outside dev builds |
+| L9 | Import summary hardcoded English — **Fixed** | `importEntitySeen` i18n key |
+| L10 | Decorative timesheet “select all” checkbox — **Fixed** | Removed non-functional control |
+| L11 | `isNetworkFailure` only catches `TypeError` — **Fixed** | Treat 502/503 as offline |
 
 ---
 

@@ -194,8 +194,8 @@ func TestUpdateOpenTimerRejectsFutureStartedAt(t *testing.T) {
 		Description: "Future start",
 		StartedAt:   future.Format(time.RFC3339Nano),
 		Billable:    true,
-	}); !errors.Is(err, ErrInvalidTimeEntryInput) {
-		t.Fatalf("expected ErrInvalidTimeEntryInput, got %v", err)
+	}); !errors.Is(err, ErrInvalidTimerInput) {
+		t.Fatalf("expected ErrInvalidTimerInput, got %v", err)
 	}
 }
 
@@ -231,8 +231,8 @@ func TestStartTimerRejectsFutureStartedAt(t *testing.T) {
 		Description: "Future start",
 		StartedAt:   future.Format(time.RFC3339Nano),
 		Billable:    true,
-	}); !errors.Is(err, ErrInvalidTimeEntryInput) {
-		t.Fatalf("expected ErrInvalidTimeEntryInput, got %v", err)
+	}); !errors.Is(err, ErrInvalidTimerInput) {
+		t.Fatalf("expected ErrInvalidTimerInput, got %v", err)
 	}
 }
 

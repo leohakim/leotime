@@ -51,7 +51,7 @@ type RunResult struct {
 type RestoreResult struct {
 	Status             string `json:"status"`
 	ObjectKey          string `json:"objectKey"`
-	SafetySnapshotPath string `json:"safetySnapshotPath"`
+	SafetySnapshotPath string `json:"-"`
 	StartedAt          string `json:"startedAt"`
 	FinishedAt         string `json:"finishedAt"`
 	RequiresRestart    bool   `json:"requiresRestart"`

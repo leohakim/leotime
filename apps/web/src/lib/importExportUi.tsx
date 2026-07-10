@@ -90,7 +90,7 @@ function ImportSummary({ summary, t }: { summary: SolidtimeImportSummary; t: Tra
           <li key={row.label}>
             <strong>{row.label}</strong>
             <span>{formatEntityStats(row.stats, t)}</span>
-            <span className="import-summary-seen">{row.stats?.seen ?? 0} seen</span>
+            <span className="import-summary-seen">{t('importEntitySeen').replace('{seen}', String(row.stats?.seen ?? 0))}</span>
           </li>
         ))}
       </ul>

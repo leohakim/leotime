@@ -1,4 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
+import { ApiError } from '../api';
+import { isNetworkFailure } from './network';
 import { buildOptimisticTimeEntry, buildOptimisticTimer } from './optimistic';
 import { createLocalId, enqueueMutation, flushOfflineQueue, isLocalId, remapProjectInput, remapTaskInput } from './sync';
 import { clearQueuedMutations, resetOfflineStorageForTests, setServerId } from './db';
@@ -22,6 +24,16 @@ vi.mock('../api', async () => {
 });
 
 describe('offline helpers', () => {
+  test('treats fetch TypeError as network failure', () => {
+    expect(isNetworkFailure(new TypeError('Failed to fetch'))).toBe(true);
+  });
+
+  test('treats gateway and service unavailable API errors as network failure', () => {
+    expect(isNetworkFailure(new ApiError(502, { code: 'bad_gateway', message: 'Bad gateway' }))).toBe(true);
+    expect(isNetworkFailure(new ApiError(503, { code: 'service_unavailable', message: 'Unavailable' }))).toBe(true);
+    expect(isNetworkFailure(new ApiError(400, { code: 'invalid_input', message: 'Bad request' }))).toBe(false);
+  });
+
   test('creates stable local id prefix', () => {
     const id = createLocalId('te');
     expect(isLocalId(id)).toBe(true);

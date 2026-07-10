@@ -1,3 +1,5 @@
+import { isApiError } from '../api';
+
 type NetworkListener = (online: boolean) => void;
 
 const listeners = new Set<NetworkListener>();
@@ -25,5 +27,8 @@ export function subscribeNetworkStatus(listener: NetworkListener): () => void {
 }
 
 export function isNetworkFailure(error: unknown): boolean {
-  return error instanceof TypeError;
+  if (error instanceof TypeError) {
+    return true;
+  }
+  return isApiError(error) && (error.status === 502 || error.status === 503);
 }

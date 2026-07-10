@@ -77,11 +77,6 @@ export function TimeEntriesList({
   return (
     <section className="time-list-panel" id="timesheet" aria-labelledby="timesheet-title">
       <div className="time-list-toolbar">
-        <label className="select-all-control">
-          <span className="entry-checkbox" aria-hidden="true" />
-          {t('selectAll')}
-        </label>
-
         <div className="week-nav" aria-label={t('timesheet')}>
           <button className="ghost-button icon-button week-nav-button" onClick={onPreviousWeek} type="button" title={t('previousWeek')}>
             <ChevronLeft aria-hidden="true" />

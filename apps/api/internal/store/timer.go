@@ -353,12 +353,12 @@ func resolveTimerStartedAt(value string) (time.Time, error) {
 
 	startedAt, err := parseRFC3339(value)
 	if err != nil {
-		return time.Time{}, validationError(ErrInvalidTimeEntryInput, "startedAt", "invalid", "startedAt must be RFC3339")
+		return time.Time{}, validationError(ErrInvalidTimerInput, "startedAt", "invalid", "startedAt must be RFC3339")
 	}
 	startedAt = truncateToMinute(startedAt)
 	now := truncateToMinute(time.Now().UTC())
 	if startedAt.After(now) {
-		return time.Time{}, validationError(ErrInvalidTimeEntryInput, "startedAt", "invalid", "startedAt cannot be in the future")
+		return time.Time{}, validationError(ErrInvalidTimerInput, "startedAt", "invalid", "startedAt cannot be in the future")
 	}
 	return startedAt, nil
 }

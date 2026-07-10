@@ -250,7 +250,7 @@ func normalizeBackupSettingsInput(input BackupSettingsInput, hasSecret bool) (Ba
 	}
 
 	if normalized.ScheduleHour < 0 || normalized.ScheduleHour > 23 {
-		return BackupSettingsInput{}, validationError(ErrInvalidBackupSettings, "scheduleHourUtc", "invalid", "scheduleHour must be between 0 and 23")
+		return BackupSettingsInput{}, validationError(ErrInvalidBackupSettings, "scheduleHour", "invalid", "scheduleHour must be between 0 and 23")
 	}
 	if normalized.RetentionDays < 1 || normalized.RetentionDays > 3650 {
 		return BackupSettingsInput{}, validationError(ErrInvalidBackupSettings, "retentionDays", "invalid", "retentionDays must be between 1 and 3650")
