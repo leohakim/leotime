@@ -81,7 +81,7 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
       setForm(emptyTagForm);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['tags'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('tagUpdated'));
     },
     onError: () => {
@@ -94,7 +94,7 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
     mutationFn: archiveTag,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('tagArchived'));
     },
     onError: () => {
@@ -110,7 +110,7 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
       setForm(emptyTagForm);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['tags'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('tagRestored'));
     },
     onError: () => {

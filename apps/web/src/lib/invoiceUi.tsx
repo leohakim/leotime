@@ -164,7 +164,7 @@ export function InvoicePanel({
       setFormError('');
       setSelectedInvoiceId(invoice.id);
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('invoiceDraftCreated'));
     },
     onError: () => {
@@ -178,7 +178,7 @@ export function InvoicePanel({
       updateInvoiceStatus(invoiceId, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('invoiceStatusUpdated'));
     },
     onError: () => toast.error(t('invoiceStatusUpdateFailed')),
@@ -189,7 +189,7 @@ export function InvoicePanel({
     onSuccess: () => {
       setSelectedInvoiceId(null);
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('invoiceDeleted'));
     },
     onError: () => toast.error(t('invoiceDeleteFailed')),
@@ -201,7 +201,7 @@ export function InvoicePanel({
       setSelectedInvoiceId(invoice.id);
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoice', invoice.id] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('invoiceIssueSuccess'));
     },
     onError: () => toast.error(t('invoiceIssueFailed')),

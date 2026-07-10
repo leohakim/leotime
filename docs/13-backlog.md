@@ -104,6 +104,10 @@ See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*,
 | M4 | Invoice status transitions | **Done** — allow draft→issued and issued→paid only |
 | M13 | Session lookup failures | **Done** — return 503 instead of masking as unauthenticated |
 | M16 | Dashboard timer restart offline | **Done** — queue restart via offline `startTimer` |
+| M6 | Timer start honors `startedAt` | **Done** — optional RFC3339 start time on `StartTimer` |
+| M8 | Backup resolve field errors | **Done** — structured validation errors from S3 config resolve |
+| M20 | Reports nav and cache keys | **Done** — rename to Informes/reporting, drop dead `fetchOverview` |
+| M23 | Profile preference hydration | **Done** — sync locale/layout/theme from profile on login |
 
 ## Accepted ADRs and designs (not implemented)
 

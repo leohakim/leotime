@@ -118,7 +118,7 @@ export function TimeReportPanel({
             <Download aria-hidden="true" />
             {t('reporting')}
           </span>
-          <h2 id="overview-title">{t('overview')}</h2>
+          <h2 id="overview-title">{t('reporting')}</h2>
           <p>{t('reportPanelSubtitle')}</p>
         </div>
       </div>

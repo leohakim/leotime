@@ -62,8 +62,16 @@ func (s *Store) StartTimer(ctx context.Context, userID string, input TimerStartI
 	}
 	normalized.Billable = billable
 
-	startedAt := truncateToMinute(time.Now().UTC())
-	overlapWarning, err := s.hasTimeOverlap(ctx, userID, "", startedAt, startedAt.Add(time.Minute))
+	startedAt, err := resolveTimerStartedAt(input.StartedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	overlapEnd := truncateToMinute(time.Now().UTC())
+	if !overlapEnd.After(startedAt) {
+		overlapEnd = startedAt.Add(time.Minute)
+	}
+	overlapWarning, err := s.hasTimeOverlap(ctx, userID, "", startedAt, overlapEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -112,19 +120,14 @@ func (s *Store) UpdateOpenTimer(ctx context.Context, userID string, timeEntryID 
 	var startedAtUpdate *time.Time
 	var overlapWarning *bool
 	if strings.TrimSpace(input.StartedAt) != "" {
-		startedAt, err := parseRFC3339(input.StartedAt)
+		startedAt, err := resolveTimerStartedAt(input.StartedAt)
 		if err != nil {
-			return nil, validationError(ErrInvalidTimeEntryInput, "startedAt", "invalid", "startedAt must be RFC3339")
-		}
-		startedAt = truncateToMinute(startedAt)
-		now := truncateToMinute(time.Now().UTC())
-		if startedAt.After(now) {
-			return nil, validationError(ErrInvalidTimeEntryInput, "startedAt", "invalid", "startedAt cannot be in the future")
+			return nil, err
 		}
 		startedAtUpdate = &startedAt
 
 		endedAt := truncateToMinute(time.Now().UTC())
-		warning, err := s.hasTimeOverlap(ctx, userID, timeEntryID, *startedAtUpdate, endedAt)
+		warning, err := s.hasTimeOverlap(ctx, userID, timeEntryID, startedAt, endedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -341,4 +344,21 @@ func (s *Store) normalizeTimeEntryRelations(ctx context.Context, userID string, 
 	}
 
 	return input, nil
+}
+
+func resolveTimerStartedAt(value string) (time.Time, error) {
+	if strings.TrimSpace(value) == "" {
+		return truncateToMinute(time.Now().UTC()), nil
+	}
+
+	startedAt, err := parseRFC3339(value)
+	if err != nil {
+		return time.Time{}, validationError(ErrInvalidTimeEntryInput, "startedAt", "invalid", "startedAt must be RFC3339")
+	}
+	startedAt = truncateToMinute(startedAt)
+	now := truncateToMinute(time.Now().UTC())
+	if startedAt.After(now) {
+		return time.Time{}, validationError(ErrInvalidTimeEntryInput, "startedAt", "invalid", "startedAt cannot be in the future")
+	}
+	return startedAt, nil
 }

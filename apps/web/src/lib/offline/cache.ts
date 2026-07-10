@@ -67,6 +67,6 @@ export async function invalidateOrKeepLocal(queryClient: QueryClient, queryKey: 
 
 export async function refreshOverviewIfOnline(queryClient: QueryClient) {
   if (isOnline()) {
-    await queryClient.invalidateQueries({ queryKey: ['overview'] });
+    await queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
   }
 }

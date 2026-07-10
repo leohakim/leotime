@@ -86,6 +86,40 @@ func TestRestoreBackupRequiresConfirm(t *testing.T) {
 	}
 }
 
+func TestBackupTestConnectionReturnsValidationFields(t *testing.T) {
+	router, _ := newBackupHTTPTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/backups/test", bytes.NewBufferString(`{
+		"enabled": true,
+		"accessKeyId": "test-key"
+	}`))
+	request.Header.Set("Content-Type", "application/json")
+	for _, cookie := range cookies {
+		request.AddCookie(cookie)
+	}
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
+	}
+
+	var payload struct {
+		Error struct {
+			Fields []struct {
+				Field string `json:"field"`
+			} `json:"fields"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(payload.Error.Fields) == 0 || payload.Error.Fields[0].Field != "bucket" {
+		t.Fatalf("expected bucket field error, got %+v", payload.Error.Fields)
+	}
+}
+
 func TestListBackupObjectsRemoteStorageErrorIsGeneric(t *testing.T) {
 	router, service := newBackupHTTPTestRouter(t)
 	service.SetClientFactory(func(ctx context.Context, cfg storage.S3Config) (storage.Client, error) {

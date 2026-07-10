@@ -71,7 +71,7 @@ func (s *Service) resolveS3Config(ctx context.Context, userID string, draft *sto
 	}
 
 	if requireEnabled && !normalized.Enabled {
-		return nil, fmt.Errorf("%w: backups are disabled", store.ErrInvalidBackupSettings)
+		return nil, store.BackupSettingsValidationError("enabled", "invalid", "backups are disabled")
 	}
 
 	secret, err := s.resolveSecretKey(record, draft)
@@ -80,10 +80,10 @@ func (s *Service) resolveS3Config(ctx context.Context, userID string, draft *sto
 	}
 
 	if strings.TrimSpace(normalized.Bucket) == "" || strings.TrimSpace(normalized.AccessKeyID) == "" {
-		return nil, fmt.Errorf("%w: bucket and accessKeyId are required", store.ErrInvalidBackupSettings)
+		return nil, store.BackupSettingsValidationError("bucket", "required", "bucket and accessKeyId are required")
 	}
 	if strings.TrimSpace(secret) == "" {
-		return nil, fmt.Errorf("%w: secret access key is required", store.ErrInvalidBackupSettings)
+		return nil, store.BackupSettingsValidationError("secretAccessKey", "required", "secret access key is required")
 	}
 
 	return &resolvedS3Config{
@@ -129,7 +129,7 @@ func (s *Service) resolveSecretKey(record *store.BackupSettingsRecord, draft *st
 		return strings.TrimSpace(draft.SecretAccessKey), nil
 	}
 	if record == nil || strings.TrimSpace(record.SecretAccessKeyEnc) == "" {
-		return "", fmt.Errorf("%w: secret access key is required", store.ErrInvalidBackupSettings)
+		return "", store.BackupSettingsValidationError("secretAccessKey", "required", "secret access key is required")
 	}
 	return s.decryptSecret(record.SecretAccessKeyEnc)
 }

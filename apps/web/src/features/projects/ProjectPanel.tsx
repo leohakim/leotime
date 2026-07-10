@@ -93,7 +93,7 @@ export function ProjectPanel({
       setForm(emptyProjectForm);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('projectUpdated'));
     },
     onError: () => {
@@ -106,7 +106,7 @@ export function ProjectPanel({
     mutationFn: archiveProject,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('projectArchived'));
     },
     onError: () => {
@@ -122,7 +122,7 @@ export function ProjectPanel({
       setForm(emptyProjectForm);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('projectRestored'));
     },
     onError: () => {

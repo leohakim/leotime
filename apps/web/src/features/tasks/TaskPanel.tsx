@@ -111,7 +111,7 @@ export function TaskPanel({
       setForm(emptyTaskForm);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('taskUpdated'));
     },
     onError: applyTaskSaveError,
@@ -157,7 +157,7 @@ export function TaskPanel({
     mutationFn: archiveTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('taskArchived'));
     },
     onError: () => {
@@ -173,7 +173,7 @@ export function TaskPanel({
       setForm(emptyTaskForm);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('taskRestored'));
     },
     onError: () => {

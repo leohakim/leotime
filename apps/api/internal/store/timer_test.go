@@ -199,6 +199,43 @@ func TestUpdateOpenTimerRejectsFutureStartedAt(t *testing.T) {
 	}
 }
 
+func TestStartTimerHonorsStartedAt(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTimeEntryTestStore(t, ctx)
+
+	customStart := time.Now().UTC().Add(-90 * time.Minute).Truncate(time.Minute)
+	timer, err := st.StartTimer(ctx, user.ID, TimerStartInput{
+		Description: "Backdated start",
+		StartedAt:   customStart.Format(time.RFC3339Nano),
+		Billable:    true,
+	})
+	if err != nil {
+		t.Fatalf("start timer with startedAt: %v", err)
+	}
+
+	parsed, err := parseRFC3339(timer.StartedAt)
+	if err != nil {
+		t.Fatalf("parse startedAt: %v", err)
+	}
+	if !parsed.Equal(customStart) {
+		t.Fatalf("expected startedAt %s, got %s", formatTime(customStart), timer.StartedAt)
+	}
+}
+
+func TestStartTimerRejectsFutureStartedAt(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTimeEntryTestStore(t, ctx)
+
+	future := time.Now().UTC().Add(2 * time.Hour).Truncate(time.Minute)
+	if _, err := st.StartTimer(ctx, user.ID, TimerStartInput{
+		Description: "Future start",
+		StartedAt:   future.Format(time.RFC3339Nano),
+		Billable:    true,
+	}); !errors.Is(err, ErrInvalidTimeEntryInput) {
+		t.Fatalf("expected ErrInvalidTimeEntryInput, got %v", err)
+	}
+}
+
 func TestStopTimerNotFound(t *testing.T) {
 	ctx := context.Background()
 	st, user := newTimeEntryTestStore(t, ctx)

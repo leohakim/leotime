@@ -216,6 +216,10 @@ func NormalizeBackupSettingsInput(input BackupSettingsInput, hasSecret bool) (Ba
 	return normalizeBackupSettingsInput(input, hasSecret)
 }
 
+func BackupSettingsValidationError(field, code, message string) error {
+	return validationError(ErrInvalidBackupSettings, field, code, message)
+}
+
 func normalizeBackupSettingsInput(input BackupSettingsInput, hasSecret bool) (BackupSettingsInput, error) {
 	normalized := BackupSettingsInput{
 		Enabled:         input.Enabled,

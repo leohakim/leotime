@@ -103,7 +103,7 @@ function routePageTitle(route: AppRoute, t: Translator): string {
     case 'calendar':
       return t('calendar');
     case 'overview':
-      return t('overview');
+      return t('reporting');
     case 'detailed':
       return t('detailed');
     case 'shared':
@@ -285,7 +285,7 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
           </a>
           <div className="nav-children" aria-label={t('reporting')}>
             <a className={route === 'overview' ? 'active' : ''} href={routeHref('overview')} onClick={(event) => { event.preventDefault(); navigate('overview'); }}>
-              {t('overview')}
+              {t('reporting')}
             </a>
             <a className={route === 'detailed' ? 'active' : ''} href={routeHref('detailed')} onClick={(event) => { event.preventDefault(); navigate('detailed'); }}>
               {t('detailed')}

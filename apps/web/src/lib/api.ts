@@ -122,16 +122,6 @@ export type SessionResponse = {
   user: User | null;
 };
 
-export type Overview = {
-  clientsTotal: number;
-  projectsTotal: number;
-  tasksTotal: number;
-  tagsTotal: number;
-  timeEntriesTotal: number;
-  invoicesTotal: number;
-  openTimers: number;
-};
-
 export type Client = {
   id: string;
   name: string;
@@ -508,10 +498,6 @@ export async function fetchBackupObjects(): Promise<{ objects: BackupObject[] }>
 
 export async function restoreBackup(input: { objectKey?: string; latest?: boolean; confirm: boolean }): Promise<BackupRestoreResult> {
   return apiJSON('/api/v1/backups/restore', 'POST', input);
-}
-
-export async function fetchOverview(): Promise<Overview> {
-  return apiGet('/api/v1/overview');
 }
 
 export async function fetchDashboardStats(activityMonth?: string): Promise<DashboardStats> {

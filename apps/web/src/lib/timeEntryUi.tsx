@@ -354,7 +354,7 @@ export function ManualTimeEntryPanel({
     mutationFn: deleteTimeEntry,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['time-entries'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('timeEntryDeleted'));
     },
     onError: () => {

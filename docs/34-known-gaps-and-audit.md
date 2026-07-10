@@ -130,9 +130,9 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 | M3 | Prune failure marks backup run failed after upload — **Fixed** | `backup/service.go` | Treat prune as best-effort |
 | M4 | Invoice status transitions unconstrained — **Fixed** | `store/invoice.go` | Enforce draft→issued and issued→paid matrix |
 | M5 | Archived tags attachable to entries — **Fixed** | `store/time_entry.go` | Reject archived tag IDs |
-| M6 | `StartTimer` ignores client `startedAt` | `store/timer.go` | Honor or remove from API |
+| M6 | `StartTimer` ignores client `startedAt` — **Fixed** | `store/timer.go` | Honor optional RFC3339 `startedAt` on start |
 | M7 | Backup errors leak S3 internals to client — **Fixed** | `httpapi/backups.go` | Generic `backup_remote_storage_failed` |
-| M8 | Backup resolve errors lack `fields` | `backup/config_resolve.go` | Use `validationError` |
+| M8 | Backup resolve errors lack `fields` — **Fixed** | `backup/config_resolve.go` | Use `BackupSettingsValidationError` |
 | M9 | `rates` table unused | migration 000001 | Implement or deprecate |
 | M10 | Outbox double-send if MarkSent fails | `outbox/processor.go` | Idempotency / ordering |
 | M11 | No HTTP tests for backup routes — **Fixed** | `httpapi/backups_test.go` | Auth, confirm, secrets key, remote errors |
@@ -144,10 +144,10 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 | M17 | Profile forms ignore `ApiError.fields` — **Fixed** | `profileSettingsUi.tsx` | Map field errors on profile and password |
 | M18 | Report export before preview — **Fixed** | `reportUi.tsx` | Disable until preview OK |
 | M19 | Import invalidates wrong query key — **Fixed** | `importExportUi.tsx` | Use `dashboard-stats` |
-| M20 | `fetchOverview` unused; nav “Overview” is reports | shell + `api.ts` | Wire or rename nav |
+| M20 | `fetchOverview` unused; nav “Overview” is reports — **Fixed** | shell + `api.ts` | Remove dead client; nav/title use `reporting`; invalidate `dashboard-stats` |
 | M21 | Multiple open timers; UI controls first only | `DashboardShell.tsx` | Product decision |
 | M22 | Shell queries lack error states — **Fixed** | CRUD panels | `QueryErrorBanner` with retry |
-| M23 | Locale/theme dual localStorage vs profile | App + profile | Single source of truth |
+| M23 | Locale/theme dual localStorage vs profile — **Fixed** | App + profile | Hydrate preferences from profile on login |
 | M24 | Backup restore does not refresh app state — **Fixed** | `backupSettingsUi.tsx` | Full reload when `requiresRestart` |
 | M25 | Invoice draft with local client IDs — **Fixed** | `invoiceUi.tsx` | Filter `isLocalId` |
 

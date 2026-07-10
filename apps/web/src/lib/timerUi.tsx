@@ -162,7 +162,7 @@ export function TimerCommandRow({
       void refreshPendingCount();
       void refreshOverviewIfOnline(queryClient);
       if (!isLocalId(updated.id)) {
-        queryClient.invalidateQueries({ queryKey: ['overview'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       }
     },
     onError: () => {

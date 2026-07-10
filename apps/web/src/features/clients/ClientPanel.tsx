@@ -84,7 +84,7 @@ export function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLo
       setForm(emptyClientForm);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('clientUpdated'));
     },
     onError: () => {
@@ -97,7 +97,7 @@ export function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLo
     mutationFn: archiveClient,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('clientArchived'));
     },
     onError: () => {
@@ -113,7 +113,7 @@ export function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLo
       setForm(emptyClientForm);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('clientRestored'));
     },
     onError: () => {
