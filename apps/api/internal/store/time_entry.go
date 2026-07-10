@@ -363,11 +363,15 @@ func (s *Store) validateTagIDs(ctx context.Context, userID string, tagIDs []stri
 		if tagID == "" {
 			continue
 		}
-		if _, err := s.TagByID(ctx, userID, tagID); err != nil {
+		tag, err := s.TagByID(ctx, userID, tagID)
+		if err != nil {
 			if errors.Is(err, ErrTagNotFound) {
 				return validationError(ErrInvalidTimeEntryInput, "tagIds", "invalid", "tagIds must reference existing tags")
 			}
 			return err
+		}
+		if tag.ArchivedAt != "" {
+			return validationError(ErrInvalidTimeEntryInput, "tagIds", "invalid", "tagIds must reference active tags")
 		}
 	}
 	return nil

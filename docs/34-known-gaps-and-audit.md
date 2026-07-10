@@ -129,7 +129,7 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 | M2 | Restore validation minimal — **Fixed** | `backup/snapshot/snapshot.go` | `integrity_check` + migration version |
 | M3 | Prune failure marks backup run failed after upload — **Fixed** | `backup/service.go` | Treat prune as best-effort |
 | M4 | Invoice status transitions unconstrained | `store/invoice.go` | Add transition matrix |
-| M5 | Archived tags attachable to entries | `store/time_entry.go` | Reject archived tag IDs |
+| M5 | Archived tags attachable to entries — **Fixed** | `store/time_entry.go` | Reject archived tag IDs |
 | M6 | `StartTimer` ignores client `startedAt` | `store/timer.go` | Honor or remove from API |
 | M7 | Backup errors leak S3 internals to client — **Fixed** | `httpapi/backups.go` | Generic `backup_remote_storage_failed` |
 | M8 | Backup resolve errors lack `fields` | `backup/config_resolve.go` | Use `validationError` |
@@ -139,17 +139,17 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 | M12 | No login/forgot-password rate limits — **Fixed** | `httpapi/ratelimit.go` | 10 login / 15 min per IP; 5 forgot-password / hour per IP+email |
 | M13 | Session DB errors returned as 401 | `router.go` `currentUser` | Distinguish 503 |
 | M14 | JSON body size unlimited (except import) — **Fixed** | `httpapi/json_body.go` | 1 MiB default via `MaxBytesReader` |
-| M15 | Report date params unvalidated | `httpapi/reports.go` | Return 400 on bad range |
+| M15 | Report date params unvalidated — **Fixed** | `httpapi/reports.go` | Return 400 on bad range |
 | M16 | Dashboard restart timer bypasses offline | `dashboardUi.tsx` | Use offline mutations |
 | M17 | Profile forms ignore `ApiError.fields` — **Fixed** | `profileSettingsUi.tsx` | Map field errors on profile and password |
-| M18 | Report export before preview | `reportUi.tsx` | Disable until preview OK |
+| M18 | Report export before preview — **Fixed** | `reportUi.tsx` | Disable until preview OK |
 | M19 | Import invalidates wrong query key — **Fixed** | `importExportUi.tsx` | Use `dashboard-stats` |
 | M20 | `fetchOverview` unused; nav “Overview” is reports | shell + `api.ts` | Wire or rename nav |
 | M21 | Multiple open timers; UI controls first only | `DashboardShell.tsx` | Product decision |
 | M22 | Shell queries lack error states — **Fixed** | CRUD panels | `QueryErrorBanner` with retry |
 | M23 | Locale/theme dual localStorage vs profile | App + profile | Single source of truth |
 | M24 | Backup restore does not refresh app state — **Fixed** | `backupSettingsUi.tsx` | Full reload when `requiresRestart` |
-| M25 | Invoice draft with local client IDs | `invoiceUi.tsx` | Filter `isLocalId` |
+| M25 | Invoice draft with local client IDs — **Fixed** | `invoiceUi.tsx` | Filter `isLocalId` |
 
 ---
 

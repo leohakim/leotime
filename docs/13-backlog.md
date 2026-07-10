@@ -97,6 +97,10 @@ See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*,
 | ID | Item | Notes |
 | --- | --- | --- |
 | H7 | Manual entry directory query | **Done** — 90-day dedicated query, honest count, paginated load more |
+| M5 | Archived tags on time entries | **Done** — reject archived tag IDs in store validation |
+| M15 | Report date validation | **Done** — RFC3339 + range checks in reports API |
+| M18 | Report export gating | **Done** — disable CSV/JSON until preview succeeds |
+| M25 | Invoice local client filter | **Done** — hide offline `local_*` clients in invoice draft picker |
 
 ## Accepted ADRs and designs (not implemented)
 

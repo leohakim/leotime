@@ -95,9 +95,12 @@ export function TimeReportPanel({
   }
 
   async function handleExport(format: 'csv' | 'json') {
+    if (!applied || !reportQuery.isSuccess) {
+      return;
+    }
     setExportError('');
     try {
-      const blob = await downloadTimeReportExport(applied as TimeReportParams, format);
+      const blob = await downloadTimeReportExport(applied, format);
       triggerDownload(blob, format === 'csv' ? 'leotime-report.csv' : 'leotime-report.json');
     } catch {
       setExportError(t('reportExportFailed'));
@@ -105,6 +108,7 @@ export function TimeReportPanel({
   }
 
   const report = reportQuery.data;
+  const canExport = applied !== null && reportQuery.isSuccess;
 
   return (
     <section className="clients-section report-section" id="overview" aria-labelledby="overview-title">
@@ -161,11 +165,11 @@ export function TimeReportPanel({
           <button className="secondary-button" type="submit">
             {t('reportPreview')}
           </button>
-          <button className="secondary-button" onClick={() => handleExport('csv')} type="button">
+          <button className="secondary-button" disabled={!canExport} onClick={() => void handleExport('csv')} type="button">
             <Download aria-hidden="true" />
             {t('reportDownloadCsv')}
           </button>
-          <button className="secondary-button" onClick={() => handleExport('json')} type="button">
+          <button className="secondary-button" disabled={!canExport} onClick={() => void handleExport('json')} type="button">
             <FileJson aria-hidden="true" />
             {t('reportDownloadJson')}
           </button>

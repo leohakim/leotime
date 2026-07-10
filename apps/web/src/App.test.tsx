@@ -120,8 +120,14 @@ describe('App', () => {
     renderApp();
     await goTo('overview');
 
-    expect(await screen.findByRole('button', { name: 'Descargar CSV' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Descargar JSON' })).toBeInTheDocument();
+    const csvButton = await screen.findByRole('button', { name: 'Descargar CSV' });
+    const jsonButton = screen.getByRole('button', { name: 'Descargar JSON' });
+    expect(csvButton).toBeDisabled();
+    expect(jsonButton).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar vista' }));
+    await waitFor(() => expect(csvButton).not.toBeDisabled());
+    expect(jsonButton).not.toBeDisabled();
   });
 
   test('renders the invoice panel', async () => {

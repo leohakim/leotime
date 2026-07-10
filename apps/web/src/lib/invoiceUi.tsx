@@ -20,6 +20,7 @@ import {
   type WorkProtocolDetail,
 } from './api';
 import { endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './calendarMonth';
+import { isLocalId } from './offline/mutations';
 import type { Translator } from './timeEntryUi';
 import { useToast } from './toast';
 
@@ -125,7 +126,10 @@ export function InvoicePanel({
     enabled: selectedInvoiceId != null,
   });
 
-  const activeClients = useMemo(() => clients.filter((client) => !client.archivedAt), [clients]);
+  const activeClients = useMemo(
+    () => clients.filter((client) => !client.archivedAt && !isLocalId(client.id)),
+    [clients],
+  );
   const invoiceSeries = seriesQuery.data?.series ?? [];
   const defaultSeriesId = invoiceSeries.find((series) => series.default)?.id ?? invoiceSeries[0]?.id ?? '';
   const invoices = invoicesQuery.data?.invoices ?? [];

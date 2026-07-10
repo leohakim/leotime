@@ -187,6 +187,31 @@ func TestCreateTimeEntryValidatesInput(t *testing.T) {
 	}
 }
 
+func TestCreateTimeEntryRejectsArchivedTag(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTimeEntryTestStore(t, ctx)
+
+	tag, err := st.CreateTag(ctx, user.ID, TagInput{Name: "Deep Work", Color: "#64748b"})
+	if err != nil {
+		t.Fatalf("create tag: %v", err)
+	}
+	if err := st.ArchiveTag(ctx, user.ID, tag.ID); err != nil {
+		t.Fatalf("archive tag: %v", err)
+	}
+
+	start := time.Date(2026, 6, 29, 9, 0, 0, 0, time.UTC)
+	_, err = st.CreateTimeEntry(ctx, user.ID, TimeEntryInput{
+		Description: "Tagged work",
+		TagIDs:      []string{tag.ID},
+		StartedAt:   start.Format(time.RFC3339Nano),
+		EndedAt:     start.Add(time.Hour).Format(time.RFC3339Nano),
+		Billable:    true,
+	})
+	if !errors.Is(err, ErrInvalidTimeEntryInput) {
+		t.Fatalf("expected invalid input for archived tag, got %v", err)
+	}
+}
+
 func newTimeEntryTestStore(t *testing.T, ctx context.Context) (*Store, *User) {
 	t.Helper()
 	return newTagTestStore(t, ctx)

@@ -829,6 +829,66 @@ func TestTimeReportExport(t *testing.T) {
 	}
 }
 
+func TestTimeReportDateValidation(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	tests := []struct {
+		name       string
+		path       string
+		wantStatus int
+		wantField  string
+	}{
+		{
+			name:       "missing from",
+			path:       "/api/v1/reports/time?to=2026-07-31T23:59:59Z",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "invalid from",
+			path:       "/api/v1/reports/time?from=not-a-date&to=2026-07-31T23:59:59Z",
+			wantStatus: http.StatusBadRequest,
+			wantField:  "from",
+		},
+		{
+			name:       "to before from",
+			path:       "/api/v1/reports/time?from=2026-07-31T00:00:00Z&to=2026-07-01T00:00:00Z",
+			wantStatus: http.StatusBadRequest,
+			wantField:  "to",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, test.path, nil)
+			for _, cookie := range cookies {
+				request.AddCookie(cookie)
+			}
+			router.ServeHTTP(response, request)
+			if response.Code != test.wantStatus {
+				t.Fatalf("expected %d, got %d: %s", test.wantStatus, response.Code, response.Body.String())
+			}
+			if test.wantField == "" {
+				return
+			}
+			var payload struct {
+				Error struct {
+					Fields []struct {
+						Field string `json:"field"`
+					} `json:"fields"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if len(payload.Error.Fields) == 0 || payload.Error.Fields[0].Field != test.wantField {
+				t.Fatalf("expected field %q, got %+v", test.wantField, payload.Error.Fields)
+			}
+		})
+	}
+}
+
 func TestInvoiceDraftFromTimeAndExport(t *testing.T) {
 	router := newTestRouter(t)
 	cookies := loginCookies(t, router)

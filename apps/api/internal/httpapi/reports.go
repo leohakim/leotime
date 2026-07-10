@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/leotime/leotime/apps/api/internal/apierr"
 	"github.com/leotime/leotime/apps/api/internal/store"
 )
 
@@ -69,12 +71,27 @@ func parseTimeReportOptions(w http.ResponseWriter, r *http.Request) (store.TimeR
 		return store.TimeReportOptions{}, false
 	}
 
+	fromTime, err := time.Parse(time.RFC3339, from)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, apierr.Validation("from", "invalid", "from must be RFC3339"))
+		return store.TimeReportOptions{}, false
+	}
+	toTime, err := time.Parse(time.RFC3339, to)
+	if err != nil {
+		writeAPIError(w, http.StatusBadRequest, apierr.Validation("to", "invalid", "to must be RFC3339"))
+		return store.TimeReportOptions{}, false
+	}
+	if toTime.Before(fromTime) {
+		writeAPIError(w, http.StatusBadRequest, apierr.Validation("to", "invalid", "to must be on or after from"))
+		return store.TimeReportOptions{}, false
+	}
+
 	includeTimestamps := strings.EqualFold(r.URL.Query().Get("includeTimestamps"), "true")
 	billableOnly := strings.EqualFold(r.URL.Query().Get("billableOnly"), "true")
 
 	return store.TimeReportOptions{
-		From:              from,
-		To:                to,
+		From:              fromTime.UTC().Format(time.RFC3339),
+		To:                toTime.UTC().Format(time.RFC3339),
 		GroupBy:           r.URL.Query().Get("groupBy"),
 		IncludeTimestamps: includeTimestamps,
 		BillableOnly:      billableOnly,
