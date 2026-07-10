@@ -41,6 +41,21 @@ export function toWeekQueryTo(weekEnd: Date): string {
   return new Date(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate(), 23, 59, 59, 999).toISOString();
 }
 
+export const MANUAL_ENTRY_DIRECTORY_DAYS = 90;
+export const MANUAL_ENTRY_DIRECTORY_PAGE_SIZE = 25;
+
+export function manualEntryDirectoryRange(
+  now = new Date(),
+  days = MANUAL_ENTRY_DIRECTORY_DAYS,
+): { from: string; to: string } {
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1));
+  return {
+    from: start.toISOString(),
+    to: end.toISOString(),
+  };
+}
+
 export function formatWeekRange(weekStart: Date, weekEnd: Date, locale: Locale): string {
   const formatter = new Intl.DateTimeFormat(locale === 'es' ? 'es-ES' : 'en-US', {
     day: 'numeric',

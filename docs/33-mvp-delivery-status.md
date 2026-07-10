@@ -85,7 +85,7 @@ Documented in [Backlog](13-backlog.md) as **Later** or **Backlog**:
 
 ## Next Recommended Work
 
-1. **Phase 3** ADR 0004 billing documents in [Backlog](13-backlog.md) (official PDFs, fiscal series, Work Protocol).
-2. **Phase 4** polish items (H7 manual entry directory, remaining audit medium/low).
+1. **Phase 4** polish items (remaining audit medium/low in [34-known-gaps-and-audit.md](34-known-gaps-and-audit.md)).
+2. **Phase 5** UI/UX experience themes ([design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md)).
 
 After deploying to production, set `LEOTIME_ENV=production`, a strong `LEOTIME_BOOTSTRAP_PASSWORD`, `LEOTIME_METRICS_TOKEN`, and configure SMTP + S3 backup. See [VPS deployment](06-deploy-vps.md).

@@ -22,6 +22,7 @@ import {
   formatWeekRange,
   groupTimeEntriesByWeek,
   isSameWeek,
+  MANUAL_ENTRY_DIRECTORY_PAGE_SIZE,
   startOfWeek,
   sumWeekSeconds,
   type TimesheetDayGroup,
@@ -258,6 +259,7 @@ export function applyManualEntryFieldUpdate(
 
 export function ManualTimeEntryPanel({
   clients,
+  directoryDays,
   isLoading,
   locale,
   projects,
@@ -268,6 +270,7 @@ export function ManualTimeEntryPanel({
   timeEntries,
 }: {
   clients: Client[];
+  directoryDays: number;
   isLoading: boolean;
   locale: Locale;
   projects: Project[];
@@ -287,6 +290,23 @@ export function ManualTimeEntryPanel({
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [form, setForm] = useState<ManualTimeEntryFormState>(defaultManualTimeEntryForm);
   const [errors, setErrors] = useState<ManualTimeEntryFormErrors>({});
+  const [visibleCount, setVisibleCount] = useState(MANUAL_ENTRY_DIRECTORY_PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(MANUAL_ENTRY_DIRECTORY_PAGE_SIZE);
+  }, [timeEntries.length]);
+
+  const visibleEntries = timeEntries.slice(0, visibleCount);
+  const hasMoreEntries = visibleCount < timeEntries.length;
+  const directorySummary = t('timeEntryDirectorySummary')
+    .replace('{count}', String(timeEntries.length))
+    .replace('{days}', String(directoryDays));
+  const directoryShowing =
+    timeEntries.length > visibleEntries.length
+      ? t('timeEntryDirectoryShowing')
+          .replace('{shown}', String(visibleEntries.length))
+          .replace('{count}', String(timeEntries.length))
+      : null;
 
   const createMutation = useMutation({
     mutationFn: (input: TimeEntryInput) => createTimeEntry(input, entityLookup),
@@ -432,8 +452,8 @@ export function ManualTimeEntryPanel({
         <div className="client-directory">
           <div className="directory-toolbar">
             <div>
-              <span>{t('activeTimeEntries')}</span>
-              <strong>{timeEntries.length}</strong>
+              <span>{directorySummary}</span>
+              {directoryShowing ? <strong>{directoryShowing}</strong> : null}
             </div>
             {isLoading ? (
               <span className="sync-pill">{t('loading')}</span>
@@ -449,7 +469,7 @@ export function ManualTimeEntryPanel({
                 <p>{t('noTimeEntries')}</p>
               </div>
             ) : null}
-            {timeEntries.slice(0, 12).map((entry) => (
+            {visibleEntries.map((entry) => (
               <DirectoryEntryRow
                 entry={entry}
                 isSelected={editingEntryId === entry.id}
@@ -464,6 +484,15 @@ export function ManualTimeEntryPanel({
               />
             ))}
           </div>
+          {hasMoreEntries ? (
+            <button
+              className="secondary-button directory-load-more"
+              type="button"
+              onClick={() => setVisibleCount((current) => current + MANUAL_ENTRY_DIRECTORY_PAGE_SIZE)}
+            >
+              {t('timeEntryDirectoryLoadMore')}
+            </button>
+          ) : null}
         </div>
 
         <form className="client-editor" noValidate onSubmit={submitTimeEntry}>

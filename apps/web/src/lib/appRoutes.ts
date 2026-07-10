@@ -85,6 +85,10 @@ export function routeUsesTimeEntries(route: AppRoute): boolean {
   return route === 'timesheet' || route === 'calendar' || route === 'manual-time-entry';
 }
 
+export function routeUsesTimesheetEntries(route: AppRoute): boolean {
+  return route === 'timesheet' || route === 'calendar';
+}
+
 export function routeShowsTimerBar(route: AppRoute): boolean {
   return route === 'timesheet' || route === 'calendar' || route === 'manual-time-entry';
 }

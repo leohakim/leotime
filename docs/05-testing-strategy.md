@@ -69,6 +69,9 @@ cd apps/web
 npm run test:e2e
 ```
 
+Playwright starts the Go API and Vite dev server automatically (or reuses them locally when already running).
+The API uses a temp SQLite database under the OS temp directory.
+
 ## Test Pyramid
 
 Most tests should be fast unit and integration tests. E2E tests should cover confidence-critical flows rather than every edge case.

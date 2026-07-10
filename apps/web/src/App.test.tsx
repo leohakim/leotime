@@ -363,6 +363,36 @@ describe('App', () => {
     expect(manualPanel.getByDisplayValue('Trabajo manual')).toBeInTheDocument();
   });
 
+  test('manual entry directory paginates beyond the old 12-row cap', async () => {
+    const now = new Date();
+    timeEntriesMock = Array.from({ length: 30 }, (_, index) => {
+      const startedAt = new Date(now.getTime() - index * 60 * 60 * 1000).toISOString();
+      const endedAt = new Date(Date.parse(startedAt) + 60 * 60 * 1000).toISOString();
+      return buildTimeEntryMock(
+        `ten_${index + 1}`,
+        { description: `Entrada ${index + 1}` },
+        {
+          startedAt,
+          endedAt,
+          durationSeconds: 3600,
+          source: 'manual',
+        },
+      );
+    });
+
+    renderApp();
+    await goTo('manual-time-entry');
+
+    const manualPanel = within(await screen.findByRole('region', { name: 'Entradas manuales' }));
+    expect(await manualPanel.findByText('Ultimos 90 dias · 30 entradas')).toBeInTheDocument();
+    expect(manualPanel.getByText('Mostrando 25 de 30')).toBeInTheDocument();
+    expect(manualPanel.getAllByDisplayValue(/^Entrada \d+$/)).toHaveLength(25);
+
+    fireEvent.click(manualPanel.getByRole('button', { name: 'Cargar mas' }));
+    expect(manualPanel.getAllByDisplayValue(/^Entrada \d+$/)).toHaveLength(30);
+    expect(manualPanel.queryByRole('button', { name: 'Cargar mas' })).not.toBeInTheDocument();
+  });
+
   test('deactivates a tag from the edit form', async () => {
     renderApp();
     await goTo('tags');

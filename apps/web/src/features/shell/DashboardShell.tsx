@@ -38,7 +38,13 @@ import { ProjectPanel } from '../projects/ProjectPanel';
 import { TagPanel } from '../tags/TagPanel';
 import { TaskPanel } from '../tasks/TaskPanel';
 import { LeotimeMark } from '../../lib/leotimeLogo';
-import { AppRoute, routeHref, routeShowsTimerBar, routeUsesTimeEntries, useAppRoute } from '../../lib/appRoutes';
+import {
+  AppRoute,
+  routeHref,
+  routeShowsTimerBar,
+  routeUsesTimesheetEntries,
+  useAppRoute,
+} from '../../lib/appRoutes';
 import { ProfileSettingsPanel } from '../../lib/profileSettingsUi';
 import { BackupSettingsPanel } from '../../lib/backupSettingsUi';
 import { initials, QueryErrorBanner } from '../../lib/crudFormUi';
@@ -59,7 +65,14 @@ import { addMonths, endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo }
 import { TimeReportPanel } from '../../lib/reportUi';
 import { ManualTimeEntryPanel, TimeEntriesList } from '../../lib/timeEntryUi';
 import { SidebarTimer, TimerCommandRow } from '../../lib/timerUi';
-import { addWeeks, startOfWeek, toWeekQueryFrom, toWeekQueryTo } from '../../lib/timesheetWeek';
+import {
+  addWeeks,
+  MANUAL_ENTRY_DIRECTORY_DAYS,
+  manualEntryDirectoryRange,
+  startOfWeek,
+  toWeekQueryFrom,
+  toWeekQueryTo,
+} from '../../lib/timesheetWeek';
 import { usePersistentState } from '../../lib/persistentState';
 import { ThemeSwitcher } from '../../lib/themeUi';
 import { PlaceholderPage } from '../../lib/placeholderPageUi';
@@ -153,8 +166,9 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
     }
   }, [route, setTimeView]);
 
-  const needsTimeEntries = routeUsesTimeEntries(route);
+  const needsTimesheetEntries = routeUsesTimesheetEntries(route);
   const activeTimeView: TimeView = route === 'calendar' ? 'calendar' : 'timesheet';
+  const manualDirectoryRange = useMemo(() => manualEntryDirectoryRange(), []);
 
   const clientsQuery = useQuery({
     queryKey: ['clients'],
@@ -190,7 +204,12 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
             from: toMonthQueryFrom(monthStart),
             to: toMonthQueryTo(monthEnd),
           }),
-    enabled: needsTimeEntries,
+    enabled: needsTimesheetEntries,
+  });
+  const manualDirectoryQuery = useQuery({
+    queryKey: ['time-entries', 'manual-directory', manualDirectoryRange.from.slice(0, 10)],
+    queryFn: () => fetchTimeEntries(manualDirectoryRange),
+    enabled: route === 'manual-time-entry',
   });
   const timersQuery = useQuery({
     queryKey: ['timers'],
@@ -412,17 +431,25 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
           {route === 'invoices' ? <InvoicePanel clients={clientsQuery.data?.clients ?? []} locale={locale} t={t} userName={userName} /> : null}
 
           {route === 'manual-time-entry' ? (
-            <ManualTimeEntryPanel
-              clients={clientsQuery.data?.clients ?? []}
-              isLoading={timeEntriesQuery.isLoading}
-              locale={locale}
-              projects={projectsQuery.data?.projects ?? []}
-              tags={tagsQuery.data?.tags ?? []}
-              taskProjectRequired={taskProjectRequired}
-              tasks={tasksQuery.data?.tasks ?? []}
-              t={t}
-              timeEntries={timeEntriesQuery.data?.timeEntries ?? []}
-            />
+            <>
+              <QueryErrorBanner
+                error={manualDirectoryQuery.error}
+                onRetry={() => void manualDirectoryQuery.refetch()}
+                t={t}
+              />
+              <ManualTimeEntryPanel
+                clients={clientsQuery.data?.clients ?? []}
+                directoryDays={MANUAL_ENTRY_DIRECTORY_DAYS}
+                isLoading={manualDirectoryQuery.isLoading}
+                locale={locale}
+                projects={projectsQuery.data?.projects ?? []}
+                tags={tagsQuery.data?.tags ?? []}
+                taskProjectRequired={taskProjectRequired}
+                tasks={tasksQuery.data?.tasks ?? []}
+                t={t}
+                timeEntries={manualDirectoryQuery.data?.timeEntries ?? []}
+              />
+            </>
           ) : null}
 
           {route === 'clients' ? (

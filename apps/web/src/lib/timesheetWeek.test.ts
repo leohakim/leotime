@@ -6,6 +6,9 @@ import {
   formatWeekRange,
   groupTimeEntriesByWeek,
   isSameWeek,
+  MANUAL_ENTRY_DIRECTORY_DAYS,
+  MANUAL_ENTRY_DIRECTORY_PAGE_SIZE,
+  manualEntryDirectoryRange,
   startOfWeek,
   toWeekQueryFrom,
   toWeekQueryTo,
@@ -87,5 +90,14 @@ describe('timesheetWeek', () => {
   test('detects same week', () => {
     expect(isSameWeek(new Date(2026, 6, 1), new Date(2026, 6, 5))).toBe(true);
     expect(isSameWeek(new Date(2026, 6, 1), new Date(2026, 6, 8))).toBe(false);
+  });
+
+  test('builds manual entry directory range for the last N days', () => {
+    const now = new Date(2026, 6, 9, 15, 30, 0);
+    const range = manualEntryDirectoryRange(now, MANUAL_ENTRY_DIRECTORY_DAYS);
+
+    expect(range.from).toBe(new Date(2026, 3, 11).toISOString());
+    expect(range.to).toBe(new Date(2026, 6, 9, 23, 59, 59, 999).toISOString());
+    expect(MANUAL_ENTRY_DIRECTORY_PAGE_SIZE).toBe(25);
   });
 });

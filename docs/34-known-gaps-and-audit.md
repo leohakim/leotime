@@ -91,13 +91,13 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 
 **Fix:** Shell loads profile flag; forms validate with `validateProjectRequired` and map server field errors.
 
-### H7. Manual time entry list uses week-scoped query
+### H7. Manual time entry list uses week-scoped query — **Fixed**
 
 **Location:** `DashboardShell.tsx` + `timeEntryUi.tsx`
 
 **Issue:** Manual entry “directory” shows current week only, sliced to 12 rows.
 
-**Fix:** Dedicated query (broader range) and honest count label or pagination.
+**Fix:** Dedicated 90-day query, honest count label, and paginated “Load more” (25 rows per page).
 
 ### H8. Offline queue stops on first failure — **Fixed**
 

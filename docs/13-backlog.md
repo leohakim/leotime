@@ -17,8 +17,8 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | **0** | Production hardening (restore safety, static files, metrics, bootstrap password, rate limits, JSON body limits) | **Done** |
 | **1** | Backup stability (restore latest sort, validation, generic errors, HTTP tests, prune best-effort) | **Done** |
 | **2** | UX/API coherence (`ApiError` everywhere, `taskProjectRequired`, offline queue, profile field errors) | **Done** |
-| **3** | ADR 0004 billing documents (official PDFs, fiscal series, Work Protocol) | **Doing** |
-| **4** | Product polish (remaining audit medium/low items) | Backlog |
+| **3** | ADR 0004 billing documents (official PDFs, fiscal series, Work Protocol) | **Done** |
+| **4** | Product polish (remaining audit medium/low items) | **Doing** |
 | **5** | UI/UX experience themes (10-sprint design spec) | Backlog |
 | **6** | Tooling (visual regression, contributor tutorial) | Backlog |
 
@@ -87,17 +87,22 @@ See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*,
 | --- | --- | --- |
 | H5 | `ApiError` on all fetch paths | `apiGet`/`apiDelete`/`apiPost` helpers; auth and CRUD migrated |
 | H6 | `taskProjectRequired` in UI | Tasks, timer, manual entry, inline timesheet |
-| H7 | Manual entry directory query | Not week-scoped only — deferred to Phase 4 |
 | H8 | Offline queue resilient flush | Continue independent ops after failure |
 | H10 | Offline update/delete scope | Documented in UI (`offlineCreatesOnly`) |
 | M17 | Profile `ApiError.fields` | Map field errors in profile and password forms |
 | M22 | CRUD error states | `QueryErrorBanner` + retry in shell panels |
 
+## Phase 4 — Product Polish (Doing)
+
+| ID | Item | Notes |
+| --- | --- | --- |
+| H7 | Manual entry directory query | **Done** — 90-day dedicated query, honest count, paginated load more |
+
 ## Accepted ADRs and designs (not implemented)
 
 | Status | Item | Notes |
 | --- | --- | --- |
-| Accepted, backlog | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol; [32-billing-documents.md](32-billing-documents.md), [plan](superpowers/plans/2026-07-08-billing-documents.md). **Start after Phase 1.** |
+| Accepted, implemented | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol; [32-billing-documents.md](32-billing-documents.md) |
 | Approved, backlog | UI/UX experience themes | Six presets + SolidTime Exact; [design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) |
 
 See [ADR index](adr/README.md) for implementation status of all records.
