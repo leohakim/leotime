@@ -92,7 +92,7 @@ See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*,
 | M17 | Profile `ApiError.fields` | Map field errors in profile and password forms |
 | M22 | CRUD error states | `QueryErrorBanner` + retry in shell panels |
 
-## Phase 4 — Product Polish (Doing)
+## Phase 4 — Product Polish (Done)
 
 | ID | Item | Notes |
 | --- | --- | --- |
@@ -117,6 +117,11 @@ See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*,
 | L9 | Import summary i18n | **Done** — `importEntitySeen` translation key |
 | L10 | Decorative select-all checkbox | **Done** — removed from timesheet toolbar |
 | L11 | Offline 502/503 detection | **Done** — queue mutations on gateway/service errors |
+| L1 | Auth artifact cleanup | **Done** — scheduler purges expired sessions and reset tokens |
+| L4 | JSON encode error logging | **Done** — `writeJSON` logs encoder failures |
+| L7 | Invoice draft edit UI | **Done** — PATCH draft fields from invoice detail |
+| M21 | Multiple open timers UX | **Done** — warning banner and stop controls for extras |
+| M9 | `rates` table scope | **Accepted** — reserved for future rate history per product vision |
 
 ## Accepted ADRs and designs (not implemented)
 

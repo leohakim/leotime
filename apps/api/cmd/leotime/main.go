@@ -93,7 +93,7 @@ func main() {
 		OnSent:      notifier.HandleSent,
 	})
 	backupService := backup.NewService(cfg, st, database, backupNotifier)
-	backgroundScheduler := scheduler.New(cfg, notifier, processor, backupService)
+	backgroundScheduler := scheduler.New(cfg, st, notifier, processor, backupService)
 
 	go func() {
 		if cfg.SchedulerEnabled {

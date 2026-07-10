@@ -11,18 +11,21 @@ import (
 	"github.com/leotime/leotime/apps/api/internal/metrics"
 	"github.com/leotime/leotime/apps/api/internal/notify"
 	"github.com/leotime/leotime/apps/api/internal/outbox"
+	"github.com/leotime/leotime/apps/api/internal/store"
 )
 
 type Scheduler struct {
 	cfg       config.Config
+	store     *store.Store
 	notifier  *notify.StillRunningNotifier
 	processor *outbox.Processor
 	backups   *backup.Service
 }
 
-func New(cfg config.Config, notifier *notify.StillRunningNotifier, processor *outbox.Processor, backups *backup.Service) *Scheduler {
+func New(cfg config.Config, st *store.Store, notifier *notify.StillRunningNotifier, processor *outbox.Processor, backups *backup.Service) *Scheduler {
 	return &Scheduler{
 		cfg:       cfg,
+		store:     st,
 		notifier:  notifier,
 		processor: processor,
 		backups:   backups,
@@ -68,6 +71,8 @@ func (s *Scheduler) runScan(ctx context.Context) {
 		return
 	}
 
+	s.runAuthCleanup(ctx)
+
 	enqueued, err := s.notifier.EnqueueDue(ctx)
 	if err != nil {
 		metrics.SchedulerScanErrors.Inc()
@@ -77,6 +82,21 @@ func (s *Scheduler) runScan(ctx context.Context) {
 	if enqueued > 0 {
 		metrics.SchedulerStillRunningDetected.Add(float64(enqueued))
 		log.Printf("scheduler enqueued %d still-running timer notification(s)", enqueued)
+	}
+}
+
+func (s *Scheduler) runAuthCleanup(ctx context.Context) {
+	if s.store == nil {
+		return
+	}
+
+	result, err := s.store.PurgeExpiredAuthArtifacts(ctx, time.Now().UTC())
+	if err != nil {
+		log.Printf("scheduler auth cleanup failed: %v", err)
+		return
+	}
+	if result.Sessions > 0 || result.PasswordResetTokens > 0 {
+		log.Printf("scheduler purged %d expired session(s) and %d password reset token(s)", result.Sessions, result.PasswordResetTokens)
 	}
 }
 

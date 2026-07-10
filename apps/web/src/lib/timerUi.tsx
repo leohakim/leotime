@@ -287,6 +287,21 @@ export function TimerCommandRow({
 
   return (
     <section className="timer-command-row" aria-label={t('currentTimer')}>
+      {timers.length > 1 ? (
+        <div className="timer-multiple-warning" role="status">
+          <p>{t('multipleOpenTimers').replace('{count}', String(timers.length))}</p>
+          <ul className="timer-multiple-list">
+            {timers.slice(1).map((timer) => (
+              <li key={timer.id}>
+                <span>{timer.description || t('noDescription')}</span>
+                <button disabled={stoppingTimerId === timer.id} onClick={() => onStop(timer.id)} type="button">
+                  {t('stop')}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {activeTimer ? (
         <>
           <div className="active-timer-card">

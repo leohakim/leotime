@@ -133,7 +133,7 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 | M6 | `StartTimer` ignores client `startedAt` — **Fixed** | `store/timer.go` | Honor optional RFC3339 `startedAt` on start |
 | M7 | Backup errors leak S3 internals to client — **Fixed** | `httpapi/backups.go` | Generic `backup_remote_storage_failed` |
 | M8 | Backup resolve errors lack `fields` — **Fixed** | `backup/config_resolve.go` | Use `BackupSettingsValidationError` |
-| M9 | `rates` table unused | migration 000001 | Implement or deprecate |
+| M9 | `rates` table unused — **Accepted** | migration 000001 | Reserved for future rate history; client/project defaults used today |
 | M10 | Outbox double-send if MarkSent fails — **Fixed** | `outbox/processor.go` | Quarantine after delivery when mark sent cannot complete |
 | M11 | No HTTP tests for backup routes — **Fixed** | `httpapi/backups_test.go` | Auth, confirm, secrets key, remote errors |
 | M12 | No login/forgot-password rate limits — **Fixed** | `httpapi/ratelimit.go` | 10 login / 15 min per IP; 5 forgot-password / hour per IP+email |
@@ -145,7 +145,7 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 | M18 | Report export before preview — **Fixed** | `reportUi.tsx` | Disable until preview OK |
 | M19 | Import invalidates wrong query key — **Fixed** | `importExportUi.tsx` | Use `dashboard-stats` |
 | M20 | `fetchOverview` unused; nav “Overview” is reports — **Fixed** | shell + `api.ts` | Remove dead client; nav/title use `reporting`; invalidate `dashboard-stats` |
-| M21 | Multiple open timers; UI controls first only | `DashboardShell.tsx` | Product decision |
+| M21 | Multiple open timers; UI controls first only — **Fixed** | `timerUi.tsx` | Warn and list extra open timers with stop actions |
 | M22 | Shell queries lack error states — **Fixed** | CRUD panels | `QueryErrorBanner` with retry |
 | M23 | Locale/theme dual localStorage vs profile — **Fixed** | App + profile | Hydrate preferences from profile on login |
 | M24 | Backup restore does not refresh app state — **Fixed** | `backupSettingsUi.tsx` | Full reload when `requiresRestart` |
@@ -157,13 +157,13 @@ Items marked **Fixed** were addressed in the same documentation pass that produc
 
 | ID | Title | Notes |
 | --- | --- | --- |
-| L1 | Expired sessions/tokens never purged | Scheduler cleanup job |
+| L1 | Expired sessions/tokens never purged — **Fixed** | `store/auth_cleanup.go` + scheduler | Purge on scan tick |
 | L2 | `ErrInvalidTimerInput` unused — **Fixed** | Use for timer `startedAt` validation |
 | L3 | Backup field `scheduleHourUtc` vs JSON `scheduleHour` — **Fixed** | Validation field name aligned to `scheduleHour` |
-| L4 | `writeJSON` ignores encode errors | Log failures |
+| L4 | `writeJSON` ignores encode errors — **Fixed** | `httpapi/response.go` | Log encode failures |
 | L5 | Restore response exposes filesystem path — **Fixed** | Omit `safetySnapshotPath` from JSON |
 | L6 | Shared reports nav placeholder — **Fixed** | Hide nav link until feature exists |
-| L7 | Invoice edit UI missing (PATCH exists) | Future slice |
+| L7 | Invoice edit UI missing (PATCH exists) — **Fixed** | `invoiceUi.tsx` | Draft edit form for tax, withholding, notes, series |
 | L8 | Auth form pre-filled dev credentials — **Fixed** | Empty defaults outside dev builds |
 | L9 | Import summary hardcoded English — **Fixed** | `importEntitySeen` i18n key |
 | L10 | Decorative timesheet “select all” checkbox — **Fixed** | Removed non-functional control |

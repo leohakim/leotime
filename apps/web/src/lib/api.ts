@@ -458,6 +458,10 @@ export type InvoiceUpdateInput = {
   withholdingMinor?: number;
   notes?: string;
   taxRateBasisPoints?: number;
+  seriesId?: string;
+  periodFrom?: string;
+  periodTo?: string;
+  workProtocolDetail?: WorkProtocolDetail;
 };
 
 export async function fetchSession(): Promise<SessionResponse> {

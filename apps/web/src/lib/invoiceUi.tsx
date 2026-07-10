@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, FileJson, FileText, Trash2 } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import { Download, FileJson, FileText, Pencil, Trash2 } from 'lucide-react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   cancelInvoice,
   createInvoiceDraftFromTime,
@@ -12,6 +12,7 @@ import {
   fetchInvoices,
   issueInvoice,
   previewInvoice,
+  updateInvoice,
   updateInvoiceStatus,
   type Client,
   type Invoice,
@@ -34,6 +35,25 @@ type DraftFormState = {
   seriesId: string;
   workProtocolDetail: WorkProtocolDetail;
 };
+
+type DraftEditFormState = {
+  notes: string;
+  taxRatePercent: string;
+  withholding: string;
+  seriesId: string;
+  workProtocolDetail: WorkProtocolDetail;
+};
+
+function invoiceToEditForm(invoice: Invoice): DraftEditFormState {
+  const taxRateBasisPoints = invoice.lines[0]?.taxRateBasisPoints ?? 2100;
+  return {
+    notes: invoice.notes,
+    taxRatePercent: String(taxRateBasisPoints / 100),
+    withholding: invoice.withholdingMinor > 0 ? (invoice.withholdingMinor / 100).toFixed(2) : '',
+    seriesId: invoice.seriesId ?? '',
+    workProtocolDetail: invoice.workProtocolDetail ?? 'standard',
+  };
+}
 
 function defaultDraftForm(): DraftFormState {
   const monthStart = startOfMonth(new Date());
@@ -105,6 +125,9 @@ export function InvoicePanel({
   const toast = useToast();
   const [form, setForm] = useState<DraftFormState>(defaultDraftForm);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [isEditingDraft, setIsEditingDraft] = useState(false);
+  const [editForm, setEditForm] = useState<DraftEditFormState | null>(null);
+  const [editError, setEditError] = useState('');
   const [formError, setFormError] = useState('');
   const [exportError, setExportError] = useState('');
 
@@ -134,6 +157,12 @@ export function InvoicePanel({
   const defaultSeriesId = invoiceSeries.find((series) => series.default)?.id ?? invoiceSeries[0]?.id ?? '';
   const invoices = invoicesQuery.data?.invoices ?? [];
   const selectedInvoice = invoiceDetailQuery.data ?? invoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
+
+  useEffect(() => {
+    setIsEditingDraft(false);
+    setEditForm(null);
+    setEditError('');
+  }, [selectedInvoiceId]);
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -170,6 +199,40 @@ export function InvoicePanel({
     onError: () => {
       setFormError(t('invoiceDraftFailed'));
       toast.error(t('invoiceDraftFailed'));
+    },
+  });
+
+  const updateDraftMutation = useMutation({
+    mutationFn: (input: { invoiceId: string; form: DraftEditFormState }) => {
+      const taxRatePercent = Number.parseFloat(input.form.taxRatePercent.replace(',', '.'));
+      const withholding =
+        input.form.withholding.trim() === '' ? 0 : Math.round(Number.parseFloat(input.form.withholding.replace(',', '.')) * 100);
+      if (!Number.isFinite(taxRatePercent) || taxRatePercent < 0) {
+        throw new Error('tax_invalid');
+      }
+      if (!Number.isFinite(withholding) || withholding < 0) {
+        throw new Error('withholding_invalid');
+      }
+      return updateInvoice(input.invoiceId, {
+        notes: input.form.notes.trim(),
+        taxRateBasisPoints: Math.round(taxRatePercent * 100),
+        withholdingMinor: withholding,
+        seriesId: input.form.seriesId || undefined,
+        workProtocolDetail: input.form.workProtocolDetail,
+      });
+    },
+    onSuccess: (invoice) => {
+      setEditError('');
+      setIsEditingDraft(false);
+      setEditForm(null);
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice', invoice.id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      toast.success(t('invoiceDraftSaved'));
+    },
+    onError: () => {
+      setEditError(t('invoiceDraftSaveFailed'));
+      toast.error(t('invoiceDraftSaveFailed'));
     },
   });
 
@@ -221,6 +284,21 @@ export function InvoicePanel({
     event.preventDefault();
     setFormError('');
     createMutation.mutate();
+  }
+
+  function submitDraftEdit(event: FormEvent) {
+    event.preventDefault();
+    if (!selectedInvoice || !editForm) {
+      return;
+    }
+    setEditError('');
+    updateDraftMutation.mutate({ invoiceId: selectedInvoice.id, form: editForm });
+  }
+
+  function startDraftEdit(invoice: Invoice) {
+    setIsEditingDraft(true);
+    setEditForm(invoiceToEditForm(invoice));
+    setEditError('');
   }
 
   async function handleExport(invoice: Invoice, format: 'html' | 'csv' | 'json') {
@@ -442,11 +520,92 @@ export function InvoicePanel({
                 </tbody>
               </table>
 
-              {selectedInvoice.notes ? <p className="invoice-notes">{selectedInvoice.notes}</p> : null}
+              {selectedInvoice.notes && !isEditingDraft ? <p className="invoice-notes">{selectedInvoice.notes}</p> : null}
+
+              {selectedInvoice.status === 'draft' && isEditingDraft && editForm ? (
+                <form className="invoice-edit-form" noValidate onSubmit={submitDraftEdit}>
+                  <label className="form-field">
+                    {t('invoiceSeries')}
+                    <select
+                      onChange={(event) => setEditForm((current) => (current ? { ...current, seriesId: event.target.value } : current))}
+                      value={editForm.seriesId || defaultSeriesId}
+                    >
+                      {invoiceSeries.map((series) => (
+                        <option key={series.id} value={series.id}>
+                          {series.code} — {series.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="form-field">
+                    {t('invoiceWorkProtocolDetail')}
+                    <select
+                      onChange={(event) =>
+                        setEditForm((current) =>
+                          current ? { ...current, workProtocolDetail: event.target.value as WorkProtocolDetail } : current,
+                        )
+                      }
+                      value={editForm.workProtocolDetail}
+                    >
+                      <option value="summary">{t('invoiceWorkProtocolSummary')}</option>
+                      <option value="standard">{t('invoiceWorkProtocolStandard')}</option>
+                      <option value="detailed">{t('invoiceWorkProtocolDetailed')}</option>
+                    </select>
+                  </label>
+                  <label className="form-field">
+                    {t('invoiceTaxRate')}
+                    <input
+                      inputMode="decimal"
+                      onChange={(event) => setEditForm((current) => (current ? { ...current, taxRatePercent: event.target.value } : current))}
+                      value={editForm.taxRatePercent}
+                    />
+                  </label>
+                  <label className="form-field">
+                    {t('invoiceWithholding')}
+                    <input
+                      inputMode="decimal"
+                      onChange={(event) => setEditForm((current) => (current ? { ...current, withholding: event.target.value } : current))}
+                      placeholder="0.00"
+                      value={editForm.withholding}
+                    />
+                  </label>
+                  <label className="form-field invoice-notes-field">
+                    {t('invoiceNotes')}
+                    <textarea
+                      onChange={(event) => setEditForm((current) => (current ? { ...current, notes: event.target.value } : current))}
+                      rows={2}
+                      value={editForm.notes}
+                    />
+                  </label>
+                  <div className="invoice-form-actions">
+                    <button disabled={updateDraftMutation.isPending} type="submit">
+                      {t('invoiceSaveDraft')}
+                    </button>
+                    <button
+                      className="ghost-button"
+                      onClick={() => {
+                        setIsEditingDraft(false);
+                        setEditForm(null);
+                        setEditError('');
+                      }}
+                      type="button"
+                    >
+                      {t('cancel')}
+                    </button>
+                  </div>
+                </form>
+              ) : null}
+              {editError ? <p className="form-error">{editError}</p> : null}
 
               <div className="invoice-actions">
                 {selectedInvoice.status === 'draft' ? (
                   <>
+                    {!isEditingDraft ? (
+                      <button className="ghost-button" onClick={() => startDraftEdit(selectedInvoice)} type="button">
+                        <Pencil aria-hidden="true" />
+                        {t('invoiceEditDraft')}
+                      </button>
+                    ) : null}
                     <button onClick={() => void handlePreview(selectedInvoice)} type="button">
                       {t('invoicePreview')}
                     </button>
