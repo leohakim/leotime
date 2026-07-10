@@ -373,7 +373,16 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
             />
           ) : null}
 
-          {route === 'dashboard' ? <DashboardPanel locale={locale} t={t} /> : null}
+          {route === 'dashboard' ? (
+            <DashboardPanel
+              clients={clientsQuery.data?.clients ?? []}
+              locale={locale}
+              projects={projectsQuery.data?.projects ?? []}
+              tags={tagsQuery.data?.tags ?? []}
+              tasks={tasksQuery.data?.tasks ?? []}
+              t={t}
+            />
+          ) : null}
 
           {route === 'timesheet' || route === 'calendar' ? (
             <TimeViewSwitcher navigate={navigate} t={t} timeView={activeTimeView} />

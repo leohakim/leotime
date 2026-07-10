@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -155,6 +156,19 @@ func TestUpdateInvoiceStatusSetsIssuedAt(t *testing.T) {
 		t.Fatalf("expected issued invoice with issuedAt, got %+v", issued)
 	}
 
+	paid, err := st.UpdateInvoiceStatus(ctx, user.ID, invoice.ID, "paid")
+	if err != nil {
+		t.Fatalf("mark paid: %v", err)
+	}
+	if paid.Status != "paid" {
+		t.Fatalf("expected paid invoice, got %+v", paid)
+	}
+
+	_, err = st.UpdateInvoiceStatus(ctx, user.ID, invoice.ID, "draft")
+	if !errors.Is(err, ErrInvalidInvoiceInput) {
+		t.Fatalf("expected invalid transition to draft, got %v", err)
+	}
+
 	_, err = st.UpdateInvoice(ctx, user.ID, invoice.ID, InvoiceUpdateInput{
 		Notes: strPtr("Updated notes"),
 	})
@@ -219,4 +233,43 @@ func TestCreateInvoiceDraftUsesProjectClientForLegacyEntries(t *testing.T) {
 
 func strPtr(value string) *string {
 	return &value
+}
+
+func TestUpdateInvoiceStatusRejectsInvalidTransitions(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTaskTestStore(t, ctx)
+
+	client, err := st.CreateClient(ctx, user.ID, ClientInput{
+		Name:                   "Transition Client",
+		DefaultCurrency:        "EUR",
+		DefaultHourlyRateMinor: 5000,
+	})
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+
+	_, err = st.CreateTimeEntry(ctx, user.ID, TimeEntryInput{
+		ClientID:    client.ID,
+		Description: "Work",
+		StartedAt:   "2026-07-04T08:00:00Z",
+		EndedAt:     "2026-07-04T09:00:00Z",
+		Billable:    true,
+	})
+	if err != nil {
+		t.Fatalf("create entry: %v", err)
+	}
+
+	invoice, err := st.CreateInvoiceDraftFromTime(ctx, user.ID, InvoiceDraftFromTimeInput{
+		ClientID: client.ID,
+		From:     "2026-07-01T00:00:00Z",
+		To:       "2026-07-31T23:59:59Z",
+	})
+	if err != nil {
+		t.Fatalf("create invoice: %v", err)
+	}
+
+	_, err = st.UpdateInvoiceStatus(ctx, user.ID, invoice.ID, "paid")
+	if !errors.Is(err, ErrInvalidInvoiceInput) {
+		t.Fatalf("expected invalid draft->paid transition, got %v", err)
+	}
 }

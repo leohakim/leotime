@@ -149,12 +149,16 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) session(w http.ResponseWriter, r *http.Request) {
-	user, ok := s.currentUser(r)
-	if !ok {
+	result := s.lookupSessionUser(r)
+	if result.serviceUnavailable {
+		writeError(w, http.StatusServiceUnavailable, "session_lookup_failed", "session lookup failed")
+		return
+	}
+	if result.unauthenticated {
 		writeJSON(w, http.StatusOK, sessionResponse{Authenticated: false, User: nil})
 		return
 	}
-	writeJSON(w, http.StatusOK, sessionResponse{Authenticated: true, User: user})
+	writeJSON(w, http.StatusOK, sessionResponse{Authenticated: true, User: result.user})
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
@@ -228,25 +232,47 @@ func (s *Server) overview(w http.ResponseWriter, r *http.Request, user *store.Us
 
 func (s *Server) requireUser(next func(http.ResponseWriter, *http.Request, *store.User)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, ok := s.currentUser(r)
-		if !ok {
+		result := s.lookupSessionUser(r)
+		if result.serviceUnavailable {
+			writeError(w, http.StatusServiceUnavailable, "session_lookup_failed", "session lookup failed")
+			return
+		}
+		if result.unauthenticated {
 			writeError(w, http.StatusUnauthorized, "authentication_required", "authentication required")
 			return
 		}
-		next(w, r, user)
+		next(w, r, result.user)
 	}
 }
 
-func (s *Server) currentUser(r *http.Request) (*store.User, bool) {
+type sessionLookupResult struct {
+	user               *store.User
+	unauthenticated    bool
+	serviceUnavailable bool
+}
+
+func (s *Server) lookupSessionUser(r *http.Request) sessionLookupResult {
 	cookie, err := r.Cookie(s.cfg.SessionCookieName)
 	if err != nil {
-		return nil, false
+		return sessionLookupResult{unauthenticated: true}
 	}
+
 	user, err := s.store.UserBySessionToken(r.Context(), cookie.Value)
 	if err != nil {
+		if errors.Is(err, store.ErrSessionNotFound) {
+			return sessionLookupResult{unauthenticated: true}
+		}
+		return sessionLookupResult{serviceUnavailable: true}
+	}
+	return sessionLookupResult{user: user}
+}
+
+func (s *Server) currentUser(r *http.Request) (*store.User, bool) {
+	result := s.lookupSessionUser(r)
+	if result.user == nil {
 		return nil, false
 	}
-	return user, true
+	return result.user, true
 }
 
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {

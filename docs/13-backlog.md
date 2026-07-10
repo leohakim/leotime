@@ -101,6 +101,9 @@ See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*,
 | M15 | Report date validation | **Done** — RFC3339 + range checks in reports API |
 | M18 | Report export gating | **Done** — disable CSV/JSON until preview succeeds |
 | M25 | Invoice local client filter | **Done** — hide offline `local_*` clients in invoice draft picker |
+| M4 | Invoice status transitions | **Done** — allow draft→issued and issued→paid only |
+| M13 | Session lookup failures | **Done** — return 503 instead of masking as unauthenticated |
+| M16 | Dashboard timer restart offline | **Done** — queue restart via offline `startTimer` |
 
 ## Accepted ADRs and designs (not implemented)
 

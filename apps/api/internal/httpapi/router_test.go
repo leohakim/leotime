@@ -982,6 +982,16 @@ func TestInvoiceDraftFromTimeAndExport(t *testing.T) {
 		t.Fatalf("expected html export to contain invoice number")
 	}
 
+	invalidStatusResponse := httptest.NewRecorder()
+	invalidStatusRequest := httptest.NewRequest(http.MethodPost, "/api/v1/invoices/"+invoice.ID+"/status", bytes.NewBufferString(`{"status":"paid"}`))
+	for _, cookie := range cookies {
+		invalidStatusRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(invalidStatusResponse, invalidStatusRequest)
+	if invalidStatusResponse.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid transition 400, got %d: %s", invalidStatusResponse.Code, invalidStatusResponse.Body.String())
+	}
+
 	statusResponse := httptest.NewRecorder()
 	statusRequest := httptest.NewRequest(http.MethodPost, "/api/v1/invoices/"+invoice.ID+"/status", bytes.NewBufferString(`{"status":"issued"}`))
 	for _, cookie := range cookies {
@@ -990,6 +1000,65 @@ func TestInvoiceDraftFromTimeAndExport(t *testing.T) {
 	router.ServeHTTP(statusResponse, statusRequest)
 	if statusResponse.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d: %s", statusResponse.Code, statusResponse.Body.String())
+	}
+}
+
+func TestSessionLookupDatabaseErrorReturns503(t *testing.T) {
+	ctx := context.Background()
+	database, err := db.Open(ctx, t.TempDir()+"/leotime-session.db")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.Migrate(ctx, database); err != nil {
+		t.Fatalf("migrate db: %v", err)
+	}
+
+	st := store.New(database)
+	if err := st.BootstrapAdmin(ctx, "admin@example.com", "change-me-now"); err != nil {
+		t.Fatalf("bootstrap admin: %v", err)
+	}
+
+	cfg := config.Config{
+		HTTPAddr:          ":0",
+		DBPath:            "unused",
+		BootstrapEmail:    "admin@example.com",
+		BootstrapPassword: "change-me-now",
+		SessionCookieName: "leotime_session",
+		SessionTTL:        time.Hour,
+		PublicBaseURL:     "http://127.0.0.1:8080",
+		PasswordResetTTL:  time.Hour,
+		MailMaxAttempts:   5,
+		DocumentRoot:      filepath.Join(t.TempDir(), "documents"),
+	}
+
+	outboxStore := outbox.NewStore(database)
+	passwordReset := notify.NewPasswordResetService(st, outboxStore, cfg)
+	backupService := backup.NewService(cfg, st, database, nil)
+	router := NewRouter(cfg, st, passwordReset, backupService)
+	cookies := loginCookies(t, router)
+
+	if err := database.Close(); err != nil {
+		t.Fatalf("close db: %v", err)
+	}
+
+	sessionResponse := httptest.NewRecorder()
+	sessionRequest := httptest.NewRequest(http.MethodGet, "/api/v1/session", nil)
+	for _, cookie := range cookies {
+		sessionRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(sessionResponse, sessionRequest)
+	if sessionResponse.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected session 503, got %d: %s", sessionResponse.Code, sessionResponse.Body.String())
+	}
+
+	protectedResponse := httptest.NewRecorder()
+	protectedRequest := httptest.NewRequest(http.MethodGet, "/api/v1/clients", nil)
+	for _, cookie := range cookies {
+		protectedRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(protectedResponse, protectedRequest)
+	if protectedResponse.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected protected route 503, got %d: %s", protectedResponse.Code, protectedResponse.Body.String())
 	}
 }
 

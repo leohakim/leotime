@@ -3,12 +3,18 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
   fetchDashboardStats,
-  startTimer,
+  type Client,
   type DashboardDaySummary,
   type DashboardRecentEntry,
   type DashboardStats,
   type Locale,
+  type Project,
+  type Tag,
+  type Task,
 } from './api';
+import { patchTimersCache, refreshOverviewIfOnline } from './offline/cache';
+import { useOfflineStatus } from './offline/offlineContext';
+import { isLocalId, startTimer } from './offline/mutations';
 import { formatMonthLabel, startOfMonth, weekdayLabels } from './calendarMonth';
 import {
   buildDonutSegments,
@@ -329,10 +335,29 @@ function WeekOverview({ locale, stats, t }: { locale: Locale; stats: DashboardSt
   );
 }
 
-export function DashboardPanel({ locale, t }: { locale: Locale; t: Translator }) {
+export function DashboardPanel({
+  clients,
+  locale,
+  projects,
+  tags,
+  tasks,
+  t,
+}: {
+  clients: Client[];
+  locale: Locale;
+  projects: Project[];
+  tags: Tag[];
+  tasks: Task[];
+  t: Translator;
+}) {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { refreshPendingCount } = useOfflineStatus();
   const [activityMonth, setActivityMonth] = useState(currentMonthKey);
+  const entityLookup = useMemo(
+    () => ({ clients, projects, tasks, tags }),
+    [clients, projects, tags, tasks],
+  );
 
   const statsQuery = useQuery({
     queryKey: ['dashboard-stats', activityMonth],
@@ -343,17 +368,24 @@ export function DashboardPanel({ locale, t }: { locale: Locale; t: Translator })
 
   const restartMutation = useMutation({
     mutationFn: (entry: DashboardRecentEntry) =>
-      startTimer({
-        clientId: entry.clientId,
-        projectId: entry.projectId,
-        taskId: entry.taskId,
-        description: entry.description,
-        billable: entry.billable,
-        tagIds: [],
-      }),
+      startTimer(
+        {
+          clientId: entry.clientId,
+          projectId: entry.projectId,
+          taskId: entry.taskId,
+          description: entry.description,
+          billable: entry.billable,
+          tagIds: [],
+        },
+        entityLookup,
+      ),
     onSuccess: (timer) => {
-      queryClient.invalidateQueries({ queryKey: ['timers'] });
-      queryClient.invalidateQueries({ queryKey: ['overview'] });
+      patchTimersCache(queryClient, timer);
+      void refreshPendingCount();
+      void refreshOverviewIfOnline(queryClient);
+      if (!isLocalId(timer.id)) {
+        queryClient.invalidateQueries({ queryKey: ['timers'] });
+      }
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toastMutationSuccess(toast, t, 'timerStarted', timer.id);
     },

@@ -419,6 +419,9 @@ func (s *Store) UpdateInvoiceStatus(ctx context.Context, userID string, invoiceI
 	if err != nil {
 		return nil, err
 	}
+	if !canTransitionInvoiceStatus(invoice.Status, status) {
+		return nil, validationError(ErrInvalidInvoiceInput, "status", "invalid", "invalid status transition")
+	}
 
 	now := nowString()
 	issuedAt := invoice.IssuedAt
@@ -433,6 +436,22 @@ func (s *Store) UpdateInvoiceStatus(ctx context.Context, userID string, invoiceI
 		return nil, fmt.Errorf("update invoice status: %w", err)
 	}
 	return s.InvoiceByID(ctx, userID, invoiceID)
+}
+
+func canTransitionInvoiceStatus(from, to string) bool {
+	from = strings.TrimSpace(strings.ToLower(from))
+	to = strings.TrimSpace(strings.ToLower(to))
+	if from == to {
+		return true
+	}
+	switch from {
+	case "draft":
+		return to == "issued"
+	case "issued":
+		return to == "paid"
+	default:
+		return false
+	}
 }
 
 func (s *Store) DeleteInvoice(ctx context.Context, userID string, invoiceID string) error {
