@@ -31,6 +31,12 @@ email_outbox
 - A `rate` can be client-level or project-level.
 - An invoice belongs to a client and contains frozen invoice lines.
 
+`tags` support soft archive via `archived_at`. Migration `000003` rebuilds the
+table to add that column and replaces the old `(user_id, name)` unique constraint
+with a partial unique index on active tags. The migration backs up and restores
+`time_entry_tags` because SQLite cannot toggle `foreign_keys` inside the runner
+transaction.
+
 ## Time Entries
 
 Time entries should store:

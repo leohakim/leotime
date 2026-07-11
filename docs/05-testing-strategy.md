@@ -32,6 +32,11 @@ This catches:
 - Foreign-key issues.
 - Query behavior that mocks would hide.
 
+`apps/api/internal/db/migrate_test.go` includes a synthetic version-2 upgrade path
+that seeds `tags` and `time_entry_tags`, runs migrations through `000011`, and
+checks foreign-key integrity plus preserved tag links after the `000003` table
+rebuild.
+
 ## Frontend Unit Tests
 
 Frontend tests should cover:

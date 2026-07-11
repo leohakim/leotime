@@ -39,8 +39,8 @@ restore until every P0 item is complete and its acceptance tests pass.
 | 3 | H-IMP-03 | P0 | Solidtime ZIP boundary and import privacy | none — **Done** |
 | 4 | H-BACKUP-04 | P0 | Restore database and documents safely together | H-INV-01 for document cases — **Done** |
 | 5 | H-PROD-05 | P1 | Production configuration and HTTP boundary safety | none — **Done** |
-| 6 | H-MIG-06 | P1 | Upgrade migration confidence | none — **next** |
-| 7 | H-API-07 | P1 | JSON contract discipline and startup errors | none |
+| 6 | H-MIG-06 | P1 | Upgrade migration confidence | none — **Done** |
+| 7 | H-API-07 | P1 | JSON contract discipline and startup errors | none — **next** |
 | 8 | H-UX-08 | P2 | Destructive-action clarity and focused maintenance | P0 complete |
 
 P0 items are independent in code but should be delivered in the listed order.
@@ -202,24 +202,16 @@ with request-ID server logs; security headers on all HTTP responses.
 
 ## H-MIG-06 — Upgrade migration confidence
 
-**Priority:** P1
+**Priority:** P1 — **Done** (2026-07-11)
 
-**Problem:** migration 000003 rebuilds tags inside the transactional migration
-runner. No test starts from a version-2 database with time_entry_tags relations.
+**Problem:** migration `000003` rebuilt `tags` inside the transactional runner, but
+`PRAGMA foreign_keys=OFF` does not apply mid-transaction in SQLite. Upgrades from
+version 2 could drop `time_entry_tags` links.
 
-**Required outcome:**
+**Outcome:** synthetic version-2 upgrade test through `000011`; migration `000003`
+now backs up and restores `time_entry_tags` without relying on pragma toggles.
 
-- Start from a synthetic version-2 SQLite database with tags and tag links.
-- Run Migrate and validate preserved links, foreign-key integrity, indexes, and
-  migration versions through 000011.
-- Keep migrations forward-only. Change the runner or add a migration only if
-  this upgrade test proves the current behavior unsafe.
-
-**Expected files:** apps/api/internal/db/migrate_test.go; migrate.go only if
-the test proves it necessary; docs/03-data-model.md and docs/05-testing-strategy.md
-if migration protocol changes.
-
-**Gates:** make test-api; make pre-commit.
+**Plan:** `docs/superpowers/plans/2026-07-11-h-mig-06-upgrade-migration-confidence.md`
 
 ---
 
