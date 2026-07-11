@@ -37,6 +37,8 @@ type Service struct {
 	clientFactory ClientFactory
 	notifier      EmailNotifier
 	mu            sync.Mutex
+	// promoteDocuments is a test hook to simulate document promotion failures.
+	promoteDocuments func(stagingDir, documentRoot string) error
 }
 
 type RunResult struct {
@@ -266,7 +268,6 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 	defer s.mu.Unlock()
 
 	maintenance.Enter()
-	defer maintenance.Leave()
 
 	started := time.Now().UTC()
 	result := &RestoreResult{StartedAt: started.Format(time.RFC3339)}
@@ -280,6 +281,16 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 			s.notifier.EnqueueRestoreResult(ctx, userID, notifyObjectKey, notifyError, notifySuccess, time.Now().UTC())
 		}
 	}()
+
+	failRestore := func(err error) (*RestoreResult, error) {
+		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
+		metrics.BackupRestoreFailuresTotal.Inc()
+		shouldNotify = true
+		notifySuccess = false
+		notifyObjectKey = objectKey
+		notifyError = err.Error()
+		return nil, err
+	}
 
 	resolved, client, err := s.loadClient(ctx, userID)
 	if err != nil {
@@ -357,27 +368,18 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 
 	extractDir := filepath.Join(dir, "extracted")
 	var restoreDocumentsDir string
+	var manifest *Manifest
 	if strings.HasSuffix(objectKey, ".tar.gz") {
-		if _, err := ExtractArchive(downloadPath, extractDir); err != nil {
-			_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
-			metrics.BackupRestoreFailuresTotal.Inc()
-			shouldNotify = true
-			notifySuccess = false
-			notifyObjectKey = objectKey
-			notifyError = err.Error()
-			return nil, err
+		var extractErr error
+		manifest, extractErr = ExtractArchive(downloadPath, extractDir)
+		if extractErr != nil {
+			return failRestore(extractErr)
 		}
 		restoreDBPath = filepath.Join(extractDir, archiveDBFileName)
 		restoreDocumentsDir = filepath.Join(extractDir, archiveDocumentsDir)
 	} else {
 		if err := snapshot.GunzipToFile(downloadPath, restoreDBPath); err != nil {
-			_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
-			metrics.BackupRestoreFailuresTotal.Inc()
-			shouldNotify = true
-			notifySuccess = false
-			notifyObjectKey = objectKey
-			notifyError = err.Error()
-			return nil, err
+			return failRestore(err)
 		}
 	}
 	minMigrationVersion, err := db.LatestMigrationVersion()
@@ -385,60 +387,62 @@ func (s *Service) Restore(ctx context.Context, userID, objectKey string, latest 
 		return nil, err
 	}
 	if err := snapshot.ValidateDatabase(ctx, restoreDBPath, minMigrationVersion); err != nil {
-		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
-		metrics.BackupRestoreFailuresTotal.Inc()
-		shouldNotify = true
-		notifySuccess = false
-		notifyObjectKey = objectKey
-		notifyError = err.Error()
-		return nil, err
+		return failRestore(err)
+	}
+
+	var stagingDir string
+	var documentsBackupDir string
+	if restoreDocumentsDir != "" && manifest != nil {
+		var stageErr error
+		stagingDir, stageErr = stageRestoredDocuments(manifest, restoreDocumentsDir, s.cfg.DocumentRoot)
+		if stageErr != nil {
+			return failRestore(stageErr)
+		}
+
+		documentsBackupDir, err = backupLiveDocuments(s.cfg.DocumentRoot)
+		if err != nil {
+			cleanupRestoreDocumentArtifacts(s.cfg.DocumentRoot, stagingDir, "")
+			return failRestore(err)
+		}
 	}
 
 	safetyPath := filepath.Join(filepath.Dir(s.cfg.DBPath), "leotime-pre-restore-"+started.Format("20060102T150405Z")+".db.gz")
 	safetySnapshot := filepath.Join(dir, "safety.db")
 	if err := snapshot.SnapshotToFile(ctx, s.cfg.DBPath, safetySnapshot); err != nil {
-		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
-		metrics.BackupRestoreFailuresTotal.Inc()
-		shouldNotify = true
-		notifySuccess = false
-		notifyObjectKey = objectKey
-		notifyError = err.Error()
-		return nil, err
+		cleanupRestoreDocumentArtifacts(s.cfg.DocumentRoot, stagingDir, documentsBackupDir)
+		return failRestore(err)
 	}
 	if err := snapshot.GzipFile(safetySnapshot, safetyPath); err != nil {
-		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
-		metrics.BackupRestoreFailuresTotal.Inc()
-		shouldNotify = true
-		notifySuccess = false
-		notifyObjectKey = objectKey
-		notifyError = err.Error()
-		return nil, err
+		cleanupRestoreDocumentArtifacts(s.cfg.DocumentRoot, stagingDir, documentsBackupDir)
+		return failRestore(err)
 	}
 
 	if err := copyDatabaseInto(ctx, restoreDBPath, s.db); err != nil {
-		_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
-		metrics.BackupRestoreFailuresTotal.Inc()
-		shouldNotify = true
-		notifySuccess = false
-		notifyObjectKey = objectKey
-		notifyError = err.Error()
-		return nil, err
+		cleanupRestoreDocumentArtifacts(s.cfg.DocumentRoot, stagingDir, documentsBackupDir)
+		return failRestore(err)
 	}
 
-	if restoreDocumentsDir != "" {
-		if err := replaceDocumentRoot(restoreDocumentsDir, s.cfg.DocumentRoot); err != nil {
-			_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "failed", err.Error(), objectKey)
-			metrics.BackupRestoreFailuresTotal.Inc()
-			shouldNotify = true
-			notifySuccess = false
-			notifyObjectKey = objectKey
-			notifyError = err.Error()
-			return nil, err
+	if stagingDir != "" {
+		promote := promoteStagedDocuments
+		if s.promoteDocuments != nil {
+			promote = s.promoteDocuments
 		}
+		if err := promote(stagingDir, s.cfg.DocumentRoot); err != nil {
+			if rollbackErr := copyDatabaseInto(ctx, safetySnapshot, s.db); rollbackErr != nil {
+				err = fmt.Errorf("%w (database rollback failed: %v)", err, rollbackErr)
+			}
+			if rollbackErr := restoreBackedUpDocuments(documentsBackupDir, s.cfg.DocumentRoot); rollbackErr != nil {
+				err = fmt.Errorf("%w (document rollback failed: %v)", err, rollbackErr)
+			}
+			cleanupRestoreDocumentArtifacts(s.cfg.DocumentRoot, stagingDir, documentsBackupDir)
+			return failRestore(err)
+		}
+		cleanupRestoreDocumentArtifacts(s.cfg.DocumentRoot, "", documentsBackupDir)
 	}
 
 	_ = s.store.UpdateBackupRestoreStatus(ctx, userID, "success", "", objectKey)
 	metrics.BackupRestoreSuccessTotal.Inc()
+	maintenance.Leave()
 
 	result.Status = "success"
 	result.ObjectKey = objectKey

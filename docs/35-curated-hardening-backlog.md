@@ -37,8 +37,8 @@ restore until every P0 item is complete and its acceptance tests pass.
 | 1 | H-INV-01 | P0 | Fiscal issue invariants and document atomicity | none — **Done** |
 | 2 | H-DATA-02 | P0 | Reports and invoice drafts without silent truncation | none — **Done** |
 | 3 | H-IMP-03 | P0 | Solidtime ZIP boundary and import privacy | none — **Done** |
-| 4 | H-BACKUP-04 | P0 | Restore database and documents safely together | H-INV-01 for document cases |
-| 5 | H-PROD-05 | P1 | Production configuration and HTTP boundary safety | none |
+| 4 | H-BACKUP-04 | P0 | Restore database and documents safely together | H-INV-01 for document cases — **Done** |
+| 5 | H-PROD-05 | P1 | Production configuration and HTTP boundary safety | none — **next** |
 | 6 | H-MIG-06 | P1 | Upgrade migration confidence | none |
 | 7 | H-API-07 | P1 | JSON contract discipline and startup errors | none |
 | 8 | H-UX-08 | P2 | Destructive-action clarity and focused maintenance | P0 complete |
@@ -168,35 +168,18 @@ synthetic export; make pre-commit.
 
 ## H-BACKUP-04 — Restore database and documents safely together
 
-**Priority:** P0
+**Priority:** P0 — **Done** (2026-07-11)
 
-**Problem:** restore replaces the database, then deletes the active document
-root before copying archived files. A filesystem failure can leave restored
+**Problem:** restore replaced the database, then deleted the active document
+root before copying archived files. A filesystem failure could leave restored
 metadata pointing to missing or partial PDFs.
 
-**Required outcome:**
+**Outcome:** validate before live changes; stage documents to a sibling tree;
+keep pre-restore database and document copies until promotion succeeds; roll
+back both on promotion failure; legacy `.db.gz` restores leave documents
+untouched; maintenance stays active until paired restore succeeds.
 
-- Validate database and archive manifest before changing live data.
-- Copy restored documents to a sibling staging tree and verify it first.
-- Keep pre-restore database and document tree until the new pair is active.
-- If document promotion fails, restore both old database and old documents.
-- A legacy database-only archive keeps the existing document tree untouched.
-
-**Expected files:**
-
-- apps/api/internal/backup/service.go and archive.go
-- backup service and archive tests
-- docs/31-s3-daily-backups.md, docs/06-deploy-vps.md, and ADR 0003
-
-**Acceptance tests:**
-
-1. Failed document promotion leaves original database and document hashes
-   readable.
-2. Successful archive restore makes document metadata match restored hashes.
-3. Legacy database-only restore does not replace documents.
-4. Maintenance mode remains active until paired restore succeeds.
-
-**Gates:** make test-api; make pre-commit; make smoke; make deploy-check.
+**Plan:** `docs/superpowers/plans/2026-07-11-h-backup-04-restore-document-atomicity.md`
 
 ---
 

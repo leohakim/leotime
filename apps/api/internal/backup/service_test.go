@@ -5,14 +5,17 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/leotime/leotime/apps/api/internal/backup/crypto"
+	"github.com/leotime/leotime/apps/api/internal/backup/snapshot"
 	"github.com/leotime/leotime/apps/api/internal/backup/storage"
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/db"
+	"github.com/leotime/leotime/apps/api/internal/maintenance"
 	"github.com/leotime/leotime/apps/api/internal/store"
 )
 
@@ -254,6 +257,7 @@ func TestRestoreLatestUsesNewestObjectKey(t *testing.T) {
 	if _, err := service.Restore(ctx, user.ID, "", true); err == nil {
 		t.Fatal("expected restore to fail on invalid backup payload")
 	}
+	t.Cleanup(maintenance.Leave)
 	if requestedKey != newerKey {
 		t.Fatalf("expected restore latest to request %q, got %q", newerKey, requestedKey)
 	}
@@ -340,4 +344,238 @@ func (c deleteFailingClient) Get(ctx context.Context, key string) (io.ReadCloser
 
 func (c deleteFailingClient) List(ctx context.Context, prefix string) ([]storage.Object, error) {
 	return c.MemoryClient.List(ctx, prefix)
+}
+
+func backupServiceFixture(t *testing.T) (context.Context, *Service, *store.Store, *store.User, *storage.MemoryClient, config.Config) {
+	t.Helper()
+
+	ctx := context.Background()
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "leotime.db")
+	documentRoot := filepath.Join(dir, "documents")
+
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	if err := db.Migrate(ctx, database); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	st := store.New(database)
+	if err := st.BootstrapAdmin(ctx, "admin@example.com", "change-me-now"); err != nil {
+		t.Fatalf("bootstrap: %v", err)
+	}
+	user, err := st.Authenticate(ctx, "admin@example.com", "change-me-now")
+	if err != nil {
+		t.Fatalf("auth: %v", err)
+	}
+
+	secretsKey := base64.StdEncoding.EncodeToString([]byte("01234567890123456789012345678901"))
+	cfg := config.Config{
+		DBPath:         dbPath,
+		DocumentRoot:   documentRoot,
+		SecretsKey:     secretsKey,
+		BootstrapEmail: "admin@example.com",
+	}
+
+	memory := storage.NewMemoryClient()
+	service := NewService(cfg, st, database, nil)
+	service.clientFactory = func(ctx context.Context, cfg storage.S3Config) (storage.Client, error) {
+		return memory, nil
+	}
+
+	secretEnc, err := crypto.Encrypt([]byte("secret"), []byte("01234567890123456789012345678901"))
+	if err != nil {
+		t.Fatalf("encrypt: %v", err)
+	}
+	if _, err := st.UpsertBackupSettings(ctx, user.ID, store.BackupSettingsInput{
+		Enabled:       true,
+		Bucket:        "bucket",
+		AccessKeyID:   "key",
+		ScheduleHour:  1,
+		RetentionDays: 365,
+	}, secretEnc); err != nil {
+		t.Fatalf("save settings: %v", err)
+	}
+
+	return ctx, service, st, user, memory, cfg
+}
+
+func writeDocumentFile(t *testing.T, documentRoot, relPath string, content []byte) string {
+	t.Helper()
+	path := filepath.Join(documentRoot, filepath.FromSlash(relPath))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir document parent: %v", err)
+	}
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatalf("write document: %v", err)
+	}
+	hash, _, err := hashFile(path)
+	if err != nil {
+		t.Fatalf("hash document: %v", err)
+	}
+	return hash
+}
+
+func TestRestoreArchiveRestoresDocumentsAndHashes(t *testing.T) {
+	ctx, service, st, user, _, cfg := backupServiceFixture(t)
+
+	backupDocHash := writeDocumentFile(t, cfg.DocumentRoot, "invoices/2026/MAIN/2026-0001/invoice.pdf", []byte("%PDF backup"))
+	if _, err := st.DB().ExecContext(ctx, `
+		INSERT INTO clients (id, user_id, name, default_currency, default_hourly_rate_minor, created_at, updated_at)
+		VALUES ('cli_backup', ?, 'Backup Client', 'EUR', 7500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+	`, user.ID); err != nil {
+		t.Fatalf("insert backup client: %v", err)
+	}
+
+	runResult, err := service.Run(ctx, user.ID, true)
+	if err != nil {
+		t.Fatalf("run backup: %v", err)
+	}
+
+	writeDocumentFile(t, cfg.DocumentRoot, "invoices/2026/MAIN/2026-0001/invoice.pdf", []byte("%PDF live"))
+	if _, err := st.DB().ExecContext(ctx, "DELETE FROM clients WHERE id = 'cli_backup'"); err != nil {
+		t.Fatalf("delete backup client: %v", err)
+	}
+
+	restoreResult, err := service.Restore(ctx, user.ID, runResult.ObjectKey, false)
+	if err != nil {
+		t.Fatalf("restore backup: %v", err)
+	}
+	if restoreResult.Status != "success" {
+		t.Fatalf("unexpected restore result: %+v", restoreResult)
+	}
+	if maintenance.Enabled() {
+		t.Fatal("expected maintenance mode to clear after successful restore")
+	}
+
+	var count int
+	if err := st.DB().QueryRowContext(ctx, "SELECT COUNT(*) FROM clients WHERE id = 'cli_backup'").Scan(&count); err != nil {
+		t.Fatalf("count clients: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected restored client, got count %d", count)
+	}
+
+	restoredHash, _, err := hashFile(filepath.Join(cfg.DocumentRoot, "invoices", "2026", "MAIN", "2026-0001", "invoice.pdf"))
+	if err != nil {
+		t.Fatalf("hash restored document: %v", err)
+	}
+	if restoredHash != backupDocHash {
+		t.Fatalf("expected restored document hash %s, got %s", backupDocHash, restoredHash)
+	}
+}
+
+func TestRestorePromotionFailureRollsBackDatabaseAndDocuments(t *testing.T) {
+	ctx, service, st, user, _, cfg := backupServiceFixture(t)
+
+	writeDocumentFile(t, cfg.DocumentRoot, "invoices/live.pdf", []byte("live-doc"))
+	if _, err := st.DB().ExecContext(ctx, `
+		INSERT INTO clients (id, user_id, name, default_currency, default_hourly_rate_minor, created_at, updated_at)
+		VALUES ('cli_backup', ?, 'Backup Client', 'EUR', 7500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+	`, user.ID); err != nil {
+		t.Fatalf("insert backup client: %v", err)
+	}
+
+	runResult, err := service.Run(ctx, user.ID, true)
+	if err != nil {
+		t.Fatalf("run backup: %v", err)
+	}
+
+	liveDocHash := writeDocumentFile(t, cfg.DocumentRoot, "invoices/live.pdf", []byte("mutated-live-doc"))
+	if _, err := st.DB().ExecContext(ctx, `
+		INSERT INTO clients (id, user_id, name, default_currency, default_hourly_rate_minor, created_at, updated_at)
+		VALUES ('cli_live', ?, 'Live Client', 'EUR', 7500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+	`, user.ID); err != nil {
+		t.Fatalf("insert live client: %v", err)
+	}
+
+	service.promoteDocuments = func(stagingDir, documentRoot string) error {
+		return fmt.Errorf("simulated document promotion failure")
+	}
+	t.Cleanup(maintenance.Leave)
+
+	if _, err := service.Restore(ctx, user.ID, runResult.ObjectKey, false); err == nil {
+		t.Fatal("expected restore to fail on document promotion")
+	}
+	if !maintenance.Enabled() {
+		t.Fatal("expected maintenance mode to remain active after failed restore")
+	}
+
+	var liveCount int
+	if err := st.DB().QueryRowContext(ctx, "SELECT COUNT(*) FROM clients WHERE id = 'cli_live'").Scan(&liveCount); err != nil {
+		t.Fatalf("count live client: %v", err)
+	}
+	if liveCount != 1 {
+		t.Fatalf("expected live client to remain after rollback, got count %d", liveCount)
+	}
+
+	currentHash, _, err := hashFile(filepath.Join(cfg.DocumentRoot, "invoices", "live.pdf"))
+	if err != nil {
+		t.Fatalf("hash live document: %v", err)
+	}
+	if currentHash != liveDocHash {
+		t.Fatalf("expected live document hash %s after rollback, got %s", liveDocHash, currentHash)
+	}
+}
+
+func TestRestoreLegacyDatabaseOnlyPreservesDocuments(t *testing.T) {
+	ctx, service, st, user, memory, cfg := backupServiceFixture(t)
+
+	originalDocHash := writeDocumentFile(t, cfg.DocumentRoot, "invoices/legacy.pdf", []byte("keep-me"))
+	if _, err := st.DB().ExecContext(ctx, `
+		INSERT INTO clients (id, user_id, name, default_currency, default_hourly_rate_minor, created_at, updated_at)
+		VALUES ('cli_legacy', ?, 'Legacy Client', 'EUR', 7500, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+	`, user.ID); err != nil {
+		t.Fatalf("insert legacy client: %v", err)
+	}
+
+	snapshotPath := filepath.Join(t.TempDir(), "legacy-snapshot.db")
+	if err := snapshot.SnapshotToFile(ctx, cfg.DBPath, snapshotPath); err != nil {
+		t.Fatalf("snapshot database: %v", err)
+	}
+	gzipPath := filepath.Join(t.TempDir(), "legacy.db.gz")
+	if err := snapshot.GzipFile(snapshotPath, gzipPath); err != nil {
+		t.Fatalf("gzip snapshot: %v", err)
+	}
+	gzipData, err := os.ReadFile(gzipPath)
+	if err != nil {
+		t.Fatalf("read gzip backup: %v", err)
+	}
+	legacyKey := "leotime/backups/leotime-legacy.db.gz"
+	memory.Objects[legacyKey] = gzipData
+	memory.ModifiedAt[legacyKey] = time.Now().UTC()
+
+	if _, err := st.DB().ExecContext(ctx, "DELETE FROM clients WHERE id = 'cli_legacy'"); err != nil {
+		t.Fatalf("delete legacy client: %v", err)
+	}
+	liveDocHash := writeDocumentFile(t, cfg.DocumentRoot, "invoices/legacy.pdf", []byte("mutated-doc"))
+
+	restoreResult, err := service.Restore(ctx, user.ID, legacyKey, false)
+	if err != nil {
+		t.Fatalf("restore legacy backup: %v", err)
+	}
+	if restoreResult.Status != "success" {
+		t.Fatalf("unexpected restore result: %+v", restoreResult)
+	}
+
+	var count int
+	if err := st.DB().QueryRowContext(ctx, "SELECT COUNT(*) FROM clients WHERE id = 'cli_legacy'").Scan(&count); err != nil {
+		t.Fatalf("count legacy client: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected restored legacy client, got count %d", count)
+	}
+
+	currentHash, _, err := hashFile(filepath.Join(cfg.DocumentRoot, "invoices", "legacy.pdf"))
+	if err != nil {
+		t.Fatalf("hash document: %v", err)
+	}
+	if currentHash != liveDocHash {
+		t.Fatalf("expected legacy restore to preserve live documents with hash %s, got %s", liveDocHash, currentHash)
+	}
+	if currentHash == originalDocHash {
+		t.Fatal("expected live document mutation to survive legacy database-only restore")
+	}
 }

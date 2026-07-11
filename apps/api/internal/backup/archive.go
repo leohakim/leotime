@@ -129,21 +129,115 @@ func ExtractArchive(archivePath, destDir string) (*Manifest, error) {
 	return manifest, nil
 }
 
-func replaceDocumentRoot(sourceDir, documentRoot string) error {
+const documentRestoreStagingSuffix = ".restore-staging"
+const documentRestoreBackupSuffix = ".restore-backup"
+
+func siblingDocumentPath(documentRoot, suffix string) string {
+	root := strings.TrimSpace(documentRoot)
+	return filepath.Join(filepath.Dir(root), filepath.Base(root)+suffix)
+}
+
+func stageRestoredDocuments(manifest *Manifest, sourceDir, documentRoot string) (stagingDir string, err error) {
 	root := strings.TrimSpace(documentRoot)
 	if root == "" {
+		return "", nil
+	}
+
+	stagingDir = siblingDocumentPath(root, documentRestoreStagingSuffix)
+	if err := os.RemoveAll(stagingDir); err != nil {
+		return "", fmt.Errorf("clear document staging: %w", err)
+	}
+
+	switch _, statErr := os.Stat(sourceDir); {
+	case statErr == nil:
+		if err := copyDir(sourceDir, stagingDir); err != nil {
+			return "", fmt.Errorf("copy documents to staging: %w", err)
+		}
+	case os.IsNotExist(statErr):
+		if err := os.MkdirAll(stagingDir, 0o755); err != nil {
+			return "", fmt.Errorf("create empty document staging: %w", err)
+		}
+	default:
+		return "", fmt.Errorf("stat restored documents: %w", statErr)
+	}
+
+	if err := ValidateDocumentManifest(manifest, stagingDir); err != nil {
+		_ = os.RemoveAll(stagingDir)
+		return "", err
+	}
+	return stagingDir, nil
+}
+
+func backupLiveDocuments(documentRoot string) (backupDir string, err error) {
+	root := strings.TrimSpace(documentRoot)
+	if root == "" {
+		return "", nil
+	}
+
+	backupDir = siblingDocumentPath(root, documentRestoreBackupSuffix)
+	if err := os.RemoveAll(backupDir); err != nil {
+		return "", fmt.Errorf("clear document backup: %w", err)
+	}
+
+	switch _, statErr := os.Stat(root); {
+	case statErr == nil:
+		if err := copyDir(root, backupDir); err != nil {
+			return "", fmt.Errorf("backup live documents: %w", err)
+		}
+	case os.IsNotExist(statErr):
+		if err := os.MkdirAll(backupDir, 0o755); err != nil {
+			return "", fmt.Errorf("create empty document backup: %w", err)
+		}
+	default:
+		return "", fmt.Errorf("stat live documents: %w", statErr)
+	}
+	return backupDir, nil
+}
+
+func promoteStagedDocuments(stagingDir, documentRoot string) error {
+	root := strings.TrimSpace(documentRoot)
+	if root == "" || stagingDir == "" {
 		return nil
 	}
 	if err := os.RemoveAll(root); err != nil {
 		return fmt.Errorf("clear document root: %w", err)
 	}
-	if err := os.MkdirAll(root, 0o755); err != nil {
-		return fmt.Errorf("create document root: %w", err)
+	if err := os.Rename(stagingDir, root); err != nil {
+		return fmt.Errorf("promote staged documents: %w", err)
 	}
-	if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
+	return nil
+}
+
+func restoreBackedUpDocuments(backupDir, documentRoot string) error {
+	root := strings.TrimSpace(documentRoot)
+	if root == "" || backupDir == "" {
 		return nil
 	}
-	return copyDir(sourceDir, root)
+	if _, err := os.Stat(backupDir); os.IsNotExist(err) {
+		return nil
+	}
+	if err := os.RemoveAll(root); err != nil {
+		return fmt.Errorf("clear document root for rollback: %w", err)
+	}
+	if err := os.Rename(backupDir, root); err != nil {
+		return fmt.Errorf("restore backed up documents: %w", err)
+	}
+	return nil
+}
+
+func cleanupRestoreDocumentArtifacts(documentRoot, stagingDir, backupDir string) {
+	root := strings.TrimSpace(documentRoot)
+	if root == "" {
+		return
+	}
+	if stagingDir != "" {
+		_ = os.RemoveAll(stagingDir)
+	}
+	if backupDir != "" {
+		_ = os.RemoveAll(backupDir)
+	}
+	_ = os.RemoveAll(siblingDocumentPath(root, documentRestoreStagingSuffix))
+	_ = os.RemoveAll(siblingDocumentPath(root, documentRestoreBackupSuffix))
 }
 
 func addFileToTar(tarWriter *tar.Writer, sourcePath, tarName string) error {

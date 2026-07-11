@@ -127,6 +127,14 @@ func ValidateManifest(manifest *Manifest, extractDir string) error {
 		return fmt.Errorf("database hash mismatch")
 	}
 
+	return ValidateDocumentManifest(manifest, filepath.Join(extractDir, archiveDocumentsDir))
+}
+
+func ValidateDocumentManifest(manifest *Manifest, documentRoot string) error {
+	if manifest == nil {
+		return fmt.Errorf("manifest is required")
+	}
+
 	for _, doc := range manifest.Documents {
 		if doc.ByteSize < 0 {
 			return fmt.Errorf("negative byte size for %s", doc.Path)
@@ -135,7 +143,7 @@ func ValidateManifest(manifest *Manifest, extractDir string) error {
 			return fmt.Errorf("invalid document path: %s", doc.Path)
 		}
 
-		docPath := filepath.Join(extractDir, archiveDocumentsDir, filepath.FromSlash(doc.Path))
+		docPath := filepath.Join(documentRoot, filepath.FromSlash(doc.Path))
 		hash, size, err := hashFile(docPath)
 		if err != nil {
 			return fmt.Errorf("missing document %s: %w", doc.Path, err)

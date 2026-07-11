@@ -95,7 +95,7 @@ If the app will not start:
 4. Remove stale WAL files if present: `leotime.db-wal`, `leotime.db-shm`.
 5. Start again: `docker compose up -d`.
 
-Prefer in-app restore (`POST /api/v1/backups/restore` or Settings UI) when the server is healthy; it creates a local safety snapshot before replacing data.
+Prefer in-app restore (`POST /api/v1/backups/restore` or Settings UI) when the server is healthy; it creates a local safety snapshot before replacing data. Full `.tar.gz` restores stage and validate invoice PDFs before promotion; failed restores keep maintenance mode active until restart.
 
 Full API, metrics, and provider examples: `docs/31-s3-daily-backups.md`.
 

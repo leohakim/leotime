@@ -21,7 +21,7 @@ queue. The current open work is:
 | H-INV-01 | ~~Invoice issuance can bypass official PDFs; file promotion can orphan documents~~ **Fixed** (2026-07-11) | M4, L7 | [Plan](superpowers/plans/2026-07-11-h-inv-01-fiscal-issue-atomicity.md) |
 | H-DATA-02 | ~~Reports and invoice drafts use a 500-entry list limit~~ **Fixed** (2026-07-11) | New reconciliation | [Plan](superpowers/plans/2026-07-11-h-data-02-report-unbounded-queries.md) |
 | H-IMP-03 | ~~ZIP expansion and source-path privacy are not bounded~~ **Fixed** (2026-07-11) | Import boundary notes | [Plan](superpowers/plans/2026-07-11-h-imp-03-solidtime-zip-boundary.md) |
-| H-BACKUP-04 | Document restore is not rollback-safe with the database | C1, M2 | [Curated backlog](35-curated-hardening-backlog.md#h-backup-04--restore-database-and-documents-safely-together) |
+| H-BACKUP-04 | ~~Document restore is not rollback-safe with the database~~ **Fixed** (2026-07-11) | C1, M2 | [Plan](superpowers/plans/2026-07-11-h-backup-04-restore-document-atomicity.md) |
 | H-PROD-05 | Production config, logs, proxy trust, metrics, and internal errors need stricter boundaries | H3, H4, M7 | [Curated backlog](35-curated-hardening-backlog.md#h-prod-05--production-configuration-and-http-boundary-safety) |
 | H-MIG-06 | No realistic upgrade test covers the tag-table rebuild | New reconciliation | [Curated backlog](35-curated-hardening-backlog.md#h-mig-06--upgrade-migration-confidence) |
 | H-API-07 | JSON contracts and router startup errors are still permissive | New reconciliation | [Curated backlog](35-curated-hardening-backlog.md#h-api-07--json-contract-discipline-and-startup-errors) |

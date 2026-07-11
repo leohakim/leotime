@@ -40,10 +40,11 @@ Restore flow:
 4. Validate the database opens, has expected tables, and meets the minimum migration version.
 5. Create a local safety snapshot of the current database before replacing it.
 6. Replace live data through the SQLite backup API (online restore with write lock).
-7. For `.tar.gz` archives, stage and validate the archived `documents/` tree,
-   then replace `LEOTIME_DOCUMENT_ROOT` after validation. The current
-   replacement deletes the live root before copying; rollback-safe promotion is
-   tracked in [H-BACKUP-04](35-curated-hardening-backlog.md#h-backup-04--restore-database-and-documents-safely-together).
+7. For `.tar.gz` archives, copy archived `documents/` to a sibling staging tree
+   (`{LEOTIME_DOCUMENT_ROOT}.restore-staging`), validate hashes against
+   `manifest.json`, back up the live document tree, restore the database, then
+   promote staging into `LEOTIME_DOCUMENT_ROOT`. If promotion fails, roll back
+   both the database and documents from the pre-restore copies.
 8. Record restore status in `backup_settings`.
 
 ## Defaults
@@ -387,7 +388,11 @@ Before replacing data, the app:
 
 1. Creates a local safety snapshot at `/data/leotime-pre-restore-{timestamp}.db.gz` (same directory as the live DB).
 2. Validates the downloaded backup opens as SQLite with core tables present.
-3. Applies the restore through the SQLite backup API.
+3. For `.tar.gz` archives, stages and validates documents before touching the live document root.
+4. Applies the restore through the SQLite backup API.
+5. Promotes staged documents only after the database restore succeeds; rolls back both on promotion failure.
+
+During restore the API enters maintenance mode. Maintenance clears only after a successful paired restore. A failed restore leaves maintenance active until the process restarts.
 
 The UI requires:
 

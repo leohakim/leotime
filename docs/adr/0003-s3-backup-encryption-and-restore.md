@@ -55,7 +55,9 @@ SQLite WAL mode makes raw file copies unsafe while the app is running. Backups m
 ### Restore
 
 - Same delivery includes restore from S3 (not deferred).
-- Download → decompress → validate → local safety snapshot → SQLite backup API into live DB.
+- Download → decompress/extract → validate database and manifest → stage documents to a sibling tree → local safety snapshot → SQLite backup API into live DB → promote staged documents.
+- Roll back database and documents if promotion fails; legacy `.db.gz` restores skip document replacement.
+- Maintenance mode stays active until a paired restore succeeds.
 - Exposed via `POST /api/v1/backups/restore`, Settings UI, and `leotime backup restore`.
 - Requires explicit confirmation (`confirm: true` or CLI `--force`).
 

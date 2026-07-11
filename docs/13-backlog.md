@@ -128,7 +128,7 @@ See the [curated hardening backlog](35-curated-hardening-backlog.md) for the cur
 
 | Status | Item | Notes |
 | --- | --- | --- |
-| Accepted, partially implemented | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol, document-aware backups, and H-INV-01 issuance hardening exist; restore rollback remains in [H-BACKUP-04](35-curated-hardening-backlog.md#h-backup-04--restore-database-and-documents-safely-together). |
+| Accepted, partially implemented | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol, document-aware backups, H-INV-01 issuance hardening, and H-BACKUP-04 rollback-safe restore exist. |
 | Approved, backlog | UI/UX experience themes | Six presets + SolidTime Exact; [design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) |
 
 See [ADR index](adr/README.md) for implementation status of all records.
