@@ -12,6 +12,7 @@ const apiEnv = {
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: 'visual-audit.spec.ts',
   timeout: 30_000,
   use: {
     baseURL: 'http://127.0.0.1:5173',
@@ -39,4 +40,3 @@ export default defineConfig({
     },
   ],
 });
-

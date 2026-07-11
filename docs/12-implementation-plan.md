@@ -67,23 +67,29 @@ All MVP slices in the original plan are complete.
 - [Curated hardening backlog](35-curated-hardening-backlog.md)
 - [ADR index](adr/README.md)
 
-## Accepted but not implemented
+## Accepted roadmap
 
 | Item | ADR / spec | Current behavior |
 | --- | --- | --- |
-| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [25-theme-selector.md](25-theme-selector.md) (solid/light/dark/minimal only) |
+| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Sprint 1 audit [complete](36-ui-ux-visual-audit.md); product remains [solid/light/dark/minimal](25-theme-selector.md) until Sprint 2+ |
 
 ## Recently delivered
 
 | Item | ADR / spec | Notes |
 | --- | --- | --- |
 | Billing documents + official PDFs | [ADR 0004](adr/0004-billing-documents-official-pdfs.md), [32-billing-documents.md](32-billing-documents.md) | [23-invoices-api.md](23-invoices-api.md); document-aware backups in [31-s3-daily-backups.md](31-s3-daily-backups.md) |
+| UI/UX Sprint 1 visual audit | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [24 responsive baselines and prioritized findings](36-ui-ux-visual-audit.md) |
 
 Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-Start [H-BACKUP-04](35-curated-hardening-backlog.md#h-backup-04--restore-database-and-documents-safely-together), then proceed through the remaining P0 slices in the [curated hardening backlog](35-curated-hardening-backlog.md). Visual regression and themes remain deferred until the P0/P1 queue is complete.
+Start **UI/UX Sprint 2: experience architecture** from the
+[approved design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md),
+using the [Sprint 1 audit](36-ui-ux-visual-audit.md) as its evidence baseline.
+Limit the slice to root experience attributes, semantic token foundations,
+legacy preference compatibility, the `custom` state, and tests. Shell and
+feature redesign remain assigned to Sprints 4–8.
 
 ## Quality Gates By Slice
 

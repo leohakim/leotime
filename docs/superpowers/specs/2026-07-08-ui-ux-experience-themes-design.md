@@ -10,7 +10,10 @@ configurables. No implementa cambios por si misma.
 
 ## Estado de implementación
 
-**No implementado** (2026-07-08). Spec aprobada para planificación; no modifica el producto actual. Temas actuales: `docs/25-theme-selector.md` (solid, light, dark, minimal).
+**Sprint 1 completado** (2026-07-11). La auditoria responsive y el mapa de
+fricciones estan publicados en [UI/UX Visual Audit](../../36-ui-ux-visual-audit.md).
+Los sprints 2–10 siguen sin implementar y el producto conserva los temas
+actuales de `docs/25-theme-selector.md` (solid, light, dark, minimal).
 
 ## Contexto
 
