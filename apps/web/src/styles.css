@@ -169,29 +169,98 @@ a:focus-visible {
 
 .boot-screen,
 .login-screen {
-  align-items: center;
+  align-items: stretch;
   display: grid;
   min-height: 100vh;
   padding: 24px;
-  place-items: center;
 }
 
 .boot-screen {
+  align-items: center;
   color: var(--muted);
   gap: 10px;
+  place-items: center;
+}
+
+.login-layout {
+  align-items: stretch;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 420px);
+  margin: auto;
+  max-width: 1080px;
+  width: min(100%, 1080px);
+}
+
+.login-hero {
+  align-self: center;
+  display: grid;
+  gap: 18px;
+  padding: 12px 8px;
+}
+
+.login-hero-brand {
+  margin-bottom: 4px;
+}
+
+.login-hero h1 {
+  font-size: clamp(1.75rem, 3vw, 2.35rem);
+  line-height: 1.15;
+  margin: 0;
+  max-width: 16ch;
+}
+
+.login-hero-subtitle {
+  color: var(--muted);
+  font-size: var(--text-md);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 42ch;
+}
+
+.login-feature-list {
+  display: grid;
+  gap: 12px;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.login-feature-list li {
+  align-items: center;
+  color: var(--content-secondary);
+  display: flex;
+  font-size: var(--text-base);
+  gap: 12px;
+}
+
+.login-feature-list svg {
+  color: var(--blue);
+  flex: 0 0 auto;
+  height: 18px;
+  width: 18px;
 }
 
 .login-panel {
+  align-self: center;
   background: var(--surface-panel);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-control);
+  border-radius: calc(var(--radius-control) + 4px);
   box-shadow: var(--shadow);
-  max-width: 420px;
+  display: grid;
+  gap: 16px;
   padding: 28px;
-  width: min(100%, 420px);
+  width: 100%;
 }
 
-.brand-row {
+.login-panel h2 {
+  font-size: var(--text-xl);
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.login-form {
   align-items: center;
   display: flex;
   font-size: var(--text-base);
@@ -224,14 +293,7 @@ a:focus-visible {
   flex-shrink: 0;
 }
 
-.login-panel h1 {
-  font-size: var(--text-2xl);
-  font-weight: var(--fw-semibold);
-  line-height: 1.15;
-  margin: 28px 0 20px;
-}
-
-.login-form {
+.brand-row {
   display: grid;
   gap: 14px;
 }
@@ -273,6 +335,12 @@ a:focus-visible {
 
 .login-inline-link {
   margin-top: 0;
+}
+
+.login-locale-button {
+  justify-self: start;
+  margin-top: 0;
+  width: auto;
 }
 
 .app-shell {
@@ -3973,6 +4041,54 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   padding: 14px;
 }
 
+html[data-preset='calm-light'] .workspace {
+  gap: 18px;
+}
+
+html[data-preset='calm-light'] .dashboard-card,
+html[data-preset='calm-light'] .login-panel,
+html[data-preset='calm-light'] .report-filters-panel,
+html[data-preset='calm-light'] .report-results-panel,
+html[data-preset='calm-light'] .invoice-draft-panel,
+html[data-preset='calm-light'] .invoice-directory-panel {
+  border-radius: calc(var(--radius-control) + 2px);
+}
+
+html[data-preset='focus-dark'] .dashboard-card,
+html[data-preset='focus-dark'] .report-filters-panel,
+html[data-preset='focus-dark'] .report-results-panel,
+html[data-preset='focus-dark'] .invoice-draft-panel,
+html[data-preset='focus-dark'] .invoice-directory-panel {
+  box-shadow: none;
+}
+
+html[data-preset='compact-power'] .workspace,
+html[data-preset='compact-power'] .clients-section,
+html[data-preset='compact-power'] .dashboard-card {
+  padding: 12px;
+}
+
+html[data-preset='compact-power'] .time-entry-row {
+  min-height: 40px;
+}
+
+html[data-preset='mobile-flow'] .segmented-control button,
+html[data-preset='mobile-flow'] .shell-toolbar-menu-button,
+html[data-preset='mobile-flow'] .mobile-bottom-nav a {
+  min-height: var(--target-min);
+}
+
+html[data-preset='mobile-flow'] .timer-capture-bar .manual-entry-button,
+html[data-preset='mobile-flow'] .timer-capture-bar .stop-timer-button,
+html[data-preset='mobile-flow'] .timer-capture-bar .start-timer-button {
+  min-height: calc(var(--target-min) + 2px);
+}
+
+html[data-preset='solidtime-exact'] {
+  --blue: #5fb3d9;
+  --radius-control: 8px;
+}
+
 @media (max-width: 1180px) {
   .time-entry-row {
     grid-template-columns: 22px minmax(220px, 1fr) minmax(140px, 220px) 58px 116px 84px 40px 24px;
@@ -4005,6 +4121,24 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   .report-workbench,
   .invoice-workbench {
     grid-template-columns: 1fr;
+  }
+
+  .login-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .login-hero {
+    padding: 0;
+    text-align: center;
+  }
+
+  .login-hero h1,
+  .login-hero-subtitle {
+    margin-inline: auto;
+  }
+
+  .login-feature-list {
+    justify-items: center;
   }
 }
 

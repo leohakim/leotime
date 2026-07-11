@@ -7,6 +7,7 @@ import {
   NAMED_EXPERIENCE_PRESETS,
   readExperiencePreset,
   readNavigationMode,
+  SOLIDTIME_EXACT_REFERENCE,
 } from './experience';
 
 afterEach(() => {
@@ -65,5 +66,10 @@ describe('experience state', () => {
       nav: 'bottom-tabs',
       preset: 'mobile-flow',
     });
+  });
+
+  test('documents the SolidTime Exact reference pin', () => {
+    expect(SOLIDTIME_EXACT_REFERENCE.release).toBe('v0.15.1');
+    expect(getExperiencePresetDimensions('solidtime-exact')).toEqual(EXPERIENCE_PRESET_DEFINITIONS['workbench-pro']);
   });
 });

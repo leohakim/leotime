@@ -71,7 +71,7 @@ All MVP slices in the original plan are complete.
 
 | Item | ADR / spec | Current behavior |
 | --- | --- | --- |
-| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Sprint 8 reports/invoices [complete](25-theme-selector.md); preset pack in Sprint 9+ |
+| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Sprint 9 preset pack [complete](37-experience-presets.md); visual QA in Sprint 10+ |
 
 ## Recently delivered
 
@@ -85,15 +85,17 @@ All MVP slices in the original plan are complete.
 | UI/UX Sprint 6 weekly timesheet | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Compact summary rows and expand-to-edit on mobile](25-theme-selector.md) |
 | UI/UX Sprint 7 calendar dashboard | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Tablet dashboard stacking and calendar toolbar layout](25-theme-selector.md) |
 | UI/UX Sprint 8 reports invoices | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Report/invoice workbenches and auto-loaded preview](25-theme-selector.md) |
+| UI/UX Sprint 9 initial preset pack | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Preset polish, login hero, SolidTime Exact reference](37-experience-presets.md) |
 
 Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-Start **UI/UX Sprint 9: initial preset pack** from the
+Start **UI/UX Sprint 10: visual QA and documentation** from the
 [approved design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md),
-building on the [Sprint 8 reports/invoices workbenches](25-theme-selector.md). Limit the slice to
-preset polish across desktop, tablet, and mobile without changing backend rules.
+building on the [Sprint 9 preset pack](37-experience-presets.md). Limit the slice to
+responsive screenshots, accessibility checks, and preset refresh guidance without
+changing backend rules.
 
 ## Quality Gates By Slice
 

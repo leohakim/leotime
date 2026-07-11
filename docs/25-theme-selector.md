@@ -80,6 +80,14 @@ Sprint 8 clarifies preview hierarchy on reporting screens (UXA-008):
 - Invoices split **Nuevo borrador** from the invoice directory/detail panel.
 - Compact `.panel-empty-state` replaces tall placeholder regions.
 
+## Experience presets
+
+Sprint 9 polishes the six named presets and the login entry screen (UXA-009):
+
+- Login shows a product hero with feature bullets beside the sign-in panel.
+- `data-preset` applies light density, radius, and touch-target refinements per preset.
+- `solidtime-exact` is pinned to SolidTime `v0.15.1` — see [37-experience-presets.md](37-experience-presets.md).
+
 ## UI
 
 - `ExperienceSwitcher` in the Time Tracker toolbar and profile preferences section.
@@ -99,6 +107,7 @@ Sprint 8 clarifies preview hierarchy on reporting screens (UXA-008):
 | Shell navigation | `apps/web/src/features/shell/` |
 | Theme buttons | `apps/web/src/lib/themeUi.tsx` |
 | Experience state and root attributes | `apps/web/src/lib/experience.ts` |
+| Preset catalog and SolidTime reference | [37-experience-presets.md](37-experience-presets.md) |
 | App wiring | `apps/web/src/App.tsx` |
 | CSS tokens | `apps/web/src/styles.css` (`[data-theme=...]`) |
 | Visual reference | `docs/15-solidtime-theme.md` |

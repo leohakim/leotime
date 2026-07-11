@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Languages, Mail, Play, Save } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Clock3, FileText, Languages, Mail, Play, Save } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { login, isApiError, requestPasswordReset, resetPassword, type Locale } from './api';
 import type { MessageKey } from './i18n';
@@ -9,6 +9,12 @@ import { useToast } from './toast';
 export type AuthTranslator = (key: MessageKey) => string;
 
 type AuthView = 'login' | 'forgot' | 'reset';
+
+const LOGIN_FEATURES: Array<{ icon: typeof Clock3; labelKey: MessageKey }> = [
+  { icon: Clock3, labelKey: 'loginFeatureTimer' },
+  { icon: CalendarDays, labelKey: 'loginFeatureTimesheet' },
+  { icon: FileText, labelKey: 'loginFeatureInvoices' },
+];
 
 function parseAuthView(): { view: AuthView; resetToken: string } {
   const hash = window.location.hash.replace(/^#/, '');
@@ -112,77 +118,95 @@ export function AuthScreen({
 
   return (
     <main className="login-screen">
-      <section className="login-panel" aria-labelledby="auth-title">
-        <LeotimeLogo className="brand-row" markSize={28} />
-        <h1 id="auth-title">
-          {view === 'forgot' ? t('forgotPasswordTitle') : view === 'reset' ? t('resetPasswordTitle') : t('welcome')}
-        </h1>
-        {view === 'forgot' ? <p className="login-help">{t('forgotPasswordHelp')}</p> : null}
-        {view === 'reset' ? <p className="login-help">{t('resetPasswordHelp')}</p> : null}
+      <div className="login-layout">
+        <section className="login-hero" aria-labelledby="login-hero-title">
+          <LeotimeLogo className="brand-row login-hero-brand" markSize={32} />
+          <h1 id="login-hero-title">{t('loginHeroTitle')}</h1>
+          <p className="login-hero-subtitle">{t('loginHeroSubtitle')}</p>
+          <ul className="login-feature-list">
+            {LOGIN_FEATURES.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <li key={feature.labelKey}>
+                  <Icon aria-hidden="true" />
+                  <span>{t(feature.labelKey)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
 
-        {view === 'login' ? (
-          <form onSubmit={submitLogin} className="login-form">
-            <label>
-              {t('email')}
-              <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="username" />
-            </label>
-            <label>
-              {t('password')}
-              <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" />
-            </label>
-            <button type="submit" disabled={loginMutation.isPending}>
-              <Play aria-hidden="true" />
-              {t('login')}
-            </button>
-            <button className="ghost-button login-inline-link" type="button" onClick={() => setView('forgot')}>
-              {t('forgotPassword')}
-            </button>
-          </form>
-        ) : null}
+        <section className="login-panel" aria-labelledby="auth-title">
+          <h2 id="auth-title">
+            {view === 'forgot' ? t('forgotPasswordTitle') : view === 'reset' ? t('resetPasswordTitle') : t('welcome')}
+          </h2>
+          {view === 'forgot' ? <p className="login-help">{t('forgotPasswordHelp')}</p> : null}
+          {view === 'reset' ? <p className="login-help">{t('resetPasswordHelp')}</p> : null}
 
-        {view === 'forgot' ? (
-          <form onSubmit={submitForgot} className="login-form">
-            <label>
-              {t('email')}
-              <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="username" />
-            </label>
-            <button type="submit" disabled={forgotMutation.isPending}>
-              <Mail aria-hidden="true" />
-              {t('sendResetLink')}
-            </button>
-            <button className="ghost-button login-inline-link" type="button" onClick={() => { setView('login'); window.location.hash = ''; }}>
-              <ArrowLeft aria-hidden="true" />
-              {t('backToLogin')}
-            </button>
-          </form>
-        ) : null}
+          {view === 'login' ? (
+            <form onSubmit={submitLogin} className="login-form">
+              <label>
+                {t('email')}
+                <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="username" />
+              </label>
+              <label>
+                {t('password')}
+                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" />
+              </label>
+              <button type="submit" disabled={loginMutation.isPending}>
+                <Play aria-hidden="true" />
+                {t('login')}
+              </button>
+              <button className="ghost-button login-inline-link" type="button" onClick={() => setView('forgot')}>
+                {t('forgotPassword')}
+              </button>
+            </form>
+          ) : null}
 
-        {view === 'reset' ? (
-          <form onSubmit={submitReset} className="login-form">
-            <label>
-              {t('profileNewPassword')}
-              <input value={newPassword} onChange={(event) => setNewPassword(event.target.value)} type="password" autoComplete="new-password" />
-            </label>
-            <label>
-              {t('profileConfirmPassword')}
-              <input value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} type="password" autoComplete="new-password" />
-            </label>
-            <button type="submit" disabled={resetMutation.isPending || !resetToken}>
-              <Save aria-hidden="true" />
-              {t('resetPasswordSubmit')}
-            </button>
-            <button className="ghost-button login-inline-link" type="button" onClick={() => { setView('login'); window.location.hash = ''; }}>
-              <ArrowLeft aria-hidden="true" />
-              {t('backToLogin')}
-            </button>
-          </form>
-        ) : null}
+          {view === 'forgot' ? (
+            <form onSubmit={submitForgot} className="login-form">
+              <label>
+                {t('email')}
+                <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" autoComplete="username" />
+              </label>
+              <button type="submit" disabled={forgotMutation.isPending}>
+                <Mail aria-hidden="true" />
+                {t('sendResetLink')}
+              </button>
+              <button className="ghost-button login-inline-link" type="button" onClick={() => { setView('login'); window.location.hash = ''; }}>
+                <ArrowLeft aria-hidden="true" />
+                {t('backToLogin')}
+              </button>
+            </form>
+          ) : null}
 
-        <button className="ghost-button" type="button" onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}>
-          <Languages aria-hidden="true" />
-          {t('language')}
-        </button>
-      </section>
+          {view === 'reset' ? (
+            <form onSubmit={submitReset} className="login-form">
+              <label>
+                {t('profileNewPassword')}
+                <input value={newPassword} onChange={(event) => setNewPassword(event.target.value)} type="password" autoComplete="new-password" />
+              </label>
+              <label>
+                {t('profileConfirmPassword')}
+                <input value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} type="password" autoComplete="new-password" />
+              </label>
+              <button type="submit" disabled={resetMutation.isPending || !resetToken}>
+                <Save aria-hidden="true" />
+                {t('resetPasswordSubmit')}
+              </button>
+              <button className="ghost-button login-inline-link" type="button" onClick={() => { setView('login'); window.location.hash = ''; }}>
+                <ArrowLeft aria-hidden="true" />
+                {t('backToLogin')}
+              </button>
+            </form>
+          ) : null}
+
+          <button className="ghost-button login-locale-button" type="button" onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}>
+            <Languages aria-hidden="true" />
+            {t('language')}
+          </button>
+        </section>
+      </div>
     </main>
   );
 }

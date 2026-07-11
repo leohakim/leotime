@@ -129,7 +129,7 @@ See the [curated hardening backlog](35-curated-hardening-backlog.md) for the cur
 | Status | Item | Notes |
 | --- | --- | --- |
 | Accepted, partially implemented | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol, document-aware backups, H-INV-01 issuance hardening, and H-BACKUP-04 rollback-safe restore exist. |
-| Approved, doing | UI/UX experience themes | Sprint 8 reports/invoices complete; preset pack next in the [design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) |
+| Approved, doing | UI/UX experience themes | Sprint 9 preset pack complete; visual QA next in the [design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) |
 
 See [ADR index](adr/README.md) for implementation status of all records.
 
@@ -145,8 +145,8 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | 6 | **Done** | Compact timesheet summary rows, expand-to-edit, UXA-004 fix |
 | 7 | **Done** | Tablet dashboard stacking, calendar toolbar layout, UXA-003 fix |
 | 8 | **Done** | Report/invoice workbenches, auto-loaded preview, UXA-008 fix |
-| 9 | **Next** | Initial preset pack |
-| 10 | Backlog | Visual QA, accessibility checks, and documentation |
+| 9 | **Done** | Preset pack polish, login hero, SolidTime Exact reference, UXA-009 fix |
+| 10 | **Next** | Visual QA, accessibility checks, and documentation |
 
 ## Engineering Backlog
 

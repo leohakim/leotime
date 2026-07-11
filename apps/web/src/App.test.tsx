@@ -200,6 +200,23 @@ describe('App', () => {
     );
   });
 
+  test('applies mobile-flow preset with bottom tab navigation', async () => {
+    renderApp();
+
+    await screen.findByRole('heading', { name: 'Time Tracker' });
+
+    fireEvent.change(screen.getByLabelText('Experiencia sugerida'), { target: { value: 'mobile-flow' } });
+
+    await waitFor(() =>
+      expect(document.documentElement.dataset).toMatchObject({
+        theme: 'light',
+        layout: 'compact',
+        nav: 'bottom-tabs',
+        preset: 'mobile-flow',
+      }),
+    );
+  });
+
   test('marks custom and persists navigation when nav changes', async () => {
     renderApp();
 

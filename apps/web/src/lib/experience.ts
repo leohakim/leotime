@@ -23,6 +23,14 @@ export type ExperienceState = ExperienceDimensions & {
 export const DEFAULT_NAVIGATION_MODE: NavigationMode = 'sidebar';
 export const DEFAULT_EXPERIENCE_PRESET: ExperiencePreset = 'workbench-pro';
 
+export const SOLIDTIME_EXACT_REFERENCE = {
+  commit: 'ab9f6e6',
+  release: 'v0.15.1',
+  releaseUrl: 'https://github.com/solidtime-io/solidtime/releases/tag/v0.15.1',
+  repo: 'https://github.com/solidtime-io/solidtime',
+  verifiedAt: '2026-07-08',
+} as const;
+
 export const NAVIGATION_MODES: NavigationMode[] = ['sidebar', 'sidebar-compact', 'bottom-tabs'];
 
 export const NAMED_EXPERIENCE_PRESETS: NamedExperiencePreset[] = [
