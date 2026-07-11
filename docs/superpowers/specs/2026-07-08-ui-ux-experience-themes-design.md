@@ -10,12 +10,9 @@ configurables. No implementa cambios por si misma.
 
 ## Estado de implementación
 
-**Sprints 1–4 completados** (2026-07-11). La auditoria responsive y el mapa
-de fricciones estan publicados en [UI/UX Visual Audit](../../36-ui-ux-visual-audit.md).
-Sprint 2 aplica los atributos raiz, tokens semanticos y estado local de
-experiencia. Sprint 3 expone el selector de experiencia y Sprint 4 refactoriza
-el shell con navegacion inferior en tablet/mobile. Los sprints 5–10 siguen sin
-implementar.
+**Sprints 1–5 completados** (2026-07-11). Sprint 5 mejora la captura rapida con
+scroll/focus en entrada manual, editor sticky en desktop y formulario primero en
+tablet/mobile. Los sprints 6–10 siguen sin implementar.
 
 ## Contexto
 

@@ -1,7 +1,11 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi, afterEach } from 'vitest';
 import type { Client, Project, Task } from './api';
-import { hasBillableRate } from './billable';
-import { applyManualEntryFieldUpdate, tasksForManualEntryForm } from './timeEntryUi';
+import { applyManualEntryFieldUpdate, MANUAL_ENTRY_DESCRIPTION_ID, MANUAL_ENTRY_EDITOR_ID, scrollToManualEntryForm, tasksForManualEntryForm } from './timeEntryUi';
+
+afterEach(() => {
+  window.location.hash = '';
+  document.body.innerHTML = '';
+});
 
 const clients: Client[] = [
   {
@@ -78,6 +82,32 @@ const baseForm = {
   endedAt: '2026-07-01T09:00',
   billable: true,
 };
+
+describe('scrollToManualEntryForm', () => {
+  test('navigates to manual entry and focuses the editor', async () => {
+    const editor = document.createElement('form');
+    editor.id = MANUAL_ENTRY_EDITOR_ID;
+    const description = document.createElement('input');
+    description.id = MANUAL_ENTRY_DESCRIPTION_ID;
+    editor.append(description);
+    document.body.append(editor);
+
+    const scrollIntoView = vi.fn();
+    editor.scrollIntoView = scrollIntoView;
+    const focus = vi.fn();
+    description.focus = focus;
+
+    window.location.hash = '#manual-time-entry';
+    scrollToManualEntryForm();
+
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+  });
+});
 
 describe('tasksForManualEntryForm', () => {
   test('keeps the selected task visible even when it belongs to another project filter', () => {

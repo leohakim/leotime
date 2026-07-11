@@ -33,8 +33,25 @@ import { toastMutationSuccess, useToast } from './toast';
 
 export type Translator = (key: MessageKey) => string;
 
+export const MANUAL_ENTRY_EDITOR_ID = 'manual-time-entry-editor';
+export const MANUAL_ENTRY_DESCRIPTION_ID = 'time-entry-description';
+
+function focusManualEntryEditor() {
+  window.requestAnimationFrame(() => {
+    document.getElementById(MANUAL_ENTRY_EDITOR_ID)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const description = document.getElementById(MANUAL_ENTRY_DESCRIPTION_ID) as HTMLInputElement | null;
+    description?.focus({ preventScroll: true });
+  });
+}
+
 export function scrollToManualEntryForm() {
-  navigateTo('manual-time-entry');
+  const currentRoute = window.location.hash.replace(/^#/, '').split('?')[0];
+  if (currentRoute !== 'manual-time-entry') {
+    navigateTo('manual-time-entry');
+    window.setTimeout(focusManualEntryEditor, 0);
+    return;
+  }
+  focusManualEntryEditor();
 }
 
 export function TimeEntriesList({
@@ -425,6 +442,11 @@ export function ManualTimeEntryPanel({
     setErrors({});
   }
 
+  function beginNewManualEntry() {
+    cancelEditing();
+    scrollToManualEntryForm();
+  }
+
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
@@ -438,64 +460,20 @@ export function ManualTimeEntryPanel({
           <h2 id="manual-time-entry-title">{t('timeEntryDirectory')}</h2>
           <p>{t('timeEntryPanelSubtitle')}</p>
         </div>
-        <button className="secondary-button" type="button" onClick={cancelEditing}>
+        <button className="secondary-button" type="button" onClick={beginNewManualEntry}>
           <Plus aria-hidden="true" />
           {t('newTimeEntry')}
         </button>
       </div>
 
-      <div className="clients-workbench">
-        <div className="client-directory">
-          <div className="directory-toolbar">
-            <div>
-              <span>{directorySummary}</span>
-              {directoryShowing ? <strong>{directoryShowing}</strong> : null}
-            </div>
-            {isLoading ? (
-              <span className="sync-pill">{t('loading')}</span>
-            ) : (
-              <span className="sync-pill">{t('synced')}</span>
-            )}
-          </div>
-
-          <div className="client-list" aria-busy={isLoading}>
-            {timeEntries.length === 0 ? (
-              <div className="empty-state">
-                <Clock3 aria-hidden="true" />
-                <p>{t('noTimeEntries')}</p>
-              </div>
-            ) : null}
-            {visibleEntries.map((entry) => (
-              <DirectoryEntryRow
-                entry={entry}
-                isSelected={editingEntryId === entry.id}
-                key={entry.id}
-                locale={locale}
-                onDelete={() => {
-                  if (confirmDestructiveAction(t('deleteTimeEntryConfirm'))) {
-                    deleteMutation.mutate(entry.id);
-                  }
-                }}
-                onOpenEditor={() => startEditing(entry)}
-                pauseInlineSave={editingEntryId === entry.id}
-                projects={projects}
-                tasks={tasks}
-                t={t}
-              />
-            ))}
-          </div>
-          {hasMoreEntries ? (
-            <button
-              className="secondary-button directory-load-more"
-              type="button"
-              onClick={() => setVisibleCount((current) => current + MANUAL_ENTRY_DIRECTORY_PAGE_SIZE)}
-            >
-              {t('timeEntryDirectoryLoadMore')}
-            </button>
-          ) : null}
-        </div>
-
-        <form className="client-editor" noValidate onSubmit={submitTimeEntry}>
+      <div className="clients-workbench time-entry-workbench">
+        <form
+          className="client-editor time-entry-editor"
+          id={MANUAL_ENTRY_EDITOR_ID}
+          noValidate
+          onSubmit={submitTimeEntry}
+          tabIndex={-1}
+        >
           <div className="editor-header">
             <div>
               <span>{editingEntryId ? t('editingTimeEntry') : t('createTimeEntry')}</span>
@@ -607,6 +585,56 @@ export function ManualTimeEntryPanel({
             </button>
           </div>
         </form>
+
+        <div className="client-directory time-entry-directory">
+          <div className="directory-toolbar">
+            <div>
+              <span>{directorySummary}</span>
+              {directoryShowing ? <strong>{directoryShowing}</strong> : null}
+            </div>
+            {isLoading ? (
+              <span className="sync-pill">{t('loading')}</span>
+            ) : (
+              <span className="sync-pill">{t('synced')}</span>
+            )}
+          </div>
+
+          <div className="client-list" aria-busy={isLoading}>
+            {timeEntries.length === 0 ? (
+              <div className="empty-state">
+                <Clock3 aria-hidden="true" />
+                <p>{t('noTimeEntries')}</p>
+              </div>
+            ) : null}
+            {visibleEntries.map((entry) => (
+              <DirectoryEntryRow
+                entry={entry}
+                isSelected={editingEntryId === entry.id}
+                key={entry.id}
+                locale={locale}
+                onDelete={() => {
+                  if (confirmDestructiveAction(t('deleteTimeEntryConfirm'))) {
+                    deleteMutation.mutate(entry.id);
+                  }
+                }}
+                onOpenEditor={() => startEditing(entry)}
+                pauseInlineSave={editingEntryId === entry.id}
+                projects={projects}
+                tasks={tasks}
+                t={t}
+              />
+            ))}
+          </div>
+          {hasMoreEntries ? (
+            <button
+              className="secondary-button directory-load-more"
+              type="button"
+              onClick={() => setVisibleCount((current) => current + MANUAL_ENTRY_DIRECTORY_PAGE_SIZE)}
+            >
+              {t('timeEntryDirectoryLoadMore')}
+            </button>
+          ) : null}
+        </div>
       </div>
     </section>
   );

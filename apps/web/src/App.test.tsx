@@ -427,18 +427,40 @@ describe('App', () => {
   });
 
   test('creates a manual time entry from the dashboard', async () => {
+    const scrollIntoView = vi.fn();
+    const focus = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    HTMLInputElement.prototype.focus = focus;
+
     renderApp();
 
     await screen.findByRole('heading', { name: 'Time Tracker' });
     fireEvent.click(screen.getByRole('button', { name: 'Entrada manual' }));
 
     const manualPanel = within(await screen.findByRole('region', { name: 'Entradas manuales' }));
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
     await waitFor(() => expect(manualPanel.getAllByText('Sin entradas todavia').length).toBeGreaterThan(0));
     fireEvent.change(document.getElementById('time-entry-description') as HTMLInputElement, { target: { value: 'Trabajo manual' } });
     fireEvent.click(manualPanel.getByRole('button', { name: 'Crear entrada' }));
 
     await waitFor(() => expect(timeEntriesMock).toHaveLength(1));
     expect(manualPanel.getByDisplayValue('Trabajo manual')).toBeInTheDocument();
+  });
+
+  test('scrolls to the editor when starting a new manual entry', async () => {
+    const scrollIntoView = vi.fn();
+    const focus = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    HTMLInputElement.prototype.focus = focus;
+
+    renderApp();
+    await goTo('manual-time-entry');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva entrada' }));
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    expect(focus).toHaveBeenCalled();
+    expect(document.getElementById('manual-time-entry-editor')).toBeTruthy();
   });
 
   test('manual entry directory paginates beyond the old 12-row cap', async () => {

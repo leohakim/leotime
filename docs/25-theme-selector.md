@@ -43,6 +43,18 @@ Selecting a preset applies all three dimensions. Changing theme, layout, or navi
 
 Layout density remains separate under `leotime.layout` (`solid`, `minimal`, `compact`).
 
+## Timer and manual entry capture
+
+Sprint 5 improves the daily capture flow:
+
+- `scrollToManualEntryForm()` navigates to `#manual-time-entry`, scrolls to
+  `#manual-time-entry-editor`, and focuses the description field.
+- **Nueva entrada** resets the form and scrolls to the editor (UXA-002).
+- `.time-entry-workbench` keeps the editor sticky on desktop (UXA-007) and shows
+  the form before the directory below `1180px`.
+- `.timer-capture-bar` stacks timer actions on narrow viewports with larger touch
+  targets for start/stop and manual entry.
+
 ## UI
 
 - `ExperienceSwitcher` in the Time Tracker toolbar and profile preferences section.

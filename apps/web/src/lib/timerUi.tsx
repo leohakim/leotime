@@ -286,7 +286,7 @@ export function TimerCommandRow({
   }
 
   return (
-    <section className="timer-command-row" aria-label={t('currentTimer')}>
+    <section className="timer-command-row timer-capture-bar" aria-label={t('currentTimer')}>
       {timers.length > 1 ? (
         <div className="timer-multiple-warning" role="status">
           <p>{t('multipleOpenTimers').replace('{count}', String(timers.length))}</p>
