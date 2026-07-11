@@ -2,24 +2,35 @@
 
 The authenticated app supports four color themes, persisted in `localStorage` under `leotime.theme`.
 
-## Experience foundation
+## Experience selector
 
-Sprint 2 applies the full experience contract to the root element while
-preserving the current UI:
+Sprint 3 exposes the full experience contract in the toolbar and profile settings through `ExperienceSwitcher`:
 
 ```html
 <html data-theme="solid" data-layout="solid" data-nav="sidebar" data-preset="workbench-pro">
 ```
 
-- `leotime.theme` and `leotime.layout` remain compatible with the current
-  profile hydration flow.
-- `leotime.nav` is local-only and currently has the single value `sidebar`.
-- `leotime.preset` is local-only. `workbench-pro` maps to solid theme, solid
-  layout, and sidebar navigation; every other combination is `custom`.
-- Changing theme or layout independently changes the active preset to `custom`.
+### Storage ownership
 
-Sprint 3 will add visible selector controls and additional preset choices. No
-navigation or preset field is sent to the profile API in this foundation slice.
+| Key | Scope | Notes |
+| --- | --- | --- |
+| `leotime.theme` | Profile-compatible | Hydrated from profile; toolbar/profile changes sync on save |
+| `leotime.layout` | Profile-compatible | Hydrated from profile; toolbar/profile changes sync on save |
+| `leotime.nav` | Local-only | `sidebar`, `sidebar-compact`, or `bottom-tabs` |
+| `leotime.preset` | Local-only | Named preset or `custom` |
+
+### Named presets
+
+| Preset | Theme | Layout | Nav |
+| --- | --- | --- | --- |
+| `workbench-pro` | `solid` | `solid` | `sidebar` |
+| `calm-light` | `light` | `minimal` | `sidebar` |
+| `focus-dark` | `dark` | `solid` | `sidebar` |
+| `compact-power` | `dark` | `compact` | `sidebar-compact` |
+| `mobile-flow` | `light` | `compact` | `bottom-tabs` |
+| `solidtime-exact` | `solid` | `solid` | `sidebar` |
+
+Selecting a preset applies all three dimensions. Changing theme, layout, or navigation independently sets `custom`. Shell behavior for `sidebar-compact` and `bottom-tabs` remains a Sprint 4 concern; Sprint 3 only sets root attributes and persistence.
 
 ## Themes
 
@@ -34,16 +45,16 @@ Layout density remains separate under `leotime.layout` (`solid`, `minimal`, `com
 
 ## UI
 
-- Toolbar control next to the layout switcher in the Time Tracker header.
-- Sets `data-theme`, `data-layout`, `data-nav`, and `data-preset` on
-  `document.documentElement`.
+- `ExperienceSwitcher` in the Time Tracker toolbar and profile preferences section.
+- Sets `data-theme`, `data-layout`, `data-nav`, and `data-preset` on `document.documentElement`.
 - Updates the mobile `theme-color` meta tag.
 
 ## Where To Read The Behavior
 
 | Layer | Location |
 | --- | --- |
-| Theme switcher UI | `apps/web/src/lib/themeUi.tsx` |
+| Experience switcher UI | `apps/web/src/lib/experienceUi.tsx` |
+| Theme buttons | `apps/web/src/lib/themeUi.tsx` |
 | Experience state and root attributes | `apps/web/src/lib/experience.ts` |
 | App wiring | `apps/web/src/App.tsx` |
 | CSS tokens | `apps/web/src/styles.css` (`[data-theme=...]`) |

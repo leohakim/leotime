@@ -16,6 +16,13 @@ import {
   type ThemeMode,
   type User,
 } from './api';
+import {
+  getExperiencePresetDimensions,
+  type ExperiencePreset,
+  type NamedExperiencePreset,
+  type NavigationMode,
+} from './experience';
+import { ExperienceSwitcher } from './experienceUi';
 import type { MessageKey } from './i18n';
 import { useToast } from './toast';
 
@@ -106,16 +113,26 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 
 export function ProfileSettingsPanel({
   focusSection,
+  layoutMode,
+  navigationMode,
+  onApplyExperiencePreset,
+  preset,
   setLayoutMode,
   setLocale,
+  setNavigationMode,
   setThemeMode,
   t,
   themeMode,
   user,
 }: {
   focusSection?: 'settings';
+  layoutMode: LayoutMode;
+  navigationMode: NavigationMode;
+  onApplyExperiencePreset: (preset: NamedExperiencePreset) => void;
+  preset: ExperiencePreset;
   setLayoutMode: (layoutMode: LayoutMode) => void;
   setLocale: (locale: Locale) => void;
+  setNavigationMode: (navigationMode: NavigationMode) => void;
   setThemeMode: (themeMode: ThemeMode) => void;
   t: Translator;
   themeMode: ThemeMode;
@@ -229,6 +246,22 @@ export function ProfileSettingsPanel({
   function updateField<K extends keyof ProfileFormState>(key: K, value: ProfileFormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined, form: undefined }));
+    if (key === 'layoutMode') {
+      setLayoutMode(value as LayoutMode);
+    }
+    if (key === 'themeMode') {
+      setThemeMode(value as ThemeMode);
+    }
+  }
+
+  function applyExperiencePresetForForm(value: NamedExperiencePreset) {
+    onApplyExperiencePreset(value);
+    const dimensions = getExperiencePresetDimensions(value);
+    setForm((current) => ({
+      ...current,
+      themeMode: dimensions.themeMode,
+      layoutMode: dimensions.layoutMode,
+    }));
   }
 
   function updatePasswordField<K extends keyof PasswordFormState>(key: K, value: PasswordFormState[K]) {
@@ -390,28 +423,20 @@ export function ProfileSettingsPanel({
               </select>
             </label>
 
-            <label className="form-field" htmlFor="profile-layout">
-              <span>{t('layout')}</span>
-              <select
-                id="profile-layout"
-                onChange={(event) => updateField('layoutMode', event.target.value as LayoutMode)}
-                value={form.layoutMode}
-              >
-                <option value="solid">{t('solid')}</option>
-                <option value="minimal">{t('minimal')}</option>
-                <option value="compact">{t('compact')}</option>
-              </select>
-            </label>
-
-            <label className="form-field" htmlFor="profile-theme">
-              <span>{t('theme')}</span>
-              <select id="profile-theme" onChange={(event) => updateField('themeMode', event.target.value as ThemeMode)} value={form.themeMode}>
-                <option value="solid">{t('themeSolid')}</option>
-                <option value="light">{t('themeLight')}</option>
-                <option value="dark">{t('themeDark')}</option>
-                <option value="minimal">{t('themeMinimal')}</option>
-              </select>
-            </label>
+            <div className="form-field profile-experience-field">
+              <ExperienceSwitcher
+                layoutMode={layoutMode}
+                navigationMode={navigationMode}
+                onApplyPreset={applyExperiencePresetForForm}
+                preset={preset}
+                setLayoutMode={(value) => updateField('layoutMode', value)}
+                setNavigationMode={setNavigationMode}
+                setThemeMode={(value) => updateField('themeMode', value)}
+                themeMode={themeMode}
+                t={t}
+                variant="settings"
+              />
+            </div>
 
             <label className={fieldClass(errors.defaultCurrency)} htmlFor="profile-currency">
               <span>{t('defaultCurrency')}</span>

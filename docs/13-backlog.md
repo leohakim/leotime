@@ -129,7 +129,7 @@ See the [curated hardening backlog](35-curated-hardening-backlog.md) for the cur
 | Status | Item | Notes |
 | --- | --- | --- |
 | Accepted, partially implemented | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol, document-aware backups, H-INV-01 issuance hardening, and H-BACKUP-04 rollback-safe restore exist. |
-| Approved, doing | UI/UX experience themes | Sprint 1 audit complete; six presets + SolidTime Exact remain planned in the [design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) |
+| Approved, doing | UI/UX experience themes | Sprint 3 selector complete; shell/nav redesign next in the [design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) |
 
 See [ADR index](adr/README.md) for implementation status of all records.
 
@@ -139,8 +139,8 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | ---: | --- | --- |
 | 1 | **Done** | [Responsive visual audit and prioritized `UXA-*` findings](36-ui-ux-visual-audit.md) |
 | 2 | **Done** | Root experience attributes, semantic token foundation, legacy preference compatibility, and `custom` state |
-| 3 | **Next** | Experience selector and persistence |
-| 4 | Backlog | Responsive shell and navigation |
+| 3 | **Done** | Experience selector, preset catalog, nav modes, and local persistence |
+| 4 | **Next** | Responsive shell and navigation |
 | 5 | Backlog | Timer and quick capture |
 | 6 | Backlog | Weekly timesheet |
 | 7 | Backlog | Calendar and dashboard |

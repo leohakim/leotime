@@ -72,7 +72,9 @@ html {
 html[data-layout='solid'],
 html[data-layout='minimal'],
 html[data-layout='compact'],
-html[data-nav='sidebar'] {
+html[data-nav='sidebar'],
+html[data-nav='sidebar-compact'],
+html[data-nav='bottom-tabs'] {
   color: var(--content-primary);
 }
 
@@ -826,6 +828,48 @@ a:focus-visible {
 .theme-switcher {
   flex-wrap: wrap;
   max-width: 180px;
+}
+
+.experience-switcher {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.experience-switcher-toolbar .experience-field span {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.experience-switcher-settings {
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+
+.experience-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.experience-field span {
+  color: var(--content-secondary);
+  font-size: var(--text-sm);
+}
+
+.experience-field select {
+  min-height: 38px;
+}
+
+.profile-experience-field {
+  grid-column: 1 / -1;
 }
 
 .segmented-control button {

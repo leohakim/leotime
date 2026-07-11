@@ -71,7 +71,7 @@ All MVP slices in the original plan are complete.
 
 | Item | ADR / spec | Current behavior |
 | --- | --- | --- |
-| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Sprint 1 audit [complete](36-ui-ux-visual-audit.md); product remains [solid/light/dark/minimal](25-theme-selector.md) until Sprint 2+ |
+| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Sprint 3 selector [complete](25-theme-selector.md); shell/nav redesign in Sprint 4+ |
 
 ## Recently delivered
 
@@ -79,17 +79,18 @@ All MVP slices in the original plan are complete.
 | --- | --- | --- |
 | Billing documents + official PDFs | [ADR 0004](adr/0004-billing-documents-official-pdfs.md), [32-billing-documents.md](32-billing-documents.md) | [23-invoices-api.md](23-invoices-api.md); document-aware backups in [31-s3-daily-backups.md](31-s3-daily-backups.md) |
 | UI/UX Sprint 1 visual audit | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [24 responsive baselines and prioritized findings](36-ui-ux-visual-audit.md) |
+| UI/UX Sprint 3 experience selector | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Preset/nav controls and local persistence](25-theme-selector.md) |
 
 Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-Start **UI/UX Sprint 3: experience selector** from the
+Start **UI/UX Sprint 4: shell and navigation** from the
 [approved design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md),
-building on the [Sprint 1 audit](36-ui-ux-visual-audit.md) and the Sprint 2
-root-state foundation. Limit the slice to visible theme/layout/nav/preset
-controls, local persistence, and synchronization only for existing profile
-fields. Shell and feature redesign remain assigned to Sprints 4–8.
+building on the [Sprint 3 selector](25-theme-selector.md). Limit the slice to
+responsive shell components (`SidebarNav`, compact sidebar, topbar, bottom nav)
+without breaking hash routes, timer access, settings, language, offline status,
+or logout.
 
 ## Quality Gates By Slice
 

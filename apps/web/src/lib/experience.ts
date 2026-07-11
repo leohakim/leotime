@@ -1,17 +1,56 @@
 import type { LayoutMode, ThemeMode } from './api';
 
-export type NavigationMode = 'sidebar';
-export type ExperiencePreset = 'workbench-pro' | 'custom';
+export type NavigationMode = 'sidebar' | 'sidebar-compact' | 'bottom-tabs';
+export type NamedExperiencePreset =
+  | 'workbench-pro'
+  | 'calm-light'
+  | 'focus-dark'
+  | 'compact-power'
+  | 'mobile-flow'
+  | 'solidtime-exact';
+export type ExperiencePreset = NamedExperiencePreset | 'custom';
 
-export type ExperienceState = {
+export type ExperienceDimensions = {
   themeMode: ThemeMode;
   layoutMode: LayoutMode;
   navigationMode: NavigationMode;
+};
+
+export type ExperienceState = ExperienceDimensions & {
   preset: ExperiencePreset;
 };
 
 export const DEFAULT_NAVIGATION_MODE: NavigationMode = 'sidebar';
 export const DEFAULT_EXPERIENCE_PRESET: ExperiencePreset = 'workbench-pro';
+
+export const NAVIGATION_MODES: NavigationMode[] = ['sidebar', 'sidebar-compact', 'bottom-tabs'];
+
+export const NAMED_EXPERIENCE_PRESETS: NamedExperiencePreset[] = [
+  'workbench-pro',
+  'calm-light',
+  'focus-dark',
+  'compact-power',
+  'mobile-flow',
+  'solidtime-exact',
+];
+
+export const EXPERIENCE_PRESET_DEFINITIONS: Record<NamedExperiencePreset, ExperienceDimensions> = {
+  'workbench-pro': { themeMode: 'solid', layoutMode: 'solid', navigationMode: 'sidebar' },
+  'calm-light': { themeMode: 'light', layoutMode: 'minimal', navigationMode: 'sidebar' },
+  'focus-dark': { themeMode: 'dark', layoutMode: 'solid', navigationMode: 'sidebar' },
+  'compact-power': { themeMode: 'dark', layoutMode: 'compact', navigationMode: 'sidebar-compact' },
+  'mobile-flow': { themeMode: 'light', layoutMode: 'compact', navigationMode: 'bottom-tabs' },
+  'solidtime-exact': { themeMode: 'solid', layoutMode: 'solid', navigationMode: 'sidebar' },
+};
+
+const PRESET_INFERENCE_ORDER: NamedExperiencePreset[] = [
+  'workbench-pro',
+  'calm-light',
+  'focus-dark',
+  'compact-power',
+  'mobile-flow',
+  'solidtime-exact',
+];
 
 const THEME_META_COLORS: Record<ThemeMode, string> = {
   solid: '#0c0d10',
@@ -20,19 +59,43 @@ const THEME_META_COLORS: Record<ThemeMode, string> = {
   minimal: '#101114',
 };
 
-export function inferExperiencePreset({ themeMode, layoutMode, navigationMode }: Omit<ExperienceState, 'preset'>): ExperiencePreset {
-  return themeMode === 'solid' && layoutMode === 'solid' && navigationMode === 'sidebar'
-    ? DEFAULT_EXPERIENCE_PRESET
-    : 'custom';
+function isNavigationMode(value: string | null): value is NavigationMode {
+  return value !== null && NAVIGATION_MODES.includes(value as NavigationMode);
+}
+
+function isNamedExperiencePreset(value: string | null): value is NamedExperiencePreset {
+  return value !== null && NAMED_EXPERIENCE_PRESETS.includes(value as NamedExperiencePreset);
+}
+
+export function getExperiencePresetDimensions(preset: NamedExperiencePreset): ExperienceDimensions {
+  return EXPERIENCE_PRESET_DEFINITIONS[preset];
+}
+
+export function inferExperiencePreset(dimensions: ExperienceDimensions): ExperiencePreset {
+  for (const preset of PRESET_INFERENCE_ORDER) {
+    const definition = EXPERIENCE_PRESET_DEFINITIONS[preset];
+    if (
+      definition.themeMode === dimensions.themeMode &&
+      definition.layoutMode === dimensions.layoutMode &&
+      definition.navigationMode === dimensions.navigationMode
+    ) {
+      return preset;
+    }
+  }
+  return 'custom';
 }
 
 export function readNavigationMode(): NavigationMode {
-  return window.localStorage.getItem('leotime.nav') === 'sidebar' ? 'sidebar' : DEFAULT_NAVIGATION_MODE;
+  const value = window.localStorage.getItem('leotime.nav');
+  return isNavigationMode(value) ? value : DEFAULT_NAVIGATION_MODE;
 }
 
 export function readExperiencePreset(): ExperiencePreset {
   const value = window.localStorage.getItem('leotime.preset');
-  return value === 'workbench-pro' || value === 'custom' ? value : 'custom';
+  if (value === 'custom') {
+    return 'custom';
+  }
+  return isNamedExperiencePreset(value) ? value : 'custom';
 }
 
 export function applyExperienceMetaColor(themeMode: ThemeMode) {

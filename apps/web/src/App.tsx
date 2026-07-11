@@ -7,10 +7,12 @@ import { AuthScreen } from './lib/authUi';
 import { DashboardShell } from './features/shell/DashboardShell';
 import { usePersistentState } from './lib/persistentState';
 import {
+  getExperiencePresetDimensions,
   inferExperiencePreset,
   readExperiencePreset,
   readNavigationMode,
   type ExperiencePreset,
+  type NamedExperiencePreset,
   type NavigationMode,
 } from './lib/experience';
 import { useExperienceEffect } from './lib/themeUi';
@@ -20,7 +22,7 @@ export function App() {
   const [locale, setLocale] = usePersistentState<Locale>('leotime.locale', 'es');
   const [layoutMode, setLayoutMode] = usePersistentState<LayoutMode>('leotime.layout', 'solid');
   const [themeMode, setThemeMode] = usePersistentState<ThemeMode>('leotime.theme', 'solid');
-  const [navigationMode] = usePersistentState<NavigationMode>('leotime.nav', readNavigationMode());
+  const [navigationMode, setNavigationMode] = usePersistentState<NavigationMode>('leotime.nav', readNavigationMode());
   const [preset, setPreset] = usePersistentState<ExperiencePreset>('leotime.preset', readExperiencePreset());
   const profileHydratedRef = useRef(false);
   const preferencesTouchedRef = useRef(false);
@@ -48,6 +50,27 @@ export function App() {
       setLayoutMode(value);
     },
     [layoutMode, setLayoutMode, setPreset],
+  );
+  const applyNavigationMode = useCallback(
+    (value: NavigationMode) => {
+      preferencesTouchedRef.current = true;
+      if (value !== navigationMode) {
+        setPreset('custom');
+      }
+      setNavigationMode(value);
+    },
+    [navigationMode, setNavigationMode, setPreset],
+  );
+  const applyExperiencePreset = useCallback(
+    (value: NamedExperiencePreset) => {
+      preferencesTouchedRef.current = true;
+      const dimensions = getExperiencePresetDimensions(value);
+      setThemeMode(dimensions.themeMode);
+      setLayoutMode(dimensions.layoutMode);
+      setNavigationMode(dimensions.navigationMode);
+      setPreset(value);
+    },
+    [setLayoutMode, setNavigationMode, setPreset, setThemeMode],
   );
   const applyThemeMode = useCallback(
     (value: ThemeMode) => {
@@ -129,8 +152,12 @@ export function App() {
     <DashboardShell
       layoutMode={layoutMode}
       locale={locale}
+      navigationMode={navigationMode}
+      onApplyExperiencePreset={applyExperiencePreset}
+      preset={preset}
       setLayoutMode={applyLayoutMode}
       setLocale={applyLocale}
+      setNavigationMode={applyNavigationMode}
       setThemeMode={applyThemeMode}
       themeMode={themeMode}
       t={t}

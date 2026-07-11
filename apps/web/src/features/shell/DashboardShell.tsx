@@ -5,7 +5,6 @@ import {
   CalendarDays,
   ChevronDown,
   Clock3,
-  Columns3,
   FileText,
   FolderKanban,
   Import,
@@ -13,8 +12,6 @@ import {
   LayoutDashboard,
   ListTodo,
   LogOut,
-  Minimize2,
-  PanelLeft,
   Settings,
   Tags,
 } from 'lucide-react';
@@ -74,7 +71,8 @@ import {
   toWeekQueryTo,
 } from '../../lib/timesheetWeek';
 import { usePersistentState } from '../../lib/persistentState';
-import { ThemeSwitcher } from '../../lib/themeUi';
+import type { ExperiencePreset, NamedExperiencePreset, NavigationMode } from '../../lib/experience';
+import { ExperienceSwitcher } from '../../lib/experienceUi';
 import { PlaceholderPage } from '../../lib/placeholderPageUi';
 import type { Translator } from '../../lib/translator';
 import { toastMutationSuccess, useToast } from '../../lib/toast';
@@ -82,8 +80,12 @@ import { toastMutationSuccess, useToast } from '../../lib/toast';
 type DashboardShellProps = {
   layoutMode: LayoutMode;
   locale: Locale;
+  navigationMode: NavigationMode;
+  onApplyExperiencePreset: (preset: NamedExperiencePreset) => void;
+  preset: ExperiencePreset;
   setLayoutMode: (layoutMode: LayoutMode) => void;
   setLocale: (locale: Locale) => void;
+  setNavigationMode: (navigationMode: NavigationMode) => void;
   setThemeMode: (themeMode: ThemeMode) => void;
   themeMode: ThemeMode;
   t: Translator;
@@ -133,7 +135,21 @@ function isReportingRoute(route: AppRoute): boolean {
   return route === 'overview' || route === 'detailed';
 }
 
-export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, setThemeMode, themeMode, t, user, userName }: DashboardShellProps) {
+export function DashboardShell({
+  layoutMode,
+  locale,
+  navigationMode,
+  onApplyExperiencePreset,
+  preset,
+  setLayoutMode,
+  setLocale,
+  setNavigationMode,
+  setThemeMode,
+  themeMode,
+  t,
+  user,
+  userName,
+}: DashboardShellProps) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { refreshPendingCount } = useOfflineStatus();
@@ -347,8 +363,17 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
           </div>
           <div className="toolbar">
             <OfflineStatusPill t={t} />
-            <ThemeSwitcher setThemeMode={setThemeMode} themeMode={themeMode} t={t} />
-            <LayoutSwitcher layoutMode={layoutMode} setLayoutMode={setLayoutMode} t={t} />
+            <ExperienceSwitcher
+              layoutMode={layoutMode}
+              navigationMode={navigationMode}
+              onApplyPreset={onApplyExperiencePreset}
+              preset={preset}
+              setLayoutMode={setLayoutMode}
+              setNavigationMode={setNavigationMode}
+              setThemeMode={setThemeMode}
+              themeMode={themeMode}
+              t={t}
+            />
             <button type="button" title={t('logout')} onClick={() => logoutMutation.mutate()}>
               <LogOut aria-hidden="true" />
             </button>
@@ -503,8 +528,13 @@ export function DashboardShell({ layoutMode, locale, setLayoutMode, setLocale, s
             <>
               <ProfileSettingsPanel
                 focusSection={route === 'settings' ? 'settings' : undefined}
+                layoutMode={layoutMode}
+                navigationMode={navigationMode}
+                onApplyExperiencePreset={onApplyExperiencePreset}
+                preset={preset}
                 setLayoutMode={setLayoutMode}
                 setLocale={setLocale}
+                setNavigationMode={setNavigationMode}
                 setThemeMode={setThemeMode}
                 t={t}
                 themeMode={themeMode}
@@ -550,41 +580,6 @@ function TimeViewSwitcher({
           {t('calendar')}
         </button>
       </div>
-    </div>
-  );
-}
-
-function LayoutSwitcher({
-  layoutMode,
-  setLayoutMode,
-  t,
-}: {
-  layoutMode: LayoutMode;
-  setLayoutMode: (layoutMode: LayoutMode) => void;
-  t: Translator;
-}) {
-  const options: Array<{ value: LayoutMode; label: string; icon: typeof PanelLeft }> = [
-    { value: 'solid', label: t('solid'), icon: PanelLeft },
-    { value: 'minimal', label: t('minimal'), icon: Minimize2 },
-    { value: 'compact', label: t('compact'), icon: Columns3 },
-  ];
-
-  return (
-    <div className="segmented-control" aria-label={t('layout')}>
-      {options.map((option) => {
-        const Icon = option.icon;
-        return (
-          <button
-            className={layoutMode === option.value ? 'selected' : ''}
-            key={option.value}
-            onClick={() => setLayoutMode(option.value)}
-            title={option.label}
-            type="button"
-          >
-            <Icon aria-hidden="true" />
-          </button>
-        );
-      })}
     </div>
   );
 }

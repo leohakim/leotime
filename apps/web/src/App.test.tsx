@@ -145,6 +145,40 @@ describe('App', () => {
     expect(window.localStorage.getItem('leotime.preset')).toBe('custom');
   });
 
+  test('applies a named preset from the experience selector', async () => {
+    renderApp();
+
+    await screen.findByRole('heading', { name: 'Time Tracker' });
+
+    fireEvent.change(screen.getByLabelText('Experiencia sugerida'), { target: { value: 'focus-dark' } });
+
+    await waitFor(() =>
+      expect(document.documentElement.dataset).toMatchObject({
+        theme: 'dark',
+        layout: 'solid',
+        nav: 'sidebar',
+        preset: 'focus-dark',
+      }),
+    );
+  });
+
+  test('marks custom and persists navigation when nav changes', async () => {
+    renderApp();
+
+    await screen.findByRole('heading', { name: 'Time Tracker' });
+
+    const navGroup = screen.getByRole('group', { name: 'Navegacion' });
+    fireEvent.click(within(navGroup).getByRole('button', { name: 'Tabs inferiores' }));
+
+    await waitFor(() =>
+      expect(document.documentElement.dataset).toMatchObject({
+        nav: 'bottom-tabs',
+        preset: 'custom',
+      }),
+    );
+    expect(window.localStorage.getItem('leotime.nav')).toBe('bottom-tabs');
+  });
+
   test('renders the time report panel', async () => {
     renderApp();
     await goTo('overview');
