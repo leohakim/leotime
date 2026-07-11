@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { auditAuthFile } from './e2e/audit-auth';
 
 const auditDataDir = mkdtempSync(join(tmpdir(), 'leotime-ui-audit-'));
 const apiEnv = {
@@ -43,8 +44,27 @@ export default defineConfig({
     },
   ],
   projects: [
-    { name: 'desktop-1440', use: { viewport: { width: 1440, height: 1100 } } },
-    { name: 'tablet-834', use: { viewport: { width: 834, height: 1112 } } },
-    { name: 'mobile-390', use: { viewport: { width: 390, height: 844 } } },
+    {
+      name: 'setup',
+      testMatch: /audit-auth\.setup\.ts/,
+    },
+    {
+      name: 'desktop-1440',
+      testMatch: /(visual|accessibility)-audit\.spec\.ts/,
+      use: { viewport: { width: 1440, height: 1100 }, storageState: auditAuthFile },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'tablet-834',
+      testMatch: /(visual|accessibility)-audit\.spec\.ts/,
+      use: { viewport: { width: 834, height: 1112 }, storageState: auditAuthFile },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'mobile-390',
+      testMatch: /(visual|accessibility)-audit\.spec\.ts/,
+      use: { viewport: { width: 390, height: 844 }, storageState: auditAuthFile },
+      dependencies: ['setup'],
+    },
   ],
 });

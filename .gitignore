@@ -18,6 +18,7 @@ dist/
 *.tsbuildinfo
 playwright-report/
 test-results/
+apps/web/e2e/.auth/
 
 # Docker/local
 .docker-data/
