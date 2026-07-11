@@ -23,3 +23,16 @@ Object.defineProperty(window, 'localStorage', {
   configurable: true,
   value: localStorageMock,
 });
+
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  }),
+});

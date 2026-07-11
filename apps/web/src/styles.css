@@ -4094,6 +4094,77 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
     padding: 11px 12px;
   }
 
+  .time-entry-row.is-summary {
+    align-items: start;
+    gap: 8px;
+    grid-template-areas:
+      "summary edit"
+      "error error";
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: auto;
+    padding: 10px 12px;
+  }
+
+  .time-entry-summary-main {
+    display: grid;
+    gap: 6px;
+    grid-area: summary;
+    min-width: 0;
+  }
+
+  .entry-summary-description {
+    color: var(--content-primary);
+    font-size: var(--text-base);
+    font-weight: var(--fw-medium);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .entry-summary-meta {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .entry-summary-range {
+    color: var(--content-secondary);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .entry-summary-duration {
+    margin-left: auto;
+  }
+
+  .entry-summary-flags {
+    gap: 6px;
+  }
+
+  .time-entry-edit-button {
+    grid-area: edit;
+    min-height: var(--target-min);
+    min-width: var(--target-min);
+  }
+
+  .entry-summary-error {
+    grid-area: error;
+  }
+
+  .time-entry-done-button {
+    font-size: var(--text-sm);
+    min-height: var(--target-min);
+    padding-inline: 10px;
+  }
+
+  .time-entry-row.is-editing .entry-flags {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .time-entry-row > .entry-checkbox {
     grid-area: check;
   }

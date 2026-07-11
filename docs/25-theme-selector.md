@@ -55,6 +55,15 @@ Sprint 5 improves the daily capture flow:
 - `.timer-capture-bar` stacks timer actions on narrow viewports with larger touch
   targets for start/stop and manual entry.
 
+## Weekly timesheet rows
+
+Sprint 6 improves mobile scanning for the weekly timesheet (UXA-004):
+
+- Below `760px`, `TimesheetEntryRow` shows a summary row (description, project,
+  time range, flags, duration) instead of inline controls.
+- **Editar** expands the existing inline editor; **Listo** collapses back to summary.
+- Desktop keeps always-inline editing.
+
 ## UI
 
 - `ExperienceSwitcher` in the Time Tracker toolbar and profile preferences section.
@@ -69,6 +78,7 @@ Sprint 5 improves the daily capture flow:
 | Layer | Location |
 | --- | --- |
 | Experience switcher UI | `apps/web/src/lib/experienceUi.tsx` |
+| Timesheet rows | `apps/web/src/lib/timeEntryUi.tsx` |
 | Shell navigation | `apps/web/src/features/shell/` |
 | Theme buttons | `apps/web/src/lib/themeUi.tsx` |
 | Experience state and root attributes | `apps/web/src/lib/experience.ts` |

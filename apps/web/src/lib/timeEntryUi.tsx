@@ -884,16 +884,63 @@ export function TimesheetEntryRow({
   tasks: Task[];
   t: Translator;
 }) {
-  const { error, form, liveDuration, project, toggleBillable, updateField } = useTimeEntryInlineEditor({
+  const compact = useCompactTimesheetRows();
+  const [isEditing, setIsEditing] = useState(false);
+  const { error, form, liveDuration, project, projectColor, toggleBillable, updateField } = useTimeEntryInlineEditor({
     entry,
     projects,
     taskProjectRequired,
     tasks,
     t,
   });
+  const showSummary = compact && !isEditing;
+  const summaryDescription = formatTimesheetEntryLabel(form.description, t('noDescription'));
+  const summaryRange = formatTimeRange(entry.startedAt, entry.endedAt, locale);
+
+  useEffect(() => {
+    setIsEditing(false);
+  }, [entry.id]);
+
+  if (showSummary) {
+    return (
+      <div className="time-entry-row is-summary" role="row">
+        <div className="time-entry-summary-main">
+          <p className="entry-summary-description">{summaryDescription}</p>
+          <div className="entry-summary-meta">
+            <ProjectBadge
+              color={projectColor}
+              compact
+              emptyLabel={t('taskProjectOptional')}
+              name={project?.name || entry.projectName}
+            />
+            <span className="entry-summary-range">{summaryRange}</span>
+            <div className="entry-flags entry-summary-flags">
+              {entry.tags.length > 0 ? <Tag aria-hidden="true" /> : null}
+              {form.billable ? <DollarSign aria-hidden="true" className="billable-on" /> : null}
+              {entry.overlapWarning ? <CircleAlert aria-hidden="true" className="overlap-warning-icon" /> : null}
+            </div>
+            <strong className="entry-duration entry-summary-duration">{formatDuration(liveDuration)}</strong>
+          </div>
+        </div>
+        <button
+          aria-label={t('edit')}
+          className="secondary-button icon-button time-entry-edit-button"
+          onClick={() => setIsEditing(true)}
+          type="button"
+        >
+          <Pencil aria-hidden="true" />
+        </button>
+        {error ? (
+          <span className="entry-inline-error entry-summary-error" role="alert">
+            {error}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
-    <div className="time-entry-row" role="row">
+    <div className={`time-entry-row${compact ? ' is-editing' : ''}`} role="row">
       <span className="entry-checkbox" aria-hidden="true" />
       <div className="entry-task">
         <input
@@ -923,6 +970,11 @@ export function TimesheetEntryRow({
           <DollarSign aria-hidden="true" className={form.billable ? 'billable-on' : undefined} />
         </button>
         {entry.overlapWarning ? <CircleAlert aria-hidden="true" className="overlap-warning-icon" /> : null}
+        {compact ? (
+          <button className="ghost-button time-entry-done-button" onClick={() => setIsEditing(false)} type="button">
+            {t('done')}
+          </button>
+        ) : null}
       </div>
       <input
         aria-label={t('startedAt')}
@@ -945,7 +997,7 @@ export function TimesheetEntryRow({
         </span>
       ) : null}
       {project ? <span className="visually-hidden">{project.name}</span> : null}
-      <span className="visually-hidden">{formatTimeRange(entry.startedAt, entry.endedAt, locale)}</span>
+      <span className="visually-hidden">{summaryRange}</span>
     </div>
   );
 }
@@ -1079,19 +1131,47 @@ export function formatDuration(totalSeconds: number) {
   return `${hours}h ${String(minutes).padStart(2, '0')}min`;
 }
 
-function formatDayDate(date: string, locale: Locale) {
-  return new Date(`${date}T12:00:00`).toLocaleDateString(locale === 'es' ? 'es-ES' : 'en-US', {
-    day: 'numeric',
-    month: 'short',
+export const TIMESHEET_COMPACT_MEDIA = '(max-width: 760px)';
+
+export function useCompactTimesheetRows() {
+  const [compact, setCompact] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    return window.matchMedia(TIMESHEET_COMPACT_MEDIA).matches;
   });
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const media = window.matchMedia(TIMESHEET_COMPACT_MEDIA);
+    const onChange = () => setCompact(media.matches);
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, []);
+
+  return compact;
 }
 
-function formatTimeRange(startedAt: string, endedAt: string, locale: Locale) {
+export function formatTimesheetEntryLabel(description: string, fallback: string) {
+  const trimmed = description.trim();
+  return trimmed || fallback;
+}
+
+export function formatTimeRange(startedAt: string, endedAt: string, locale: Locale) {
   const formatter = new Intl.DateTimeFormat(locale === 'es' ? 'es-ES' : 'en-US', {
     hour: '2-digit',
     minute: '2-digit',
   });
   return `${formatter.format(new Date(startedAt))} - ${formatter.format(new Date(endedAt))}`;
+}
+
+function formatDayDate(date: string, locale: Locale) {
+  return new Date(`${date}T12:00:00`).toLocaleDateString(locale === 'es' ? 'es-ES' : 'en-US', {
+    day: 'numeric',
+    month: 'short',
+  });
 }
 
 function toDateTimeLocalValue(iso: string) {

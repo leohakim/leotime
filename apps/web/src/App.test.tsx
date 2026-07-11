@@ -94,6 +94,44 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Esta semana')).toBeInTheDocument());
   });
 
+  test('renders compact timesheet rows as summaries on narrow viewports', async () => {
+    const now = new Date();
+    const startedAt = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+    const endedAt = now.toISOString();
+    timeEntriesMock = [
+      buildTimeEntryMock(
+        'ten_compact_1',
+        { description: 'Deep work', projectId: 'prj_1' },
+        {
+          project: projectsMock[0],
+          startedAt,
+          endedAt,
+          durationSeconds: 3600,
+          source: 'manual',
+        },
+      ),
+    ];
+
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(max-width: 760px)',
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+
+    renderApp();
+    const timesheet = await screen.findByRole('table', { name: 'Timesheet' });
+
+    expect(within(timesheet).getByText('Deep work')).toBeInTheDocument();
+    expect(within(timesheet).queryByDisplayValue('Deep work')).not.toBeInTheDocument();
+    expect(within(timesheet).getByRole('button', { name: 'Editar' })).toBeInTheDocument();
+  });
+
   test('renders dashboard stats widgets', async () => {
     renderApp();
     await goTo('dashboard');

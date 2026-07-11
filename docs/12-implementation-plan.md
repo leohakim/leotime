@@ -71,7 +71,7 @@ All MVP slices in the original plan are complete.
 
 | Item | ADR / spec | Current behavior |
 | --- | --- | --- |
-| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Sprint 5 capture flow [complete](25-theme-selector.md); timesheet redesign in Sprint 6+ |
+| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Sprint 6 timesheet [complete](25-theme-selector.md); calendar/dashboard in Sprint 7+ |
 
 ## Recently delivered
 
@@ -82,16 +82,17 @@ All MVP slices in the original plan are complete.
 | UI/UX Sprint 3 experience selector | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Preset/nav controls and local persistence](25-theme-selector.md) |
 | UI/UX Sprint 4 shell navigation | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Responsive shell components and bottom nav](25-theme-selector.md) |
 | UI/UX Sprint 5 timer quick capture | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Manual entry scroll, sticky editor, timer capture bar](25-theme-selector.md) |
+| UI/UX Sprint 6 weekly timesheet | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Compact summary rows and expand-to-edit on mobile](25-theme-selector.md) |
 
 Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-Start **UI/UX Sprint 6: weekly timesheet** from the
+Start **UI/UX Sprint 7: calendar and dashboard** from the
 [approved design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md),
-building on the [Sprint 5 capture flow](25-theme-selector.md). Limit the slice to
-timesheet scanning, inline editing clarity, and mobile row density without
-changing backend rules.
+building on the [Sprint 6 timesheet rows](25-theme-selector.md). Limit the slice to
+calendar legibility, day detail, and dashboard card clarity without changing
+backend rules.
 
 ## Quality Gates By Slice
 
