@@ -2,6 +2,8 @@ package billing
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -51,6 +53,113 @@ func TestIssueRollsBackWhenRendererFails(t *testing.T) {
 	if len(docs) != 0 {
 		t.Fatalf("expected no documents after rollback, got %d", len(docs))
 	}
+}
+
+func TestIssueRollsBackWhenPromotionFails(t *testing.T) {
+	ctx := context.Background()
+	st, user, series, invoice := newIssueFixture(t, ctx)
+
+	root := t.TempDir()
+	baseStore, err := NewDocumentStore(root)
+	if err != nil {
+		t.Fatalf("document store: %v", err)
+	}
+	files := &failingDocumentStore{DocumentStore: baseStore, failOn: 1}
+	service := &IssueService{store: st, renderer: stubRenderer{}, files: files}
+
+	_, err = service.Issue(ctx, user.ID, IssueRequest{
+		InvoiceID: invoice.ID,
+		IssueAt:   time.Date(2026, 7, 8, 12, 0, 0, 0, time.UTC),
+	})
+	if err == nil {
+		t.Fatal("expected promotion failure")
+	}
+
+	reloaded, err := st.InvoiceByID(ctx, user.ID, invoice.ID)
+	if err != nil {
+		t.Fatalf("reload invoice: %v", err)
+	}
+	if reloaded.Status != "draft" || !strings.HasPrefix(reloaded.InvoiceNumber, "DRAFT-") {
+		t.Fatalf("invoice should remain draft, got %+v", reloaded)
+	}
+
+	updatedSeries, err := st.InvoiceSeriesByID(ctx, user.ID, series.ID)
+	if err != nil {
+		t.Fatalf("reload series: %v", err)
+	}
+	if updatedSeries.NextSequence != 1 {
+		t.Fatalf("expected unchanged sequence, got %d", updatedSeries.NextSequence)
+	}
+
+	docs, err := st.ListInvoiceDocuments(ctx, user.ID, invoice.ID)
+	if err != nil {
+		t.Fatalf("list docs: %v", err)
+	}
+	if len(docs) != 0 {
+		t.Fatalf("expected no documents after rollback, got %d", len(docs))
+	}
+
+	if countPDFsUnder(root) != 0 {
+		t.Fatalf("expected no official documents under root")
+	}
+}
+
+func TestIssueRollsBackWhenSecondPromotionFails(t *testing.T) {
+	ctx := context.Background()
+	st, user, series, invoice := newIssueFixture(t, ctx)
+
+	root := t.TempDir()
+	baseStore, err := NewDocumentStore(root)
+	if err != nil {
+		t.Fatalf("document store: %v", err)
+	}
+	files := &failingDocumentStore{DocumentStore: baseStore, failOn: 2}
+	service := &IssueService{store: st, renderer: stubRenderer{}, files: files}
+
+	_, err = service.Issue(ctx, user.ID, IssueRequest{
+		InvoiceID: invoice.ID,
+		IssueAt:   time.Date(2026, 7, 8, 12, 0, 0, 0, time.UTC),
+	})
+	if err == nil {
+		t.Fatal("expected promotion failure")
+	}
+
+	reloaded, err := st.InvoiceByID(ctx, user.ID, invoice.ID)
+	if err != nil {
+		t.Fatalf("reload invoice: %v", err)
+	}
+	if reloaded.Status != "draft" {
+		t.Fatalf("invoice should remain draft, got %+v", reloaded)
+	}
+
+	updatedSeries, err := st.InvoiceSeriesByID(ctx, user.ID, series.ID)
+	if err != nil {
+		t.Fatalf("reload series: %v", err)
+	}
+	if updatedSeries.NextSequence != 1 {
+		t.Fatalf("expected unchanged sequence, got %d", updatedSeries.NextSequence)
+	}
+
+	if countPDFsUnder(root) != 0 {
+		t.Fatalf("expected no official documents under root after partial promotion failure")
+	}
+}
+
+func countPDFsUnder(root string) int {
+	count := 0
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(strings.ToLower(entry.Name()), ".pdf") {
+			count++
+		}
+		return nil
+	})
+	return count
 }
 
 func TestIssueCreatesImmutableDocuments(t *testing.T) {

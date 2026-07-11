@@ -229,6 +229,44 @@ type InvoiceIssueInput struct {
 	DocumentSnapshotJSON string
 }
 
+func (s *Store) RevertInvoiceIssueTx(ctx context.Context, tx *sql.Tx, userID, invoiceID, seriesID string, fiscalSequence int) error {
+	draftNumber := "DRAFT-" + invoiceID
+
+	now := nowString()
+	result, err := tx.ExecContext(ctx, `
+		UPDATE invoices
+		SET status = 'draft', invoice_number = ?, series_id = NULL, fiscal_sequence = NULL,
+			issued_at = NULL, document_snapshot_json = '', updated_at = ?
+		WHERE user_id = ? AND id = ? AND status = 'issued'
+	`, draftNumber, now, userID, invoiceID)
+	if err != nil {
+		return fmt.Errorf("revert invoice issue: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("revert invoice issue rows: %w", err)
+	}
+	if rows == 0 {
+		return ErrInvoiceNotEditable
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM billing_documents WHERE user_id = ? AND invoice_id = ?
+	`, userID, invoiceID); err != nil {
+		return fmt.Errorf("delete billing documents: %w", err)
+	}
+
+	if strings.TrimSpace(seriesID) != "" && fiscalSequence > 0 {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE invoice_series SET next_sequence = ?, updated_at = ? WHERE user_id = ? AND id = ?
+		`, fiscalSequence, now, userID, seriesID); err != nil {
+			return fmt.Errorf("revert invoice series sequence: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func (s *Store) MarkInvoiceIssuedTx(ctx context.Context, tx *sql.Tx, userID, invoiceID string, input InvoiceIssueInput) error {
 	now := nowString()
 	result, err := tx.ExecContext(ctx, `

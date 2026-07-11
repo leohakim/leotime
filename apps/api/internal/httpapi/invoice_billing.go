@@ -177,9 +177,9 @@ func (s *Server) downloadInvoiceDocument(w http.ResponseWriter, r *http.Request,
 	}
 	defer file.Close()
 
-	filename := invoiceDocumentFilename(invoice.InvoiceNumber, document.Kind)
+	filename := billing.SafeDownloadFilename(invoice.InvoiceNumber, documentFilenameSuffix(document.Kind))
 	w.Header().Set("Content-Type", "application/pdf")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.Header().Set("Content-Disposition", billing.ContentDispositionAttachment(filename))
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.Copy(w, file)
 }
@@ -209,13 +209,12 @@ func invoiceDocumentDownloadURL(invoiceID, documentID string) string {
 	return fmt.Sprintf("/api/v1/invoices/%s/documents/%s/download", invoiceID, documentID)
 }
 
-func invoiceDocumentFilename(invoiceNumber, kind string) string {
-	safeNumber := strings.ReplaceAll(invoiceNumber, "/", "-")
+func documentFilenameSuffix(kind string) string {
 	switch kind {
 	case "work_protocol_pdf":
-		return safeNumber + "-work-protocol.pdf"
+		return "-work-protocol.pdf"
 	default:
-		return safeNumber + "-invoice.pdf"
+		return "-invoice.pdf"
 	}
 }
 

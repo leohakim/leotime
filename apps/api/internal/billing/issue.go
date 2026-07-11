@@ -16,10 +16,15 @@ type IssueRequest struct {
 	IssueAt   time.Time
 }
 
+type officialDocumentStore interface {
+	WriteOfficial(ctx context.Context, relativePath string, sourcePath string) (StoredDocument, error)
+	RemoveOfficial(relativePath string) error
+}
+
 type IssueService struct {
 	store    *store.Store
 	renderer Renderer
-	files    *DocumentStore
+	files    officialDocumentStore
 }
 
 func NewIssueService(store *store.Store, renderer Renderer, files *DocumentStore) *IssueService {
@@ -69,6 +74,12 @@ func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRe
 		issueAt = time.Now().UTC()
 	}
 
+	tempDir, err := os.MkdirTemp("", "leotime-billing-*")
+	if err != nil {
+		return nil, fmt.Errorf("create temp render dir: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
+
 	tx, err := s.store.DB().BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin invoice issue: %w", err)
@@ -91,18 +102,21 @@ func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRe
 	snapshot.Invoice.Status = "issued"
 	snapshot.WorkProtocol.Number = officialNumber
 
-	snapshotJSON, err := snapshot.JSON()
+	rendered, err := s.renderer.RenderPDFs(ctx, snapshot, tempDir)
 	if err != nil {
 		return nil, err
 	}
 
-	tempDir, err := os.MkdirTemp("", "leotime-billing-*")
+	invoiceHashed, err := HashSourceFile(rendered.InvoicePath)
 	if err != nil {
-		return nil, fmt.Errorf("create temp render dir: %w", err)
+		return nil, err
 	}
-	defer os.RemoveAll(tempDir)
+	protocolHashed, err := HashSourceFile(rendered.WorkProtocolPath)
+	if err != nil {
+		return nil, err
+	}
 
-	rendered, err := s.renderer.RenderPDFs(ctx, snapshot, tempDir)
+	snapshotJSON, err := snapshot.JSON()
 	if err != nil {
 		return nil, err
 	}
@@ -110,15 +124,6 @@ func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRe
 	year := issueAt.Year()
 	invoiceRelative := DocumentRelativePath(year, series.Code, officialNumber, "invoice.pdf")
 	protocolRelative := DocumentRelativePath(year, series.Code, officialNumber, "work-protocol.pdf")
-
-	invoiceStored, err := s.files.WriteOfficial(ctx, invoiceRelative, rendered.InvoicePath)
-	if err != nil {
-		return nil, err
-	}
-	protocolStored, err := s.files.WriteOfficial(ctx, protocolRelative, rendered.WorkProtocolPath)
-	if err != nil {
-		return nil, err
-	}
 
 	issuedAt := issueAt.UTC().Format(time.RFC3339Nano)
 	if err := s.store.MarkInvoiceIssuedTx(ctx, tx, userID, invoice.ID, store.InvoiceIssueInput{
@@ -134,10 +139,10 @@ func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRe
 	if _, err := s.store.InsertBillingDocumentTx(ctx, tx, userID, store.BillingDocumentInput{
 		InvoiceID:     invoice.ID,
 		Kind:          "invoice_pdf",
-		StoragePath:   invoiceStored.RelativePath,
-		SHA256:        invoiceStored.SHA256,
-		ByteSize:      invoiceStored.ByteSize,
-		MimeType:      invoiceStored.MIMEType,
+		StoragePath:   invoiceRelative,
+		SHA256:        invoiceHashed.SHA256,
+		ByteSize:      invoiceHashed.ByteSize,
+		MimeType:      invoiceHashed.MIMEType,
 		RenderVersion: RenderVersion,
 	}); err != nil {
 		return nil, err
@@ -145,10 +150,10 @@ func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRe
 	if _, err := s.store.InsertBillingDocumentTx(ctx, tx, userID, store.BillingDocumentInput{
 		InvoiceID:     invoice.ID,
 		Kind:          "work_protocol_pdf",
-		StoragePath:   protocolStored.RelativePath,
-		SHA256:        protocolStored.SHA256,
-		ByteSize:      protocolStored.ByteSize,
-		MimeType:      protocolStored.MIMEType,
+		StoragePath:   protocolRelative,
+		SHA256:        protocolHashed.SHA256,
+		ByteSize:      protocolHashed.ByteSize,
+		MimeType:      protocolHashed.MIMEType,
 		RenderVersion: RenderVersion,
 	}); err != nil {
 		return nil, err
@@ -158,7 +163,39 @@ func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRe
 		return nil, fmt.Errorf("commit invoice issue: %w", err)
 	}
 
+	promoted := []string{invoiceRelative, protocolRelative}
+	if _, err := s.files.WriteOfficial(ctx, invoiceRelative, rendered.InvoicePath); err != nil {
+		if revertErr := s.revertIssueAfterPromotionFailure(ctx, userID, invoice.ID, invoice.SeriesID, fiscalSequence, promoted); revertErr != nil {
+			return nil, fmt.Errorf("promote invoice pdf: %w (revert failed: %v)", err, revertErr)
+		}
+		return nil, err
+	}
+	if _, err := s.files.WriteOfficial(ctx, protocolRelative, rendered.WorkProtocolPath); err != nil {
+		_ = s.files.RemoveOfficial(invoiceRelative)
+		if revertErr := s.revertIssueAfterPromotionFailure(ctx, userID, invoice.ID, invoice.SeriesID, fiscalSequence, promoted); revertErr != nil {
+			return nil, fmt.Errorf("promote work protocol pdf: %w (revert failed: %v)", err, revertErr)
+		}
+		return nil, err
+	}
+
 	return s.store.InvoiceByID(ctx, userID, invoice.ID)
+}
+
+func (s *IssueService) revertIssueAfterPromotionFailure(ctx context.Context, userID, invoiceID, seriesID string, fiscalSequence int, relativePaths []string) error {
+	for _, relativePath := range relativePaths {
+		_ = s.files.RemoveOfficial(relativePath)
+	}
+
+	tx, err := s.store.DB().BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin invoice revert: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := s.store.RevertInvoiceIssueTx(ctx, tx, userID, invoiceID, seriesID, fiscalSequence); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 type failingRenderer struct {
@@ -190,4 +227,18 @@ func (s stubRenderer) RenderPDFs(_ context.Context, _ DocumentSnapshot, outputDi
 		}
 	}
 	return RenderedPDFs{InvoicePath: invoicePath, WorkProtocolPath: protocolPath}, nil
+}
+
+type failingDocumentStore struct {
+	*DocumentStore
+	failOn int
+	calls  int
+}
+
+func (f *failingDocumentStore) WriteOfficial(ctx context.Context, relativePath string, sourcePath string) (StoredDocument, error) {
+	f.calls++
+	if f.calls >= f.failOn {
+		return StoredDocument{}, fmt.Errorf("forced promotion failure")
+	}
+	return f.DocumentStore.WriteOfficial(ctx, relativePath, sourcePath)
 }

@@ -19,7 +19,7 @@ The first deployable version of leotime is feature-complete for a single owner: 
 | Weekly timesheet | Done | Inline edit, week navigation |
 | Calendar view | Done | Month grid, day selection |
 | Reports | Done | Grouped totals, CSV/JSON export |
-| Invoices | Done | Draft from time, fiscal series, preview, official PDFs, Work Protocol, document downloads, cancellation, and HTML/CSV/JSON export; issuance hardening remains queued |
+| Invoices | Done | Draft from time, fiscal series, preview, official PDFs, Work Protocol, document downloads, cancellation, and HTML/CSV/JSON export; issuance hardened in H-INV-01 |
 | Dashboard | Done | Recent entries, heatmap, weekly bars, donut |
 | Theme selector | Done | solid / light / dark / minimal |
 | Profile settings | Done | Account, password, timezone, currency, timer mail toggles |
@@ -87,7 +87,7 @@ Documented in [Backlog](13-backlog.md) as **Later** or **Backlog**:
 
 ## Next Recommended Work
 
-1. [H-INV-01](35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity) — close the invoice issuance bypass and document atomicity gap.
+1. [H-DATA-02](35-curated-hardening-backlog.md#h-data-02--reports-and-invoice-drafts-without-silent-truncation) — remove silent 500-entry truncation from reports and invoice drafts.
 2. Complete the remaining P0/P1 slices in [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md).
 3. Revisit UI/UX experience themes only after hardening ([design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md)).
 

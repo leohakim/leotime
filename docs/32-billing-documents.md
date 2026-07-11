@@ -1,6 +1,6 @@
 # Billing Documents And Official PDFs
 
-> **Status: partially implemented (2026-07-11).** Migration `000009_billing_documents.sql`, the `internal/billing` package, fiscal series, preview/issue/cancel/document routes, invoice UI, and document-aware backups are present. For the current HTTP contract, use [23-invoices-api.md](23-invoices-api.md). Remaining correctness work is tracked in [H-INV-01](35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity) and [H-BACKUP-04](35-curated-hardening-backlog.md#h-backup-04--restore-database-and-documents-safely-together).
+> **Status: partially implemented (2026-07-11).** Migration `000009_billing_documents.sql`, the `internal/billing` package, fiscal series, preview/issue/cancel/document routes, invoice UI, and document-aware backups are present. For the current HTTP contract, use [23-invoices-api.md](23-invoices-api.md). Issuance invariants and document atomicity were hardened in [H-INV-01](35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity) (2026-07-11). Remaining restore safety work is tracked in [H-BACKUP-04](35-curated-hardening-backlog.md#h-backup-04--restore-database-and-documents-safely-together).
 
 This document records the intended invoice document model and the parts already
 delivered. It is not a legal-compliance claim. Current HTTP behavior is
@@ -195,17 +195,17 @@ Use when the client needs more justification.
 8. Backend stores the official invoice number and status `issued`.
 9. Backend freezes the document snapshot.
 10. Backend renders PDFs to temporary files.
-11. Backend verifies generated files and computes SHA-256 hashes.
-12. Backend moves files into `/data/documents`.
-13. Backend inserts `billing_documents` rows.
-14. Backend commits the transaction.
+11. Backend verifies rendered PDFs and computes SHA-256 hashes from the temp
+    render directory.
+12. Backend marks the invoice issued and inserts `billing_documents` rows inside
+    the transaction, then commits.
+13. Backend promotes both PDFs into `/data/documents` only after commit.
+14. If promotion fails, the backend reverts the issued state, deletes document
+    rows, restores the fiscal sequence, and removes any partial files.
 
-If rendering or file persistence fails, the transaction rolls back and the
-fiscal number is not consumed.
-
-The transaction and file promotion ordering still needs failure-injection
-coverage. A failure after one official PDF is promoted can leave a file without
-its database row. Treat this as an open invariant until [H-INV-01](35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity) is complete.
+If rendering, metadata insertion, commit, or promotion fails, the invoice stays
+`draft`, the fiscal sequence is unchanged, and no official file remains under
+the document root.
 
 ## Period Suggestions And Warnings
 

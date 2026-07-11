@@ -67,3 +67,12 @@ func TestDocumentStoreRejectsNonPDF(t *testing.T) {
 		t.Fatalf("expected non-pdf error, got %v", err)
 	}
 }
+
+func TestSafeDownloadFilenameSanitizesHeaderInjection(t *testing.T) {
+	if got := SafeDownloadFilename(`evil" ; filename="hack.pdf`, "-invoice.pdf"); strings.Contains(got, `"`) {
+		t.Fatalf("sanitized filename must not contain quotes: %q", got)
+	}
+	if got := ContentDispositionAttachment(`2026-0001`); got != `attachment; filename="2026-0001"` {
+		t.Fatalf("unexpected disposition: %q", got)
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/leotime/leotime/apps/api/internal/billing"
 	"github.com/leotime/leotime/apps/api/internal/store"
 )
 
@@ -103,11 +104,11 @@ func (s *Server) exportInvoice(w http.ResponseWriter, r *http.Request, user *sto
 	case "html":
 		payload := s.store.RenderInvoiceHTML(invoice)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Content-Disposition", `attachment; filename="`+invoice.InvoiceNumber+`.html"`)
+		w.Header().Set("Content-Disposition", billing.ContentDispositionAttachment(billing.SafeDownloadFilename(invoice.InvoiceNumber, ".html")))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(payload))
 	case "json":
-		w.Header().Set("Content-Disposition", `attachment; filename="`+invoice.InvoiceNumber+`.json"`)
+		w.Header().Set("Content-Disposition", billing.ContentDispositionAttachment(billing.SafeDownloadFilename(invoice.InvoiceNumber, ".json")))
 		writeJSON(w, http.StatusOK, invoice)
 	case "csv":
 		payload, err := renderInvoiceCSV(invoice)
@@ -116,7 +117,7 @@ func (s *Server) exportInvoice(w http.ResponseWriter, r *http.Request, user *sto
 			return
 		}
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-		w.Header().Set("Content-Disposition", `attachment; filename="`+invoice.InvoiceNumber+`.csv"`)
+		w.Header().Set("Content-Disposition", billing.ContentDispositionAttachment(billing.SafeDownloadFilename(invoice.InvoiceNumber, ".csv")))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(payload)
 	default:

@@ -424,14 +424,10 @@ func (s *Store) UpdateInvoiceStatus(ctx context.Context, userID string, invoiceI
 	}
 
 	now := nowString()
-	issuedAt := invoice.IssuedAt
-	if status == "issued" && issuedAt == "" {
-		issuedAt = now
-	}
 
 	_, err = s.db.ExecContext(ctx, `
 		UPDATE invoices SET status = ?, issued_at = ?, updated_at = ? WHERE user_id = ? AND id = ?
-	`, status, nullIfEmpty(issuedAt), now, userID, invoiceID)
+	`, status, nullIfEmpty(invoice.IssuedAt), now, userID, invoiceID)
 	if err != nil {
 		return nil, fmt.Errorf("update invoice status: %w", err)
 	}
@@ -444,14 +440,9 @@ func canTransitionInvoiceStatus(from, to string) bool {
 	if from == to {
 		return true
 	}
-	switch from {
-	case "draft":
-		return to == "issued"
-	case "issued":
-		return to == "paid"
-	default:
-		return false
-	}
+	// POST /status is legacy compatibility for issued -> paid only. Draft issuance
+	// must use POST /issue; cancellation uses POST /cancel.
+	return from == "issued" && to == "paid"
 }
 
 func (s *Store) DeleteInvoice(ctx context.Context, userID string, invoiceID string) error {

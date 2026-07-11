@@ -115,6 +115,55 @@ func (s *DocumentStore) WriteOfficial(ctx context.Context, relativePath string, 
 	}, nil
 }
 
+func (s *DocumentStore) RemoveOfficial(relativePath string) error {
+	if err := validateDocumentRelativePath(relativePath); err != nil {
+		return err
+	}
+	targetPath, err := s.resolvePath(relativePath)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove document: %w", err)
+	}
+	return nil
+}
+
+func HashSourceFile(sourcePath string) (StoredDocument, error) {
+	source, err := os.Open(sourcePath)
+	if err != nil {
+		return StoredDocument{}, fmt.Errorf("open source document: %w", err)
+	}
+	defer source.Close()
+
+	info, err := source.Stat()
+	if err != nil {
+		return StoredDocument{}, fmt.Errorf("stat source document: %w", err)
+	}
+
+	header := make([]byte, 4)
+	if _, err := io.ReadFull(source, header); err != nil {
+		return StoredDocument{}, fmt.Errorf("read source document header: %w", err)
+	}
+	if string(header) != "%PDF" {
+		return StoredDocument{}, fmt.Errorf("document is not a PDF")
+	}
+	if _, err := source.Seek(0, io.SeekStart); err != nil {
+		return StoredDocument{}, fmt.Errorf("rewind source document: %w", err)
+	}
+
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, source); err != nil {
+		return StoredDocument{}, fmt.Errorf("hash source document: %w", err)
+	}
+
+	return StoredDocument{
+		SHA256:   hex.EncodeToString(hasher.Sum(nil)),
+		ByteSize: info.Size(),
+		MIMEType: "application/pdf",
+	}, nil
+}
+
 func (s *DocumentStore) Open(relativePath string) (*os.File, StoredDocument, error) {
 	if err := validateDocumentRelativePath(relativePath); err != nil {
 		return nil, StoredDocument{}, err
@@ -188,4 +237,38 @@ func DocumentRelativePath(year int, seriesCode, invoiceNumber, fileName string) 
 func safePathSegment(value string) string {
 	replacer := strings.NewReplacer("/", "-", "\\", "-", "..", "")
 	return replacer.Replace(strings.TrimSpace(value))
+}
+
+// SafeDownloadFilename returns a filename safe for Content-Disposition headers.
+func SafeDownloadFilename(baseName, suffix string) string {
+	safeBase := sanitizeDownloadSegment(baseName)
+	safeSuffix := sanitizeDownloadSegment(suffix)
+	if safeSuffix == "" {
+		return safeBase
+	}
+	if safeBase == "" {
+		return safeSuffix
+	}
+	return safeBase + safeSuffix
+}
+
+func sanitizeDownloadSegment(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	var builder strings.Builder
+	for _, r := range value {
+		switch r {
+		case '"', '\\', '\r', '\n', '\t', '/', '\x00':
+			builder.WriteRune('-')
+		default:
+			builder.WriteRune(r)
+		}
+	}
+	return strings.Trim(builder.String(), "- ")
+}
+
+func ContentDispositionAttachment(filename string) string {
+	return fmt.Sprintf(`attachment; filename="%s"`, SafeDownloadFilename(filename, ""))
 }

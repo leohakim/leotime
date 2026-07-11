@@ -144,10 +144,10 @@ Content-Type: application/json
 { "status": "paid" }
 ```
 
-`POST /status` es una ruta de compatibilidad pendiente de endurecer. Actualmente
-la UI usa `POST /issue`, pero la API todavía permite `draft -> issued` sin
-generar la serie fiscal ni los PDFs oficiales. El comportamiento objetivo es
-restringir esta ruta a `issued -> paid`; ver [H-INV-01](35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity).
+`POST /status` es una ruta de compatibilidad para marcar facturas emitidas como
+cobradas (`issued -> paid`). Rechaza `draft`, `issued`, `cancelled` y cualquier
+otro atajo. La emision oficial solo puede hacerse con `POST /issue`; la anulacion
+solo con `POST /cancel`.
 
 ## Documentos oficiales
 

@@ -34,7 +34,7 @@ restore until every P0 item is complete and its acceptance tests pass.
 
 | Order | ID | Priority | Slice | Depends on |
 | ---: | --- | --- | --- | --- |
-| 1 | H-INV-01 | P0 | Fiscal issue invariants and document atomicity | none |
+| 1 | H-INV-01 | P0 | Fiscal issue invariants and document atomicity | none — **Done** |
 | 2 | H-DATA-02 | P0 | Reports and invoice drafts without silent truncation | none |
 | 3 | H-IMP-03 | P0 | Solidtime ZIP boundary and import privacy | none |
 | 4 | H-BACKUP-04 | P0 | Restore database and documents safely together | H-INV-01 for document cases |
@@ -50,7 +50,8 @@ P1 follows P0. P2 is intentionally opportunistic.
 
 ## H-INV-01 — Fiscal issue invariants and document atomicity
 
-**Priority:** P0
+**Priority:** P0  
+**Status:** Done (2026-07-11)
 
 **Problem:** POST /api/v1/invoices/{id}/status accepts draft to issued. That
 bypasses the fiscal series, frozen snapshot, and official PDF flow. The
@@ -307,8 +308,8 @@ multiple-timer UI, preference hydration, legacy overview client, restore-path
 exposure, backup field errors, draft invoice edit UI, and shared-report
 placeholder navigation.
 
-Invoice transitions are only partly resolved: the matrix blocks several jumps,
-but the issuance bypass is H-INV-01.
+Invoice transitions are resolved for issuance: `POST /issue` is the only draft
+to issued path; legacy `/status` accepts only `issued -> paid` (H-INV-01).
 
 ## Handoff checklist
 

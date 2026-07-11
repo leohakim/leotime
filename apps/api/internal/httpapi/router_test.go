@@ -998,8 +998,8 @@ func TestInvoiceDraftFromTimeAndExport(t *testing.T) {
 		statusRequest.AddCookie(cookie)
 	}
 	router.ServeHTTP(statusResponse, statusRequest)
-	if statusResponse.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", statusResponse.Code, statusResponse.Body.String())
+	if statusResponse.Code != http.StatusBadRequest {
+		t.Fatalf("expected draft->issued status 400, got %d: %s", statusResponse.Code, statusResponse.Body.String())
 	}
 }
 

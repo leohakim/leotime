@@ -83,7 +83,7 @@ Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-Start [H-INV-01](35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity), then proceed through the P0 slices in the [curated hardening backlog](35-curated-hardening-backlog.md). Visual regression and themes remain deferred until the P0/P1 queue is complete.
+Start [H-DATA-02](35-curated-hardening-backlog.md#h-data-02--reports-and-invoice-drafts-without-silent-truncation), then proceed through the remaining P0 slices in the [curated hardening backlog](35-curated-hardening-backlog.md). Visual regression and themes remain deferred until the P0/P1 queue is complete.
 
 ## Quality Gates By Slice
 
