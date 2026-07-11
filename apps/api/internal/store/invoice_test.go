@@ -339,6 +339,43 @@ func TestRevertInvoiceIssueTxRestoresDraft(t *testing.T) {
 	}
 }
 
+func TestCreateInvoiceDraftFromTimeIncludesAllEligibleEntries(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTaskTestStore(t, ctx)
+
+	client, err := st.CreateClient(ctx, user.ID, ClientInput{
+		Name:                   "Bulk Client",
+		DefaultCurrency:        "EUR",
+		DefaultHourlyRateMinor: 10000,
+	})
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+
+	const entryCount = 501
+	seedSyntheticFinishedEntries(t, ctx, st, user.ID, client.ID, entryCount, true)
+
+	invoice, err := st.CreateInvoiceDraftFromTime(ctx, user.ID, InvoiceDraftFromTimeInput{
+		ClientID: client.ID,
+		From:     "2026-07-01T00:00:00Z",
+		To:       "2026-07-31T23:59:59Z",
+	})
+	if err != nil {
+		t.Fatalf("create invoice draft: %v", err)
+	}
+	if len(invoice.Lines) != entryCount {
+		t.Fatalf("expected %d invoice lines, got %d", entryCount, len(invoice.Lines))
+	}
+
+	expectedSubtotal := int64(0)
+	for _, line := range invoice.Lines {
+		expectedSubtotal += line.SubtotalMinor
+	}
+	if invoice.SubtotalMinor != expectedSubtotal {
+		t.Fatalf("expected subtotal %d, got %d", expectedSubtotal, invoice.SubtotalMinor)
+	}
+}
+
 func TestCreateInvoiceDraftUsesProjectClientForLegacyEntries(t *testing.T) {
 	ctx := context.Background()
 	st, user := newTaskTestStore(t, ctx)

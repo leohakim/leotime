@@ -24,7 +24,19 @@ GET /api/v1/time-entries?projectId=prj_...
 GET /api/v1/time-entries?taskId=tsk_...
 ```
 
-La lista devuelve solo entradas finalizadas (`ended_at IS NOT NULL`), ordenadas por `started_at` descendente, maximo 500 filas.
+La lista devuelve solo entradas finalizadas (`ended_at IS NOT NULL`), ordenadas por `started_at` descendente, con un maximo de **500** filas por peticion.
+
+La respuesta incluye metadatos de acotado:
+
+```json
+{
+  "timeEntries": [],
+  "limit": 500,
+  "truncated": false
+}
+```
+
+`truncated` es `true` cuando la consulta devolvio exactamente `limit` filas y puede haber mas registros fuera de la ventana visible. Los informes y los borradores de factura usan consultas sin este limite; ver [22-reports-api.md](22-reports-api.md) y [23-invoices-api.md](23-invoices-api.md).
 
 ## Cuerpo de peticion
 

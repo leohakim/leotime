@@ -35,7 +35,7 @@ restore until every P0 item is complete and its acceptance tests pass.
 | Order | ID | Priority | Slice | Depends on |
 | ---: | --- | --- | --- | --- |
 | 1 | H-INV-01 | P0 | Fiscal issue invariants and document atomicity | none — **Done** |
-| 2 | H-DATA-02 | P0 | Reports and invoice drafts without silent truncation | none |
+| 2 | H-DATA-02 | P0 | Reports and invoice drafts without silent truncation | none — **Done** |
 | 3 | H-IMP-03 | P0 | Solidtime ZIP boundary and import privacy | none |
 | 4 | H-BACKUP-04 | P0 | Restore database and documents safely together | H-INV-01 for document cases |
 | 5 | H-PROD-05 | P1 | Production configuration and HTTP boundary safety | none |
@@ -95,7 +95,8 @@ failure, leaving untracked documents.
 
 ## H-DATA-02 — Reports and invoice drafts without silent truncation
 
-**Priority:** P0
+**Priority:** P0  
+**Status:** Done (2026-07-11)
 
 **Problem:** ListTimeEntries ends with LIMIT 500. BuildTimeReport and the
 invoice draft source query use it, so totals and billable lines can silently

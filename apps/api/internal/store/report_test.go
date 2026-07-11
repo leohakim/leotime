@@ -130,3 +130,38 @@ func TestBuildTimeReportBillableOnlyFilter(t *testing.T) {
 		t.Fatalf("unexpected billable-only totals: %+v", report)
 	}
 }
+
+func TestBuildTimeReportIncludesAllEntriesBeyondDirectoryLimit(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTaskTestStore(t, ctx)
+
+	client, err := st.CreateClient(ctx, user.ID, ClientInput{
+		Name:                   "Report Client",
+		DefaultCurrency:        "EUR",
+		DefaultHourlyRateMinor: 10000,
+	})
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+
+	const entryCount = 501
+	seedSyntheticFinishedEntries(t, ctx, st, user.ID, client.ID, entryCount, true)
+
+	report, err := st.BuildTimeReport(ctx, user.ID, TimeReportOptions{
+		From:              "2026-07-01T00:00:00Z",
+		To:                "2026-07-31T23:59:59Z",
+		IncludeTimestamps: true,
+	})
+	if err != nil {
+		t.Fatalf("build report: %v", err)
+	}
+	if report.EntryCount != entryCount {
+		t.Fatalf("expected entryCount %d, got %d", entryCount, report.EntryCount)
+	}
+	if report.TotalSeconds != entryCount*60 {
+		t.Fatalf("expected totalSeconds %d, got %d", entryCount*60, report.TotalSeconds)
+	}
+	if len(report.Entries) != entryCount {
+		t.Fatalf("expected %d detailed entries, got %d", entryCount, len(report.Entries))
+	}
+}

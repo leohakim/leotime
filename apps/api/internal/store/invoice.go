@@ -631,44 +631,45 @@ func resolveEntryHourlyRateMinor(entry TimeEntry, client *Client, projectRates m
 }
 
 func (s *Store) listBillableUninvoicedEntries(ctx context.Context, userID string, clientID string, from string, to string) ([]TimeEntry, error) {
-	entries, err := s.ListTimeEntries(ctx, userID, TimeEntryListOptions{
-		From:     from,
-		To:       to,
-		ClientID: clientID,
-	})
-	if err != nil {
-		return nil, err
-	}
+	query := timeEntrySelectSQL + `
+		WHERE te.user_id = ?
+			AND te.ended_at IS NOT NULL
+			AND te.billable = 1
+			AND te.started_at >= ?
+			AND te.started_at <= ?
+			AND COALESCE(te.client_id, p.client_id) = ?
+			AND NOT EXISTS (
+				SELECT 1
+				FROM invoice_lines il
+				INNER JOIN invoices i ON i.id = il.invoice_id
+				WHERE il.time_entry_id = te.id AND i.status != 'cancelled'
+			)
+		ORDER BY te.started_at ASC, te.id ASC
+	`
 
-	filtered := make([]TimeEntry, 0, len(entries))
-	for _, entry := range entries {
-		if !entry.Billable {
-			continue
-		}
-		invoiced, err := s.isTimeEntryInvoiced(ctx, entry.ID)
+	rows, err := s.db.QueryContext(ctx, query, userID, strings.TrimSpace(from), strings.TrimSpace(to), clientID)
+	if err != nil {
+		return nil, fmt.Errorf("list billable uninvoiced entries: %w", err)
+	}
+	defer rows.Close()
+
+	entries := make([]TimeEntry, 0)
+	for rows.Next() {
+		entry, err := scanTimeEntry(rows)
 		if err != nil {
 			return nil, err
 		}
-		if invoiced {
-			continue
-		}
-		filtered = append(filtered, entry)
+		entries = append(entries, entry)
 	}
-	return filtered, nil
-}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate billable uninvoiced entries: %w", err)
+	}
 
-func (s *Store) isTimeEntryInvoiced(ctx context.Context, timeEntryID string) (bool, error) {
-	var count int
-	err := s.db.QueryRowContext(ctx, `
-		SELECT COUNT(*)
-		FROM invoice_lines il
-		INNER JOIN invoices i ON i.id = il.invoice_id
-		WHERE il.time_entry_id = ? AND i.status != 'cancelled'
-	`, timeEntryID).Scan(&count)
-	if err != nil {
-		return false, fmt.Errorf("check invoiced entry: %w", err)
+	if err := s.attachTimeEntryTags(ctx, entries); err != nil {
+		return nil, err
 	}
-	return count > 0, nil
+
+	return entries, nil
 }
 
 func (s *Store) projectRateMap(ctx context.Context, userID string) (map[string]int64, error) {

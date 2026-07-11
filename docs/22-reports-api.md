@@ -30,6 +30,8 @@ GET /api/v1/reports/time/export?format=json&from=...&to=...
 | `billableOnly` | `true` excluye entradas no facturables. |
 | `format` | Solo en `/export`: `csv` (default) o `json`. |
 
+Los informes agregan **todas** las entradas finalizadas del rango `from`/`to`. No reutilizan el limite de 500 filas del directorio interactivo (`GET /time-entries`). Con `includeTimestamps=true`, `entryCount`, `totalSeconds` y `entries[]` reflejan el rango completo.
+
 ## Respuesta JSON (resumen)
 
 ```json

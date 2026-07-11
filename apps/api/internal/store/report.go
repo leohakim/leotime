@@ -36,7 +36,7 @@ type TimeReport struct {
 }
 
 func (s *Store) BuildTimeReport(ctx context.Context, userID string, options TimeReportOptions) (*TimeReport, error) {
-	entries, err := s.ListTimeEntries(ctx, userID, TimeEntryListOptions{
+	entries, err := s.listTimeEntriesForReport(ctx, userID, TimeEntryListOptions{
 		From: strings.TrimSpace(options.From),
 		To:   strings.TrimSpace(options.To),
 	})

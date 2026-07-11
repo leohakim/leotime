@@ -251,6 +251,8 @@ export type TimeEntryInput = {
 
 export type TimeEntriesResponse = {
   timeEntries: TimeEntry[];
+  limit: number;
+  truncated: boolean;
 };
 
 export type TimerStartInput = {

@@ -86,7 +86,7 @@ Content-Type: application/json
 | `sellerName` | Opcional. Default: nombre del usuario autenticado. |
 | `seriesId` | Opcional. Serie fiscal para la emision oficial. Default: serie marcada como `default`. |
 | `workProtocolDetail` | `summary`, `standard` o `detailed`. Controla el anexo de protocolo de trabajo. |
-| Entradas | Solo tiempo facturable, finalizado y aun no incluido en otra factura no anulada. |
+| Entradas | Solo tiempo facturable, finalizado y aun no incluido en otra factura no anulada. La seleccion recorre **todas** las entradas elegibles del rango; no aplica el limite de 500 filas del listado interactivo de entradas. |
 
 Cada entrada genera una linea con:
 

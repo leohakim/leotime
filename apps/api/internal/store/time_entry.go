@@ -58,6 +58,8 @@ type TimeEntryListOptions struct {
 	TaskID    string
 }
 
+const timeEntryDirectoryLimit = 500
+
 const timeEntrySelectSQL = `
 	SELECT te.id,
 		COALESCE(te.client_id, p.client_id, ''),
@@ -72,6 +74,18 @@ const timeEntrySelectSQL = `
 	LEFT JOIN tasks t ON t.id = te.task_id AND t.user_id = te.user_id`
 
 func (s *Store) ListTimeEntries(ctx context.Context, userID string, options TimeEntryListOptions) ([]TimeEntry, error) {
+	return s.queryTimeEntries(ctx, userID, options, timeEntryDirectoryLimit)
+}
+
+func (s *Store) TimeEntryDirectoryLimit() int {
+	return timeEntryDirectoryLimit
+}
+
+func (s *Store) listTimeEntriesForReport(ctx context.Context, userID string, options TimeEntryListOptions) ([]TimeEntry, error) {
+	return s.queryTimeEntries(ctx, userID, options, 0)
+}
+
+func (s *Store) queryTimeEntries(ctx context.Context, userID string, options TimeEntryListOptions, limit int) ([]TimeEntry, error) {
 	query := timeEntrySelectSQL + `
 		WHERE te.user_id = ? AND te.ended_at IS NOT NULL
 	`
@@ -98,7 +112,10 @@ func (s *Store) ListTimeEntries(ctx context.Context, userID string, options Time
 		args = append(args, strings.TrimSpace(options.TaskID))
 	}
 
-	query += " ORDER BY te.started_at DESC LIMIT 500"
+	query += " ORDER BY te.started_at DESC"
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+	}
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {

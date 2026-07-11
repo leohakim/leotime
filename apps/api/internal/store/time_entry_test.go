@@ -212,6 +212,32 @@ func TestCreateTimeEntryRejectsArchivedTag(t *testing.T) {
 	}
 }
 
+func TestListTimeEntriesStaysLimitedToDirectoryCap(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTimeEntryTestStore(t, ctx)
+
+	client, err := st.CreateClient(ctx, user.ID, ClientInput{
+		Name:            "Directory Client",
+		DefaultCurrency: "EUR",
+	})
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+
+	seedSyntheticFinishedEntries(t, ctx, st, user.ID, client.ID, 501, true)
+
+	entries, err := st.ListTimeEntries(ctx, user.ID, TimeEntryListOptions{
+		From: "2026-07-01T00:00:00Z",
+		To:   "2026-07-31T23:59:59Z",
+	})
+	if err != nil {
+		t.Fatalf("list time entries: %v", err)
+	}
+	if len(entries) != timeEntryDirectoryLimit {
+		t.Fatalf("expected %d directory entries, got %d", timeEntryDirectoryLimit, len(entries))
+	}
+}
+
 func newTimeEntryTestStore(t *testing.T, ctx context.Context) (*Store, *User) {
 	t.Helper()
 	return newTagTestStore(t, ctx)

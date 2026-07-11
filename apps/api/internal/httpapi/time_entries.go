@@ -10,6 +10,8 @@ import (
 
 type timeEntriesResponse struct {
 	TimeEntries []store.TimeEntry `json:"timeEntries"`
+	Limit       int               `json:"limit"`
+	Truncated   bool              `json:"truncated"`
 }
 
 func (s *Server) listTimeEntries(w http.ResponseWriter, r *http.Request, user *store.User) {
@@ -26,7 +28,12 @@ func (s *Server) listTimeEntries(w http.ResponseWriter, r *http.Request, user *s
 		writeError(w, http.StatusInternalServerError, "time_entries_load_failed", "load time entries failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, timeEntriesResponse{TimeEntries: entries})
+	limit := s.store.TimeEntryDirectoryLimit()
+	writeJSON(w, http.StatusOK, timeEntriesResponse{
+		TimeEntries: entries,
+		Limit:       limit,
+		Truncated:   len(entries) >= limit,
+	})
 }
 
 func (s *Server) createTimeEntry(w http.ResponseWriter, r *http.Request, user *store.User) {

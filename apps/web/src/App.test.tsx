@@ -1108,7 +1108,7 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
   }
 
   if (url.includes('/api/v1/time-entries') && (!init?.method || init.method === 'GET') && !url.includes('/api/v1/time-entries/')) {
-    return jsonResponse({ timeEntries: timeEntriesMock });
+    return jsonResponse({ timeEntries: timeEntriesMock, limit: 500, truncated: timeEntriesMock.length >= 500 });
   }
 
   if (url.endsWith('/api/v1/time-entries') && init?.method === 'POST') {

@@ -87,7 +87,7 @@ Documented in [Backlog](13-backlog.md) as **Later** or **Backlog**:
 
 ## Next Recommended Work
 
-1. [H-DATA-02](35-curated-hardening-backlog.md#h-data-02--reports-and-invoice-drafts-without-silent-truncation) — remove silent 500-entry truncation from reports and invoice drafts.
+1. [H-IMP-03](35-curated-hardening-backlog.md#h-imp-03--solidtime-zip-boundary-and-import-privacy) — bound Solidtime ZIP expansion and sanitize import source paths.
 2. Complete the remaining P0/P1 slices in [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md).
 3. Revisit UI/UX experience themes only after hardening ([design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md)).
 
