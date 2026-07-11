@@ -30,6 +30,21 @@ func TestParseFileReadsSyntheticSolidtimeExport(t *testing.T) {
 	}
 }
 
+func TestWriteSyntheticExportZipToPath(t *testing.T) {
+	target := strings.TrimSpace(os.Getenv("SYNTHETIC_SOLIDTIME_ZIP"))
+	if target == "" {
+		t.Skip("SYNTHETIC_SOLIDTIME_ZIP not set")
+	}
+	source := writeZipFixture(t, validFixture())
+	input, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatalf("read source zip: %v", err)
+	}
+	if err := os.WriteFile(target, input, 0o644); err != nil {
+		t.Fatalf("write synthetic zip: %v", err)
+	}
+}
+
 func TestParseFileRejectsInvalidZip(t *testing.T) {
 	path := t.TempDir() + "/invalid.zip"
 	if err := os.WriteFile(path, []byte("not a zip"), 0o644); err != nil {
@@ -78,6 +93,30 @@ func TestDryRunDoesNotWrite(t *testing.T) {
 	}
 	assertCount(t, database, "clients", 0)
 	assertCount(t, database, "external_mappings", 0)
+}
+
+func TestImportStoresSourcePathBasename(t *testing.T) {
+	ctx := context.Background()
+	database := testDB(t, ctx)
+	importer := New(database)
+	fullPath := writeZipFixture(t, validFixture())
+
+	if _, err := importer.ImportFile(ctx, Options{
+		FilePath:  fullPath,
+		UserEmail: "admin@example.com",
+	}); err != nil {
+		t.Fatalf("import: %v", err)
+	}
+
+	var sourcePath string
+	if err := database.QueryRowContext(ctx, `
+		SELECT source_path FROM import_runs ORDER BY started_at DESC LIMIT 1
+	`).Scan(&sourcePath); err != nil {
+		t.Fatalf("query source_path: %v", err)
+	}
+	if sourcePath != "solidtime-export.zip" {
+		t.Fatalf("expected basename solidtime-export.zip, got %q", sourcePath)
+	}
 }
 
 func TestImportIsIdempotent(t *testing.T) {

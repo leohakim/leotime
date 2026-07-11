@@ -110,7 +110,7 @@ func (i *Importer) Import(ctx context.Context, export *Export, opts Options) (Su
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO import_runs (id, provider, source_path, dry_run, status, started_at)
 		VALUES (?, ?, ?, 0, 'running', ?)
-	`, runID, provider, opts.FilePath, state.now); err != nil {
+	`, runID, provider, SourcePathBasename(opts.FilePath), state.now); err != nil {
 		return Summary{}, fmt.Errorf("create import run: %w", err)
 	}
 

@@ -36,7 +36,7 @@ restore until every P0 item is complete and its acceptance tests pass.
 | ---: | --- | --- | --- | --- |
 | 1 | H-INV-01 | P0 | Fiscal issue invariants and document atomicity | none — **Done** |
 | 2 | H-DATA-02 | P0 | Reports and invoice drafts without silent truncation | none — **Done** |
-| 3 | H-IMP-03 | P0 | Solidtime ZIP boundary and import privacy | none |
+| 3 | H-IMP-03 | P0 | Solidtime ZIP boundary and import privacy | none — **Done** |
 | 4 | H-BACKUP-04 | P0 | Restore database and documents safely together | H-INV-01 for document cases |
 | 5 | H-PROD-05 | P1 | Production configuration and HTTP boundary safety | none |
 | 6 | H-MIG-06 | P1 | Upgrade migration confidence | none |
@@ -130,7 +130,8 @@ exclude older records.
 
 ## H-IMP-03 — Solidtime ZIP boundary and import privacy
 
-**Priority:** P0
+**Priority:** P0  
+**Status:** Done (2026-07-11)
 
 **Problem:** the request is capped at 32 MiB compressed, but the parser reads
 every ZIP member fully into memory. Extra members are accepted and CLI imports

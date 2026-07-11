@@ -83,7 +83,7 @@ Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-Start [H-IMP-03](35-curated-hardening-backlog.md#h-imp-03--solidtime-zip-boundary-and-import-privacy), then proceed through the remaining P0 slices in the [curated hardening backlog](35-curated-hardening-backlog.md). Visual regression and themes remain deferred until the P0/P1 queue is complete.
+Start [H-BACKUP-04](35-curated-hardening-backlog.md#h-backup-04--restore-database-and-documents-safely-together), then proceed through the remaining P0 slices in the [curated hardening backlog](35-curated-hardening-backlog.md). Visual regression and themes remain deferred until the P0/P1 queue is complete.
 
 ## Quality Gates By Slice
 

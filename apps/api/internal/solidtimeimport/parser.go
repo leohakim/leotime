@@ -7,7 +7,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path"
 	"strings"
+)
+
+const (
+	maxSolidtimeZipEntries        = 16
+	maxSolidtimeMetaJSONBytes     = 1 << 20
+	maxSolidtimeCSVBytes          = 32 << 20
+	maxSolidtimeUncompressedBytes = 128 << 20
 )
 
 var requiredHeaders = map[string][]string{
@@ -22,6 +30,15 @@ var requiredHeaders = map[string][]string{
 	"tags.csv":                     {"id", "name", "organization_id", "created_at", "updated_at"},
 }
 
+var allowedExportFiles = func() map[string]struct{} {
+	files := make(map[string]struct{}, len(requiredHeaders)+1)
+	files["meta.json"] = struct{}{}
+	for name := range requiredHeaders {
+		files[name] = struct{}{}
+	}
+	return files
+}()
+
 func ParseFile(path string) (*Export, error) {
 	reader, err := zip.OpenReader(path)
 	if err != nil {
@@ -29,26 +46,57 @@ func ParseFile(path string) (*Export, error) {
 	}
 	defer reader.Close()
 
-	files := map[string][]byte{}
+	files := make(map[string][]byte, len(allowedExportFiles))
+	seen := make(map[string]struct{}, len(allowedExportFiles))
+	var totalUncompressed int64
+	entryCount := 0
+
 	for _, file := range reader.File {
 		if file.FileInfo().IsDir() {
 			continue
 		}
-		body, err := readZipFile(file)
+		entryCount++
+		if entryCount > maxSolidtimeZipEntries {
+			return nil, fmt.Errorf("solidtime export exceeds %d zip entries", maxSolidtimeZipEntries)
+		}
+
+		name, err := validateZipEntryName(file.Name)
 		if err != nil {
 			return nil, err
 		}
-		files[file.Name] = body
+		if _, ok := allowedExportFiles[name]; !ok {
+			return nil, fmt.Errorf("solidtime export has unexpected file %q", name)
+		}
+		if _, ok := seen[name]; ok {
+			return nil, fmt.Errorf("solidtime export has duplicate file %q", name)
+		}
+		seen[name] = struct{}{}
+
+		limit := int64(maxSolidtimeCSVBytes)
+		if name == "meta.json" {
+			limit = maxSolidtimeMetaJSONBytes
+		}
+
+		body, err := readZipFileLimited(file, limit)
+		if err != nil {
+			return nil, err
+		}
+		totalUncompressed += int64(len(body))
+		if totalUncompressed > maxSolidtimeUncompressedBytes {
+			return nil, fmt.Errorf("solidtime export exceeds %d bytes uncompressed", maxSolidtimeUncompressedBytes)
+		}
+		files[name] = body
 	}
 
 	return Parse(files)
 }
 
 func Parse(files map[string][]byte) (*Export, error) {
-	metaBytes, ok := files["meta.json"]
-	if !ok {
-		return nil, fmt.Errorf("solidtime export missing meta.json")
+	if err := validateExportFileSet(files); err != nil {
+		return nil, err
 	}
+
+	metaBytes := files["meta.json"]
 
 	var meta Meta
 	if err := json.Unmarshal(metaBytes, &meta); err != nil {
@@ -56,12 +104,6 @@ func Parse(files map[string][]byte) (*Export, error) {
 	}
 	if meta.Version != "1.0" {
 		return nil, fmt.Errorf("unsupported solidtime export version %q", meta.Version)
-	}
-
-	for name := range requiredHeaders {
-		if _, ok := files[name]; !ok {
-			return nil, fmt.Errorf("solidtime export missing %s", name)
-		}
 	}
 
 	organizations, err := readCSV(files, "organizations.csv", func(row map[string]string) (Organization, error) {
@@ -181,6 +223,12 @@ func Parse(files map[string][]byte) (*Export, error) {
 		return nil, err
 	}
 
+	for _, name := range []string{"organization_invitations.csv", "project_members.csv"} {
+		if err := validateCSVHeaders(files, name); err != nil {
+			return nil, err
+		}
+	}
+
 	return &Export{
 		Meta:          meta,
 		Organizations: organizations,
@@ -193,18 +241,61 @@ func Parse(files map[string][]byte) (*Export, error) {
 	}, nil
 }
 
-func readZipFile(file *zip.File) ([]byte, error) {
+func validateExportFileSet(files map[string][]byte) error {
+	for name := range files {
+		if _, ok := allowedExportFiles[name]; !ok {
+			return fmt.Errorf("solidtime export has unexpected file %q", name)
+		}
+	}
+	for name := range allowedExportFiles {
+		if _, ok := files[name]; !ok {
+			return fmt.Errorf("solidtime export missing %s", name)
+		}
+	}
+	return nil
+}
+
+func validateZipEntryName(name string) (string, error) {
+	clean := strings.TrimSpace(strings.ReplaceAll(name, "\\", "/"))
+	if clean == "" {
+		return "", fmt.Errorf("solidtime export has empty zip entry name")
+	}
+	if strings.Contains(clean, "\x00") {
+		return "", fmt.Errorf("solidtime export has invalid zip entry name %q", name)
+	}
+	if path.IsAbs(clean) || strings.HasPrefix(clean, "/") {
+		return "", fmt.Errorf("solidtime export has absolute zip entry %q", name)
+	}
+	base := path.Base(clean)
+	if base != clean || strings.Contains(clean, "..") {
+		return "", fmt.Errorf("solidtime export has traversal-like zip entry %q", name)
+	}
+	return base, nil
+}
+
+func readZipFileLimited(file *zip.File, limit int64) ([]byte, error) {
 	reader, err := file.Open()
 	if err != nil {
 		return nil, fmt.Errorf("open %s in solidtime zip: %w", file.Name, err)
 	}
 	defer reader.Close()
 
-	body, err := io.ReadAll(reader)
+	limited := io.LimitReader(reader, limit+1)
+	body, err := io.ReadAll(limited)
 	if err != nil {
 		return nil, fmt.Errorf("read %s in solidtime zip: %w", file.Name, err)
 	}
+	if int64(len(body)) > limit {
+		return nil, fmt.Errorf("solidtime export file %q exceeds %d bytes", path.Base(file.Name), limit)
+	}
 	return body, nil
+}
+
+func validateCSVHeaders(files map[string][]byte, name string) error {
+	_, err := readCSV(files, name, func(row map[string]string) (struct{}, error) {
+		return struct{}{}, nil
+	})
+	return err
 }
 
 func readCSV[T any](files map[string][]byte, name string, decode func(map[string]string) (T, error)) ([]T, error) {
@@ -258,4 +349,14 @@ func sameStrings(first []string, second []string) bool {
 		}
 	}
 	return true
+}
+
+// SourcePathBasename returns only the ZIP filename for import audit rows.
+func SourcePathBasename(filePath string) string {
+	clean := strings.TrimSpace(strings.ReplaceAll(filePath, "\\", "/"))
+	base := path.Base(clean)
+	if base == "." || base == "/" || base == "" {
+		return "solidtime-export.zip"
+	}
+	return base
 }

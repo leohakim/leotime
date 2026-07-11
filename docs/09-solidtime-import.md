@@ -62,14 +62,17 @@ The first importer supports Solidtime export `version: 1.0` with these files:
 - `time_entries.csv`
 
 The importer validates expected headers and rejects missing required files
-before database writes. Extra ZIP members are currently tolerated; rejecting
-unknown, duplicate, absolute, or traversal-like members is part of H-IMP-03.
+before database writes. Each upload is capped at **32 MiB compressed**. Inside
+the archive leotime accepts exactly `meta.json` and the nine documented CSV
+files, rejects duplicate/unknown/absolute/traversal-like members, and enforces:
 
-That sentence describes the required compatibility contract; the current parser
-still accepts extra ZIP members and reads each member fully before parsing. The
-request limit is 32 MiB compressed, but there is not yet a per-member or total
-uncompressed limit. These boundary protections, duplicate-entry rejection, and
-source-path privacy are tracked in [H-IMP-03](35-curated-hardening-backlog.md#h-imp-03--solidtime-zip-boundary-and-import-privacy).
+- at most **16** ZIP file entries,
+- **1 MiB** for `meta.json`,
+- **32 MiB** per CSV,
+- **128 MiB** total uncompressed.
+
+`import_runs.source_path` stores only the uploaded ZIP basename, never a full
+local path.
 
 ## Mapping
 
