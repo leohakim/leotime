@@ -57,8 +57,11 @@ func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.Passwor
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	if cfg.TrustForwardedHeaders {
+		r.Use(middleware.RealIP)
+	}
 	r.Use(middleware.Recoverer)
+	r.Use(securityHeaders)
 	r.Use(server.maintenanceMiddleware)
 
 	r.Get("/api/health", server.health)
@@ -162,7 +165,7 @@ func (s *Server) session(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
-	if !s.rateLimitAuth(w, r, "login:"+clientIP(r)) {
+	if !s.rateLimitAuth(w, r, "login:"+s.clientIP(r)) {
 		return
 	}
 

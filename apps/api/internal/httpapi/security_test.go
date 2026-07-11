@@ -67,12 +67,86 @@ func TestMetricsRequiresBearerTokenWhenConfigured(t *testing.T) {
 		t.Fatalf("expected 404 without token, got %d", unauth.Code)
 	}
 
+	queryToken := httptest.NewRecorder()
+	router.ServeHTTP(queryToken, httptest.NewRequest(http.MethodGet, "/metrics?token=secret-metrics", nil))
+	if queryToken.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 with query token, got %d", queryToken.Code)
+	}
+
 	auth := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
 	req.Header.Set("Authorization", "Bearer secret-metrics")
 	router.ServeHTTP(auth, req)
 	if auth.Code != http.StatusOK {
 		t.Fatalf("expected 200 with token, got %d", auth.Code)
+	}
+}
+
+func TestSecurityHeadersMiddleware(t *testing.T) {
+	router := newTestRouterWithConfig(t, testSecurityConfig())
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/health", nil))
+
+	if response.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("expected nosniff header, got %q", response.Header().Get("X-Content-Type-Options"))
+	}
+	if response.Header().Get("Referrer-Policy") != "no-referrer" {
+		t.Fatalf("expected no-referrer header, got %q", response.Header().Get("Referrer-Policy"))
+	}
+	if response.Header().Get("X-Frame-Options") != "DENY" {
+		t.Fatalf("expected DENY framing header, got %q", response.Header().Get("X-Frame-Options"))
+	}
+}
+
+func TestLoginRateLimitIgnoresForwardedHeaderByDefault(t *testing.T) {
+	router := newTestRouterWithConfig(t, testSecurityConfig())
+
+	for i := 0; i < 10; i++ {
+		response := httptest.NewRecorder()
+		body := bytes.NewBufferString(`{"email":"admin@example.com","password":"wrong"}`)
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", body)
+		request.RemoteAddr = "203.0.113.10:1234"
+		request.Header.Set("X-Forwarded-For", "198.51.100.99")
+		router.ServeHTTP(response, request)
+		if response.Code == http.StatusTooManyRequests {
+			t.Fatalf("unexpected rate limit at attempt %d", i+1)
+		}
+	}
+
+	response := httptest.NewRecorder()
+	body := bytes.NewBufferString(`{"email":"admin@example.com","password":"wrong"}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", body)
+	request.RemoteAddr = "203.0.113.10:1234"
+	request.Header.Set("X-Forwarded-For", "198.51.100.200")
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 for same peer address, got %d", response.Code)
+	}
+}
+
+func TestLoginRateLimitUsesForwardedHeaderWhenTrusted(t *testing.T) {
+	cfg := testSecurityConfig()
+	cfg.TrustForwardedHeaders = true
+	router := newTestRouterWithConfig(t, cfg)
+
+	for i := 0; i < 10; i++ {
+		response := httptest.NewRecorder()
+		body := bytes.NewBufferString(`{"email":"admin@example.com","password":"wrong"}`)
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", body)
+		request.RemoteAddr = "203.0.113.10:1234"
+		request.Header.Set("X-Forwarded-For", "198.51.100.50")
+		router.ServeHTTP(response, request)
+	}
+
+	response := httptest.NewRecorder()
+	body := bytes.NewBufferString(`{"email":"admin@example.com","password":"wrong"}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", body)
+	request.RemoteAddr = "203.0.113.99:1234"
+	request.Header.Set("X-Forwarded-For", "198.51.100.50")
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 for trusted forwarded client, got %d", response.Code)
 	}
 }
 
@@ -153,6 +227,8 @@ func testSecurityConfig() config.Config {
 
 func newTestRouterWithConfig(t *testing.T, cfg config.Config) http.Handler {
 	t.Helper()
+	maintenance.Leave()
+	t.Cleanup(maintenance.Leave)
 	if cfg.DocumentRoot == "" {
 		cfg.DocumentRoot = filepath.Join(t.TempDir(), "documents")
 	}

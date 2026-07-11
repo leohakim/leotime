@@ -24,15 +24,15 @@ func (s *Service) TestConnection(ctx context.Context, userID string, draft *stor
 
 	client, err := s.clientFactory(ctx, resolved.cfg)
 	if err != nil {
-		return fmt.Errorf("create s3 client: %w", err)
+		return wrapRemoteError(fmt.Errorf("create s3 client: %w", err))
 	}
 
 	testKey := resolved.prefix + "leotime-connection-test.txt"
 	if err := client.Put(ctx, testKey, strings.NewReader("leotime backup connection test"), "text/plain"); err != nil {
-		return err
+		return wrapRemoteError(err)
 	}
 	if err := client.Delete(ctx, testKey); err != nil {
-		return err
+		return wrapRemoteError(err)
 	}
 	return nil
 }

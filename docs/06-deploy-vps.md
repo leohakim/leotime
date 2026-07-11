@@ -21,6 +21,7 @@ cp .env.example .env
 Change at least:
 
 ```text
+LEOTIME_ENV=production
 LEOTIME_BOOTSTRAP_EMAIL
 LEOTIME_BOOTSTRAP_PASSWORD
 LEOTIME_COOKIE_SECURE=true
@@ -33,7 +34,14 @@ LEOTIME_SMTP_USERNAME=...
 LEOTIME_SMTP_PASSWORD=...
 LEOTIME_SECRETS_KEY=...          # openssl rand -base64 32
 LEOTIME_BACKUP_SCHEDULER_ENABLED=true
+LEOTIME_TRUST_FORWARDED_HEADERS=true   # only when behind a trusted reverse proxy
+LEOTIME_METRICS_TOKEN=...              # required to scrape /metrics in production
 ```
+
+Invalid boolean, integer, or duration env values fail startup with the variable
+name. Production rejects the default bootstrap password, insecure cookies, the
+development public base URL, and `LEOTIME_MAIL_MODE=log` unless
+`LEOTIME_MAIL_LOG_ENABLED=true`.
 
 Still-running timer emails use the in-process scheduler (enabled by default). Full mail and scheduler reference: `docs/29-email-notifications.md`.
 

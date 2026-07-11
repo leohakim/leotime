@@ -14,6 +14,7 @@ import (
 	"github.com/leotime/leotime/apps/api/internal/backup"
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/db"
+	"github.com/leotime/leotime/apps/api/internal/maintenance"
 	"github.com/leotime/leotime/apps/api/internal/notify"
 	"github.com/leotime/leotime/apps/api/internal/outbox"
 	"github.com/leotime/leotime/apps/api/internal/store"
@@ -1252,6 +1253,8 @@ func TestDashboardStatsHTTP(t *testing.T) {
 
 func newTestRouter(t *testing.T) http.Handler {
 	t.Helper()
+	maintenance.Leave()
+	t.Cleanup(maintenance.Leave)
 
 	ctx := context.Background()
 	database, err := db.Open(ctx, t.TempDir()+"/leotime.db")

@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -43,12 +44,26 @@ func (l *fixedWindowLimiter) allow(key string) bool {
 	return true
 }
 
-func clientIP(r *http.Request) string {
-	if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
-		parts := strings.Split(forwarded, ",")
-		return strings.TrimSpace(parts[0])
+func requestClientIP(r *http.Request, trustForwarded bool) string {
+	if trustForwarded {
+		if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-For")); forwarded != "" {
+			parts := strings.Split(forwarded, ",")
+			return strings.TrimSpace(parts[0])
+		}
 	}
-	return strings.TrimSpace(r.RemoteAddr)
+	return peerHost(r.RemoteAddr)
+}
+
+func peerHost(remoteAddr string) string {
+	host, _, err := net.SplitHostPort(strings.TrimSpace(remoteAddr))
+	if err != nil {
+		return strings.TrimSpace(remoteAddr)
+	}
+	return host
+}
+
+func (s *Server) clientIP(r *http.Request) string {
+	return requestClientIP(r, s.cfg.TrustForwardedHeaders)
 }
 
 func (s *Server) rateLimitAuth(w http.ResponseWriter, r *http.Request, key string) bool {
@@ -60,7 +75,7 @@ func (s *Server) rateLimitAuth(w http.ResponseWriter, r *http.Request, key strin
 }
 
 func (s *Server) rateLimitForgotPassword(w http.ResponseWriter, r *http.Request, email string) bool {
-	key := "forgot:" + clientIP(r) + ":" + strings.ToLower(strings.TrimSpace(email))
+	key := "forgot:" + s.clientIP(r) + ":" + strings.ToLower(strings.TrimSpace(email))
 	if s.forgotPasswordLimiter.allow(key) {
 		return true
 	}

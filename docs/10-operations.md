@@ -93,6 +93,15 @@ The API exposes Prometheus metrics at:
 /metrics
 ```
 
+In production the endpoint is hidden unless `LEOTIME_METRICS_TOKEN` is set.
+Scrapers must send `Authorization: Bearer <token>`; query-string tokens are not
+accepted. Set `LEOTIME_TRUST_FORWARDED_HEADERS=true` only when leotime sits
+behind a trusted reverse proxy so rate limits and forwarded client IPs remain
+accurate.
+
+All HTTP responses include `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: no-referrer`, and `X-Frame-Options: DENY`.
+
 Start Prometheus and Grafana:
 
 ```bash

@@ -18,7 +18,13 @@ func runBackupCommand(ctx context.Context, args []string) error {
 		return fmt.Errorf("usage: leotime backup run [--force] | list | restore --object-key <key> | restore --latest [--force]")
 	}
 
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
 	database, err := db.Open(ctx, cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)

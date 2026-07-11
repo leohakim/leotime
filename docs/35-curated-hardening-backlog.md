@@ -38,8 +38,8 @@ restore until every P0 item is complete and its acceptance tests pass.
 | 2 | H-DATA-02 | P0 | Reports and invoice drafts without silent truncation | none — **Done** |
 | 3 | H-IMP-03 | P0 | Solidtime ZIP boundary and import privacy | none — **Done** |
 | 4 | H-BACKUP-04 | P0 | Restore database and documents safely together | H-INV-01 for document cases — **Done** |
-| 5 | H-PROD-05 | P1 | Production configuration and HTTP boundary safety | none — **next** |
-| 6 | H-MIG-06 | P1 | Upgrade migration confidence | none |
+| 5 | H-PROD-05 | P1 | Production configuration and HTTP boundary safety | none — **Done** |
+| 6 | H-MIG-06 | P1 | Upgrade migration confidence | none — **next** |
 | 7 | H-API-07 | P1 | JSON contract discipline and startup errors | none |
 | 8 | H-UX-08 | P2 | Destructive-action clarity and focused maintenance | P0 complete |
 
@@ -185,31 +185,18 @@ untouched; maintenance stays active until paired restore succeeds.
 
 ## H-PROD-05 — Production configuration and HTTP boundary safety
 
-**Priority:** P1
+**Priority:** P1 — **Done** (2026-07-11)
 
-**Problem:** invalid environment values silently choose defaults; log mail prints
-reset tokens; auth limits trust a forwarding header; metrics accepts query
-tokens; and default backup errors can expose internal details.
+**Problem:** invalid environment values silently chose defaults; log mail printed
+reset tokens; auth limits trusted forwarding headers; metrics accepted query
+tokens; backup errors could expose internal details.
 
-**Required outcome:**
+**Outcome:** strict env parsing; production validation for cookies, public base
+URL, and log-mail opt-in; redacted log mail; trusted-proxy flag for forwarded
+headers; Bearer-only metrics with constant-time compare; generic backup errors
+with request-ID server logs; security headers on all HTTP responses.
 
-- Invalid boolean, duration, and integer variables fail startup with their
-  variable name.
-- Production requires a non-default bootstrap password, secure cookies, and an
-  explicit public base URL. Log mail is always redacted; production log mail
-  requires an explicit opt-in if still supported.
-- Direct peer address is the default rate-limit key. Forwarded headers require
-  explicit trusted-proxy configuration.
-- Metrics accepts constant-time Bearer credentials only, never query tokens.
-- Backup responses are generic while diagnostic causes reach server logs with a
-  request ID.
-- Add X-Content-Type-Options, Referrer-Policy, and deny framing headers.
-
-**Expected files:** config, mail/log, HTTP rate limit/security/backup/router
-packages and tests; .env.example; docs/06-deploy-vps.md; docs/10-operations.md.
-
-**Gates:** make test-api; make pre-commit; make docker-build; make smoke;
-make deploy-check.
+**Plan:** `docs/superpowers/plans/2026-07-11-h-prod-05-production-http-boundaries.md`
 
 ---
 

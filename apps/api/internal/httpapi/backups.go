@@ -2,9 +2,11 @@ package httpapi
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/leotime/leotime/apps/api/internal/backup"
 	"github.com/leotime/leotime/apps/api/internal/store"
 )
@@ -12,7 +14,7 @@ import (
 func (s *Server) getBackupSettings(w http.ResponseWriter, r *http.Request, user *store.User) {
 	settings, err := s.backups.GetSettings(r.Context(), user.ID)
 	if err != nil {
-		writeBackupError(w, err)
+		writeBackupError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, settings)
@@ -26,7 +28,7 @@ func (s *Server) putBackupSettings(w http.ResponseWriter, r *http.Request, user 
 
 	settings, err := s.backups.SaveSettings(r.Context(), user.ID, input)
 	if err != nil {
-		writeBackupError(w, err)
+		writeBackupError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, settings)
@@ -45,7 +47,7 @@ func (s *Server) testBackupConnection(w http.ResponseWriter, r *http.Request, us
 	}
 
 	if err := s.backups.TestConnection(r.Context(), user.ID, draft); err != nil {
-		writeBackupError(w, err)
+		writeBackupError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -68,7 +70,7 @@ func (s *Server) runBackup(w http.ResponseWriter, r *http.Request, user *store.U
 			writeError(w, http.StatusConflict, "backup_busy", "backup already running")
 			return
 		}
-		writeBackupError(w, err)
+		writeBackupError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -77,7 +79,7 @@ func (s *Server) runBackup(w http.ResponseWriter, r *http.Request, user *store.U
 func (s *Server) listBackupObjects(w http.ResponseWriter, r *http.Request, user *store.User) {
 	objects, err := s.backups.ListObjects(r.Context(), user.ID)
 	if err != nil {
-		writeBackupError(w, err)
+		writeBackupError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"objects": objects})
@@ -103,7 +105,7 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request, user *sto
 			writeError(w, http.StatusConflict, "backup_busy", "backup job already running")
 			return
 		}
-		writeBackupError(w, err)
+		writeBackupError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -112,7 +114,7 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request, user *sto
 func (s *Server) getBackupStatus(w http.ResponseWriter, r *http.Request, user *store.User) {
 	settings, err := s.backups.GetSettings(r.Context(), user.ID)
 	if err != nil {
-		writeBackupError(w, err)
+		writeBackupError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -127,7 +129,10 @@ func (s *Server) getBackupStatus(w http.ResponseWriter, r *http.Request, user *s
 	})
 }
 
-func writeBackupError(w http.ResponseWriter, err error) {
+func writeBackupError(w http.ResponseWriter, r *http.Request, err error) {
+	reqID := middleware.GetReqID(r.Context())
+	log.Printf("backup error request_id=%s: %v", reqID, err)
+
 	switch {
 	case errors.Is(err, store.ErrBackupSecretsKeyMissing):
 		writeError(w, http.StatusServiceUnavailable, "backup_secrets_key_missing", "backup secrets key is not configured")
@@ -136,10 +141,6 @@ func writeBackupError(w http.ResponseWriter, err error) {
 	case store.IsValidation(err, store.ErrInvalidBackupSettings):
 		writeValidationStoreError(w, err)
 	default:
-		message := strings.TrimSpace(err.Error())
-		if message == "" {
-			message = "backup operation failed"
-		}
-		writeError(w, http.StatusBadGateway, "backup_operation_failed", message)
+		writeError(w, http.StatusBadGateway, "backup_operation_failed", "backup operation failed")
 	}
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/leotime/leotime/apps/api/internal/backup/storage"
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/db"
+	"github.com/leotime/leotime/apps/api/internal/maintenance"
 	"github.com/leotime/leotime/apps/api/internal/notify"
 	"github.com/leotime/leotime/apps/api/internal/outbox"
 	"github.com/leotime/leotime/apps/api/internal/store"
@@ -171,6 +172,46 @@ func TestGetBackupStatus(t *testing.T) {
 	}
 }
 
+func TestRestoreBackupRejectsForeignObjectKeyWithGenericError(t *testing.T) {
+	router, _ := newBackupHTTPTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/backups/restore", bytes.NewBufferString(`{
+		"confirm": true,
+		"objectKey": "foreign-prefix/leotime.db.gz"
+	}`))
+	request.Header.Set("Content-Type", "application/json")
+	for _, cookie := range cookies {
+		request.AddCookie(cookie)
+	}
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadGateway {
+		t.Fatalf("expected 502, got %d: %s", response.Code, response.Body.String())
+	}
+	body := response.Body.String()
+	if strings.Contains(body, "configured prefix") {
+		t.Fatalf("expected generic backup error, got %s", body)
+	}
+
+	var payload struct {
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.Error.Code != "backup_operation_failed" {
+		t.Fatalf("expected backup_operation_failed, got %q", payload.Error.Code)
+	}
+	if payload.Error.Message != "backup operation failed" {
+		t.Fatalf("expected generic message, got %q", payload.Error.Message)
+	}
+}
+
 func newBackupHTTPTestRouter(t *testing.T) (http.Handler, *backup.Service) {
 	secretsKey := base64.StdEncoding.EncodeToString([]byte("01234567890123456789012345678901"))
 	router, service, _ := newBackupHTTPTestRouterWithSecretsKey(t, secretsKey)
@@ -184,6 +225,8 @@ func newBackupHTTPTestRouterWithoutSecretsKey(t *testing.T) (http.Handler, *back
 
 func newBackupHTTPTestRouterWithSecretsKey(t *testing.T, secretsKey string) (http.Handler, *backup.Service, config.Config) {
 	t.Helper()
+	maintenance.Leave()
+	t.Cleanup(maintenance.Leave)
 
 	ctx := context.Background()
 	database, err := db.Open(ctx, t.TempDir()+"/leotime.db")
