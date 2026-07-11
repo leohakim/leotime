@@ -1,5 +1,5 @@
 import { CircleAlert } from 'lucide-react';
-import { isApiError } from './api';
+import { isApiError, isMaintenanceModeError } from './api';
 import type { Translator } from './translator';
 
 export function fieldClass(error?: string) {
@@ -84,13 +84,18 @@ export function QueryErrorBanner({
     return null;
   }
 
-  const message = isApiError(error) ? error.message : t('directoryLoadFailed');
+  const maintenance = isMaintenanceModeError(error);
+  const message = maintenance ? t('maintenanceModeMessage') : isApiError(error) ? error.message : t('directoryLoadFailed');
 
   return (
-    <div className="query-error-banner" role="alert">
+    <div className={maintenance ? 'query-error-banner maintenance-banner' : 'query-error-banner'} role="alert">
       <CircleAlert aria-hidden="true" />
       <span>{message}</span>
-      {onRetry ? (
+      {maintenance ? (
+        <button type="button" onClick={() => window.location.reload()}>
+          {t('reloadApp')}
+        </button>
+      ) : onRetry ? (
         <button type="button" onClick={onRetry}>
           {t('retry')}
         </button>

@@ -9,6 +9,7 @@ import {
   type TagInput,
 } from '../../lib/api';
 import { DirectoryInactiveHeading, FieldError, fieldClass, hasErrors } from '../../lib/crudFormUi';
+import { confirmDestructiveAction } from '../../lib/destructiveUi';
 import { patchTagsCache, refreshOverviewIfOnline } from '../../lib/offline/cache';
 import { useOfflineStatus } from '../../lib/offline/offlineContext';
 import { createTag, isLocalId } from '../../lib/offline/mutations';
@@ -203,9 +204,14 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
           </button>
           {isActive ? (
             <button
+              aria-label={t('archive')}
               className="secondary-button icon-button danger-button"
               type="button"
-              onClick={() => archiveMutation.mutate(tag.id)}
+              onClick={() => {
+                if (confirmDestructiveAction(t('archiveTagConfirm'))) {
+                  archiveMutation.mutate(tag.id);
+                }
+              }}
               title={t('archive')}
             >
               <Trash2 aria-hidden="true" />

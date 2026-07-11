@@ -13,6 +13,7 @@ import {
 } from './api';
 import { hasBillableRate } from './billable';
 import { validateProjectRequired } from './crudFormUi';
+import { confirmDestructiveAction } from './destructiveUi';
 import { patchTimeEntriesCache, refreshOverviewIfOnline } from './offline/cache';
 import { useOfflineStatus } from './offline/offlineContext';
 import { createTimeEntry, isLocalId, updateTimeEntry } from './offline/mutations';
@@ -470,7 +471,11 @@ export function ManualTimeEntryPanel({
                 isSelected={editingEntryId === entry.id}
                 key={entry.id}
                 locale={locale}
-                onDelete={() => deleteMutation.mutate(entry.id)}
+                onDelete={() => {
+                  if (confirmDestructiveAction(t('deleteTimeEntryConfirm'))) {
+                    deleteMutation.mutate(entry.id);
+                  }
+                }}
                 onOpenEditor={() => startEditing(entry)}
                 pauseInlineSave={editingEntryId === entry.id}
                 projects={projects}
@@ -971,7 +976,13 @@ function DirectoryEntryRow({
           <button className="secondary-button icon-button" type="button" onClick={onOpenEditor} title={t('edit')}>
             <Pencil aria-hidden="true" />
           </button>
-          <button className="secondary-button icon-button danger-button" type="button" onClick={onDelete} title={t('delete')}>
+          <button
+            aria-label={t('deletePermanently')}
+            className="secondary-button icon-button danger-button"
+            type="button"
+            onClick={onDelete}
+            title={t('deletePermanently')}
+          >
             <Trash2 aria-hidden="true" />
           </button>
         </div>

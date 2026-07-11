@@ -12,6 +12,7 @@ import {
   type TaskInput,
 } from '../../lib/api';
 import { DirectoryInactiveHeading, FieldError, fieldClass, hasErrors, validateProjectRequired } from '../../lib/crudFormUi';
+import { confirmDestructiveAction } from '../../lib/destructiveUi';
 import { patchTasksCache, refreshOverviewIfOnline } from '../../lib/offline/cache';
 import { useOfflineStatus } from '../../lib/offline/offlineContext';
 import { createTask, isLocalId } from '../../lib/offline/mutations';
@@ -269,9 +270,14 @@ export function TaskPanel({
           </button>
           {isActive ? (
             <button
+              aria-label={t('archive')}
               className="secondary-button icon-button danger-button"
               type="button"
-              onClick={() => archiveMutation.mutate(task.id)}
+              onClick={() => {
+                if (confirmDestructiveAction(t('archiveTaskConfirm'))) {
+                  archiveMutation.mutate(task.id);
+                }
+              }}
               title={t('archive')}
             >
               <Trash2 aria-hidden="true" />

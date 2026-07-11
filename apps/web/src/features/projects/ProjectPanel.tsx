@@ -10,6 +10,7 @@ import {
   type ProjectInput,
 } from '../../lib/api';
 import { DirectoryInactiveHeading, FieldError, fieldClass, formatMinor, formatRateInput, hasErrors, rateToMinor } from '../../lib/crudFormUi';
+import { confirmDestructiveAction } from '../../lib/destructiveUi';
 import { patchProjectsCache, refreshOverviewIfOnline } from '../../lib/offline/cache';
 import { useOfflineStatus } from '../../lib/offline/offlineContext';
 import { createProject, isLocalId } from '../../lib/offline/mutations';
@@ -229,9 +230,14 @@ export function ProjectPanel({
           </button>
           {isActive ? (
             <button
+              aria-label={t('archive')}
               className="secondary-button icon-button danger-button"
               type="button"
-              onClick={() => archiveMutation.mutate(project.id)}
+              onClick={() => {
+                if (confirmDestructiveAction(t('archiveProjectConfirm'))) {
+                  archiveMutation.mutate(project.id);
+                }
+              }}
               title={t('archive')}
             >
               <Trash2 aria-hidden="true" />

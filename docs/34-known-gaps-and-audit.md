@@ -25,6 +25,9 @@ queue. The current open work is:
 | H-PROD-05 | ~~Production config, logs, proxy trust, metrics, and internal errors need stricter boundaries~~ **Fixed** (2026-07-11) | H3, H4, M7 | [Plan](superpowers/plans/2026-07-11-h-prod-05-production-http-boundaries.md) |
 | H-MIG-06 | ~~No realistic upgrade test covers the tag-table rebuild~~ **Fixed** (2026-07-11) | New reconciliation | [Plan](superpowers/plans/2026-07-11-h-mig-06-upgrade-migration-confidence.md) |
 | H-API-07 | ~~JSON contracts and router startup errors are still permissive~~ **Fixed** (2026-07-11) | New reconciliation | [Plan](superpowers/plans/2026-07-11-h-api-07-json-contract-discipline.md) |
+| H-UX-08 | ~~Destructive actions lack confirmation; maintenance mode has no focused UI~~ **Fixed** (2026-07-11) | UX polish | [Plan](superpowers/plans/2026-07-11-h-ux-08-destructive-action-clarity.md) |
+
+The curated hardening queue (H-INV-01 through H-UX-08) is complete as of 2026-07-11.
 
 ---
 

@@ -41,7 +41,7 @@ restore until every P0 item is complete and its acceptance tests pass.
 | 5 | H-PROD-05 | P1 | Production configuration and HTTP boundary safety | none — **Done** |
 | 6 | H-MIG-06 | P1 | Upgrade migration confidence | none — **Done** |
 | 7 | H-API-07 | P1 | JSON contract discipline and startup errors | none — **Done** |
-| 8 | H-UX-08 | P2 | Destructive-action clarity and focused maintenance | P0 complete — **next** |
+| 8 | H-UX-08 | P2 | Destructive-action clarity and focused maintenance | P0 complete — **Done** |
 
 P0 items are independent in code but should be delivered in the listed order.
 P1 follows P0. P2 is intentionally opportunistic.
@@ -232,7 +232,8 @@ mismatches.
 
 ## H-UX-08 — Destructive-action clarity and focused maintenance
 
-**Priority:** P2
+**Priority:** P2  
+**Status:** **Done** (2026-07-11)
 
 Add confirmation and precise copy for permanent deletion versus archive/restore.
 Fold a small shared form or download helper into the same touched feature only
@@ -240,6 +241,8 @@ when it makes the change easier to test.
 
 Do not start a generic CRUD framework, global CSS split, full Ui-to-features
 move, or router rewrite in this slice.
+
+**Delivered:** `confirmDestructiveAction` helper; archive confirms on client/project/task/tag panels; permanent-delete confirms and labels on draft invoices and time entries; invoice-cancel confirm before reason prompt; tightened backup-restore checkbox copy; `maintenance_mode` handling in `QueryErrorBanner`, session boot screen, and `isMaintenanceModeError` in `api.ts`.
 
 **Gates:** make test-web; make pre-commit; make smoke.
 

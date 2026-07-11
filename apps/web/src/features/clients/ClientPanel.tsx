@@ -9,6 +9,7 @@ import {
   type ClientInput,
 } from '../../lib/api';
 import { DirectoryInactiveHeading, FieldError, fieldClass, formatMinor, formatRateInput, hasErrors, rateToMinor } from '../../lib/crudFormUi';
+import { confirmDestructiveAction } from '../../lib/destructiveUi';
 import { patchClientsCache, refreshOverviewIfOnline } from '../../lib/offline/cache';
 import { useOfflineStatus } from '../../lib/offline/offlineContext';
 import { createClient, isLocalId } from '../../lib/offline/mutations';
@@ -219,9 +220,14 @@ export function ClientPanel({ clients, isLoading, t }: { clients: Client[]; isLo
           </button>
           {isActive ? (
             <button
+              aria-label={t('archive')}
               className="secondary-button icon-button danger-button"
               type="button"
-              onClick={() => archiveMutation.mutate(client.id)}
+              onClick={() => {
+                if (confirmDestructiveAction(t('archiveClientConfirm'))) {
+                  archiveMutation.mutate(client.id);
+                }
+              }}
               title={t('archive')}
             >
               <Trash2 aria-hidden="true" />

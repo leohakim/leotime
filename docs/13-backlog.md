@@ -21,7 +21,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | **4** | Product polish (remaining audit medium/low items) | **Done** |
 | **5** | UI/UX experience themes (10-sprint design spec) | Backlog |
 | **6** | Tooling (visual regression, contributor tutorial) | Backlog |
-| **7** | Curated hardening (billing, data, import, restore, production) | **Next** |
+| **7** | Curated hardening (billing, data, import, restore, production, UX) | **Done** |
 
 See the [curated hardening backlog](35-curated-hardening-backlog.md) for the current H-* queue. The IDs in [Known gaps and audit](34-known-gaps-and-audit.md) are historical findings and fix records.
 
@@ -42,7 +42,7 @@ See the [curated hardening backlog](35-curated-hardening-backlog.md) for the cur
 | Done | Weekly timesheet | Editable weekly grid, week navigation, grouped totals. |
 | Done | Calendar view | Monthly grid, day selection, inline editing. |
 | Done | Reports/export | CSV/JSON, grouped totals, optional timestamp hiding. |
-| Done | Invoices | Draft/issued/paid/cancelled, fiscal series, official PDFs, Work Protocol, document downloads, HTML/CSV/JSON export, multi-currency; hardening remains in Phase 7. |
+| Done | Invoices | Draft/issued/paid/cancelled, fiscal series, official PDFs, Work Protocol, document downloads, HTML/CSV/JSON export, multi-currency. |
 | Done | Dashboard UI Solidtime compatibility | Recent entries, last 7 days, heatmap, weekly bars, billable totals, donut. |
 | Done | Theme selector | Solidtime default, light, dark, minimal palettes with persistence. |
 | Done | Profile Settings | Change password, email, name, timezone, currency, theme, etc. |
@@ -143,7 +143,7 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | Done | S3 backup/restore | Snapshot, S3 upload, scheduler, CLI, in-app restore |
 | Done | CI pipeline | GitHub Actions: tests, build, Docker, smoke |
 | Done | Phase 2 UX/API coherence | ApiError helpers, taskProjectRequired, offline flush, profile fields, query error banners |
-| Next | Curated hardening | Agent-ready P0/P1/P2 queue in [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md) |
+| Done | Curated hardening | H-INV-01 through H-UX-08 in [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md) |
 | Backlog | Visual regression checks | Add screenshot checks after core UI stabilizes |
 | Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers |
 

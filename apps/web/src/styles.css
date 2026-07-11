@@ -747,6 +747,11 @@ a:focus-visible {
   padding: 0.75rem 1rem;
 }
 
+.query-error-banner.maintenance-banner {
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+}
+
 .query-error-banner button {
   margin-left: auto;
 }

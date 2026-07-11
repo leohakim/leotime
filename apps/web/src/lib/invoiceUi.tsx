@@ -21,6 +21,7 @@ import {
   type WorkProtocolDetail,
 } from './api';
 import { endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './calendarMonth';
+import { confirmDestructiveAction } from './destructiveUi';
 import { isLocalId } from './offline/mutations';
 import type { Translator } from './timeEntryUi';
 import { useToast } from './toast';
@@ -340,6 +341,9 @@ export function InvoicePanel({
   }
 
   function handleCancel(invoice: Invoice) {
+    if (!confirmDestructiveAction(t('invoiceCancelConfirm'))) {
+      return;
+    }
     const reason = window.prompt(t('invoiceCancelReason'));
     if (!reason?.trim()) {
       return;
@@ -615,11 +619,15 @@ export function InvoicePanel({
                     <button
                       className="danger-button"
                       disabled={deleteMutation.isPending}
-                      onClick={() => deleteMutation.mutate(selectedInvoice.id)}
+                      onClick={() => {
+                        if (confirmDestructiveAction(t('deleteDraftInvoiceConfirm'))) {
+                          deleteMutation.mutate(selectedInvoice.id);
+                        }
+                      }}
                       type="button"
                     >
                       <Trash2 aria-hidden="true" />
-                      {t('delete')}
+                      {t('deletePermanently')}
                     </button>
                   </>
                 ) : null}

@@ -706,6 +706,10 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
+export function isMaintenanceModeError(error: unknown): boolean {
+  return isApiError(error) && error.code === 'maintenance_mode';
+}
+
 export function mapApiFieldErrors<T extends string>(
   error: unknown,
   mapping: Record<string, T>,

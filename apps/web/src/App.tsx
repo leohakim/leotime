@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { fetchProfile, fetchSession, type LayoutMode, type Locale, type ThemeMode } from './lib/api';
+import { fetchProfile, fetchSession, isMaintenanceModeError, type LayoutMode, type Locale, type ThemeMode } from './lib/api';
 import { LeotimeMark } from './lib/leotimeLogo';
 import { translate } from './lib/i18n';
 import { AuthScreen } from './lib/authUi';
@@ -75,12 +75,16 @@ export function App() {
   }
 
   if (sessionQuery.isError) {
+    const maintenance = isMaintenanceModeError(sessionQuery.error);
     return (
       <main className="boot-screen">
         <LeotimeMark className="boot-logo" size={36} title="leotime" />
-        <p>{t('sessionLoadFailed')}</p>
-        <button type="button" onClick={() => void sessionQuery.refetch()}>
-          {t('retry')}
+        <p>{maintenance ? t('maintenanceModeMessage') : t('sessionLoadFailed')}</p>
+        <button
+          type="button"
+          onClick={() => (maintenance ? window.location.reload() : void sessionQuery.refetch())}
+        >
+          {maintenance ? t('reloadApp') : t('retry')}
         </button>
       </main>
     );
