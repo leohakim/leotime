@@ -61,6 +61,7 @@ describe('App', () => {
     ];
     timeEntriesMock = [];
     timersMock = [];
+    profileMock = createProfileMock();
     vi.stubGlobal('fetch', vi.fn(mockFetch));
   });
 
@@ -114,6 +115,34 @@ describe('App', () => {
 
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe('light'));
     expect(window.localStorage.getItem('leotime.theme')).toBe('light');
+  });
+
+  test('hydrates every root experience attribute from legacy profile preferences', async () => {
+    profileMock.settings.themeMode = 'dark';
+    profileMock.layoutMode = 'compact';
+
+    renderApp();
+
+    await screen.findByRole('heading', { name: 'Time Tracker' });
+    await waitFor(() => expect(document.documentElement.dataset).toMatchObject({
+      theme: 'dark',
+      layout: 'compact',
+      nav: 'sidebar',
+      preset: 'custom',
+    }));
+  });
+
+  test('marks the experience custom after changing a preset dimension', async () => {
+    renderApp();
+
+    await screen.findByRole('heading', { name: 'Time Tracker' });
+    await waitFor(() => expect(document.documentElement.dataset.preset).toBe('workbench-pro'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Claro' }));
+
+    await waitFor(() => expect(document.documentElement.dataset.preset).toBe('custom'));
+    expect(window.localStorage.getItem('leotime.theme')).toBe('light');
+    expect(window.localStorage.getItem('leotime.preset')).toBe('custom');
   });
 
   test('renders the time report panel', async () => {
@@ -656,6 +685,32 @@ let timersMock: Array<{
   updatedAt: string;
 }> = [];
 
+function createProfileMock() {
+  return {
+    id: 'usr_test',
+    email: 'admin@example.com',
+    name: 'Administrador',
+    locale: 'es' as const,
+    layoutMode: 'solid' as const,
+    settings: {
+      taskProjectRequired: false,
+      defaultCurrency: 'EUR',
+      timezone: 'Europe/Madrid',
+      themeMode: 'solid' as const,
+      timerStillRunningEnabled: false,
+      timerStillRunningHours: 8,
+      backupEmailOnSuccess: false,
+      backupEmailOnFailure: true,
+      restoreEmailOnSuccess: false,
+      restoreEmailOnFailure: true,
+    },
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  };
+}
+
+let profileMock = createProfileMock();
+
 async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
   const url = String(input);
   if (url.endsWith('/api/v1/session')) {
@@ -672,27 +727,7 @@ async function mockFetch(input: RequestInfo | URL, init?: RequestInit) {
   }
 
   if (url.endsWith('/api/v1/profile') && (!init?.method || init.method === 'GET')) {
-    return jsonResponse({
-      id: 'usr_test',
-      email: 'admin@example.com',
-      name: 'Administrador',
-      locale: 'es',
-      layoutMode: 'solid',
-      settings: {
-        taskProjectRequired: false,
-        defaultCurrency: 'EUR',
-        timezone: 'Europe/Madrid',
-        themeMode: 'solid',
-        timerStillRunningEnabled: false,
-        timerStillRunningHours: 8,
-        backupEmailOnSuccess: false,
-        backupEmailOnFailure: true,
-        restoreEmailOnSuccess: false,
-        restoreEmailOnFailure: true,
-      },
-      createdAt: '2026-01-01T00:00:00Z',
-      updatedAt: '2026-01-01T00:00:00Z',
-    });
+    return jsonResponse(profileMock);
   }
 
   const clientsUrl = new URL(url, 'http://localhost');

@@ -10,10 +10,12 @@ configurables. No implementa cambios por si misma.
 
 ## Estado de implementación
 
-**Sprint 1 completado** (2026-07-11). La auditoria responsive y el mapa de
-fricciones estan publicados en [UI/UX Visual Audit](../../36-ui-ux-visual-audit.md).
-Los sprints 2–10 siguen sin implementar y el producto conserva los temas
-actuales de `docs/25-theme-selector.md` (solid, light, dark, minimal).
+**Sprints 1 y 2 completados** (2026-07-11). La auditoria responsive y el mapa
+de fricciones estan publicados en [UI/UX Visual Audit](../../36-ui-ux-visual-audit.md).
+Sprint 2 aplica los atributos raiz, tokens semanticos y estado local de
+experiencia documentados en `docs/25-theme-selector.md`. Los sprints 3–10
+siguen sin implementar y el producto conserva los temas actuales (solid, light,
+dark, minimal).
 
 ## Contexto
 

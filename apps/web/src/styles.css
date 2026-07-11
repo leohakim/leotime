@@ -39,6 +39,26 @@
   --text-xl: 18px;
   --text-2xl: 22px;
   --text-display: 24px;
+  --surface-canvas: var(--bg);
+  --surface-panel: var(--surface);
+  --surface-raised: var(--surface-2);
+  --surface-interactive: var(--surface-3);
+  --content-primary: var(--text);
+  --content-secondary: var(--muted);
+  --content-subtle: var(--faint);
+  --border-default: var(--border);
+  --border-interactive: var(--border-strong);
+  --status-info: var(--blue);
+  --status-success: var(--green);
+  --status-warning: var(--amber);
+  --status-danger: var(--rose);
+  --focus-ring: color-mix(in srgb, var(--status-info) 24%, transparent);
+  --radius-control: 8px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --target-min: 44px;
 }
 
 * {
@@ -46,12 +66,19 @@
 }
 
 html {
-  background: var(--bg);
+  background: var(--surface-canvas);
+}
+
+html[data-layout='solid'],
+html[data-layout='minimal'],
+html[data-layout='compact'],
+html[data-nav='sidebar'] {
+  color: var(--content-primary);
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--surface-canvas);
+  color: var(--content-primary);
   font-size: var(--text-base);
   font-weight: var(--fw-normal);
   line-height: 1.45;
@@ -80,10 +107,10 @@ select {
 
 button {
   align-items: center;
-  background: var(--surface-3);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  color: var(--text);
+  background: var(--surface-interactive);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-control);
+  color: var(--content-primary);
   cursor: pointer;
   display: inline-flex;
   font-size: var(--text-base);
@@ -133,7 +160,7 @@ input:focus-visible,
 select:focus-visible,
 button:focus-visible,
 a:focus-visible {
-  outline: 3px solid rgb(95 179 217 / 24%);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -152,9 +179,9 @@ a:focus-visible {
 }
 
 .login-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-control);
   box-shadow: var(--shadow);
   max-width: 420px;
   padding: 28px;

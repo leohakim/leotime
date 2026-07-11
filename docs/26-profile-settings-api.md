@@ -113,6 +113,13 @@ The dashboard includes a profile panel at `#profile` with:
 
 On first load, the app hydrates locale, layout, and theme from the saved profile. Saving profile updates the session cache and local UI preferences.
 
+## Sprint 2 experience boundary
+
+Navigation mode and experience preset are local frontend state in Sprint 2.
+They intentionally do not appear in profile GET/PATCH requests, profile JSON, or
+database storage. The existing `layoutMode` and `themeMode` fields remain the
+only profile-synchronized experience dimensions until a later scoped decision.
+
 ## Checks
 
 ```bash

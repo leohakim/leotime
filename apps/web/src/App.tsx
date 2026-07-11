@@ -6,16 +6,25 @@ import { translate } from './lib/i18n';
 import { AuthScreen } from './lib/authUi';
 import { DashboardShell } from './features/shell/DashboardShell';
 import { usePersistentState } from './lib/persistentState';
-import { useThemeEffect } from './lib/themeUi';
+import {
+  inferExperiencePreset,
+  readExperiencePreset,
+  readNavigationMode,
+  type ExperiencePreset,
+  type NavigationMode,
+} from './lib/experience';
+import { useExperienceEffect } from './lib/themeUi';
 
 export function App() {
   const queryClient = useQueryClient();
   const [locale, setLocale] = usePersistentState<Locale>('leotime.locale', 'es');
   const [layoutMode, setLayoutMode] = usePersistentState<LayoutMode>('leotime.layout', 'solid');
   const [themeMode, setThemeMode] = usePersistentState<ThemeMode>('leotime.theme', 'solid');
+  const [navigationMode] = usePersistentState<NavigationMode>('leotime.nav', readNavigationMode());
+  const [preset, setPreset] = usePersistentState<ExperiencePreset>('leotime.preset', readExperiencePreset());
   const profileHydratedRef = useRef(false);
   const preferencesTouchedRef = useRef(false);
-  useThemeEffect(themeMode);
+  useExperienceEffect({ themeMode, layoutMode, navigationMode, preset });
   const sessionQuery = useQuery({ queryKey: ['session'], queryFn: fetchSession, retry: 1 });
   const profileQuery = useQuery({
     queryKey: ['profile'],
@@ -33,16 +42,22 @@ export function App() {
   const applyLayoutMode = useCallback(
     (value: LayoutMode) => {
       preferencesTouchedRef.current = true;
+      if (value !== layoutMode) {
+        setPreset('custom');
+      }
       setLayoutMode(value);
     },
-    [setLayoutMode],
+    [layoutMode, setLayoutMode, setPreset],
   );
   const applyThemeMode = useCallback(
     (value: ThemeMode) => {
       preferencesTouchedRef.current = true;
+      if (value !== themeMode) {
+        setPreset('custom');
+      }
       setThemeMode(value);
     },
-    [setThemeMode],
+    [setPreset, setThemeMode, themeMode],
   );
 
   useEffect(() => {
@@ -61,7 +76,14 @@ export function App() {
     setLocale(profileQuery.data.locale);
     setLayoutMode(profileQuery.data.layoutMode);
     setThemeMode(profileQuery.data.settings.themeMode);
-  }, [profileQuery.data, setLayoutMode, setLocale, setThemeMode]);
+    setPreset(
+      inferExperiencePreset({
+        themeMode: profileQuery.data.settings.themeMode,
+        layoutMode: profileQuery.data.layoutMode,
+        navigationMode,
+      }),
+    );
+  }, [navigationMode, profileQuery.data, setLayoutMode, setLocale, setPreset, setThemeMode]);
 
   const t = useMemo(() => (key: Parameters<typeof translate>[1]) => translate(locale, key), [locale]);
 
@@ -117,4 +139,3 @@ export function App() {
     />
   );
 }
-

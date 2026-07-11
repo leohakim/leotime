@@ -84,12 +84,12 @@ Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-Start **UI/UX Sprint 2: experience architecture** from the
+Start **UI/UX Sprint 3: experience selector** from the
 [approved design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md),
-using the [Sprint 1 audit](36-ui-ux-visual-audit.md) as its evidence baseline.
-Limit the slice to root experience attributes, semantic token foundations,
-legacy preference compatibility, the `custom` state, and tests. Shell and
-feature redesign remain assigned to Sprints 4–8.
+building on the [Sprint 1 audit](36-ui-ux-visual-audit.md) and the Sprint 2
+root-state foundation. Limit the slice to visible theme/layout/nav/preset
+controls, local persistence, and synchronization only for existing profile
+fields. Shell and feature redesign remain assigned to Sprints 4–8.
 
 ## Quality Gates By Slice
 

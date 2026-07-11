@@ -138,8 +138,8 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | Sprint | Status | Outcome |
 | ---: | --- | --- |
 | 1 | **Done** | [Responsive visual audit and prioritized `UXA-*` findings](36-ui-ux-visual-audit.md) |
-| 2 | **Next** | Experience attributes, semantic token foundation, legacy preference compatibility, and `custom` state |
-| 3 | Backlog | Experience selector and persistence |
+| 2 | **Done** | Root experience attributes, semantic token foundation, legacy preference compatibility, and `custom` state |
+| 3 | **Next** | Experience selector and persistence |
 | 4 | Backlog | Responsive shell and navigation |
 | 5 | Backlog | Timer and quick capture |
 | 6 | Backlog | Weekly timesheet |
