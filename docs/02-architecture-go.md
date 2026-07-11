@@ -19,7 +19,7 @@ main.go
 
 ```text
 apps/api
-├── cmd/leotime        # server, seed, import-solidtime, backup subcommands
+├── cmd/leotime        # server, seed, import solidtime, backup subcommands
 └── internal
     ├── apierr         # structured JSON error types
     ├── auth           # password hashing and verification
@@ -114,7 +114,7 @@ apps/web/src
 | [0001](adr/0001-stack-go-sqlite-react.md) | Stack | Yes |
 | [0002](adr/0002-in-process-scheduler-outbox.md) | Scheduler + outbox | Yes |
 | [0003](adr/0003-s3-backup-encryption-and-restore.md) | S3 backup/restore | Yes |
-| [0004](adr/0004-billing-documents-official-pdfs.md) | Official invoice PDFs | **No** |
+| [0004](adr/0004-billing-documents-official-pdfs.md) | Official invoice PDFs | **Partial; hardening queued** |
 
 Index: [adr/README.md](adr/README.md).
 
@@ -124,7 +124,7 @@ Index: [adr/README.md](adr/README.md).
 | --- | --- |
 | `(default)` | HTTP server |
 | `seed` | Demo data |
-| `import-solidtime` | ZIP import |
+| `import solidtime` | ZIP import |
 | `backup run \| list \| restore` | Backup ops |
 
 See [Operations](10-operations.md) and [MVP delivery status](33-mvp-delivery-status.md).

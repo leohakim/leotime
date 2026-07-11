@@ -64,6 +64,7 @@ All MVP slices in the original plan are complete.
 - [Documentation index](00-documentation-index.md)
 - [MVP delivery status](33-mvp-delivery-status.md)
 - [Known gaps and audit](34-known-gaps-and-audit.md)
+- [Curated hardening backlog](35-curated-hardening-backlog.md)
 - [ADR index](adr/README.md)
 
 ## Accepted but not implemented
@@ -82,7 +83,7 @@ Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-Hardening from [Known gaps and audit](34-known-gaps-and-audit.md) and visual regression checks unless product scope changes.
+Start [H-INV-01](35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity), then proceed through the P0 slices in the [curated hardening backlog](35-curated-hardening-backlog.md). Visual regression and themes remain deferred until the P0/P1 queue is complete.
 
 ## Quality Gates By Slice
 
@@ -109,7 +110,3 @@ make smoke
 ```
 
 When port `8080` is already occupied by a local process without static assets, run smoke against a temporary app instance with `BASE_URL`.
-
-## Current Next Task
-
-Backlog engineering items such as visual regression checks unless product scope changes.

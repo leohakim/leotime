@@ -40,7 +40,10 @@ Restore flow:
 4. Validate the database opens, has expected tables, and meets the minimum migration version.
 5. Create a local safety snapshot of the current database before replacing it.
 6. Replace live data through the SQLite backup API (online restore with write lock).
-7. For `.tar.gz` archives, replace `LEOTIME_DOCUMENT_ROOT` with the archived `documents/` tree after validation.
+7. For `.tar.gz` archives, stage and validate the archived `documents/` tree,
+   then replace `LEOTIME_DOCUMENT_ROOT` after validation. The current
+   replacement deletes the live root before copying; rollback-safe promotion is
+   tracked in [H-BACKUP-04](35-curated-hardening-backlog.md#h-backup-04--restore-database-and-documents-safely-together).
 8. Record restore status in `backup_settings`.
 
 ## Defaults
@@ -134,7 +137,7 @@ Important for Docker/VPS:
 1. The **endpoint must be reachable from the leotime container**, not only from your laptop. Use the Docker service name (`http://minio:9000`) or the internal VPS IP, not a hostname that resolves only outside the stack.
 2. **Access key** = MinIO username (`leotime_backups`). **Secret key** = the password you passed to `mc admin user add`.
 3. Path-style is enabled automatically when the endpoint is not `amazonaws.com`. You can still check the box explicitly.
-4. **Test connection** sends the current form values; you do not need to save first. If it fails, the API now returns the underlying S3 error (for example `Access Denied`, `connection refused`, or `404`).
+4. **Test connection** sends the current form values; you do not need to save first. If it fails, the API returns a stable generic error code; inspect server logs for provider-specific diagnostics.
 5. Verify from the leotime container:
 
 ```bash

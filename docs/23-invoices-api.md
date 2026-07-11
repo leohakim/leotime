@@ -144,7 +144,10 @@ Content-Type: application/json
 { "status": "paid" }
 ```
 
-`POST /status` con `issued` sigue existiendo por compatibilidad, pero la UI debe usar `POST /issue` para PDFs oficiales.
+`POST /status` es una ruta de compatibilidad pendiente de endurecer. Actualmente
+la UI usa `POST /issue`, pero la API todavía permite `draft -> issued` sin
+generar la serie fiscal ni los PDFs oficiales. El comportamiento objetivo es
+restringir esta ruta a `issued -> paid`; ver [H-INV-01](35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity).
 
 ## Documentos oficiales
 

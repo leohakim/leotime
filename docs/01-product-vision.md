@@ -35,7 +35,7 @@ The first product version is for one person:
 - Timers (start/stop, edit start time).
 - Calendar and weekly timesheet views.
 - Hourly rates on clients and optional project override (`rates` table reserved for future rate history).
-- Multi-currency invoices with HTML/CSV/JSON export.
+- Multi-currency invoice drafts with HTML/CSV/JSON export, fiscal series, preview, official PDFs, Work Protocol documents, and document-aware backups (with hardening tracked separately).
 - Report export as CSV and JSON.
 - Dashboard with heatmap, weekly bars, and project breakdown.
 - Spanish and English UI; configurable layout modes and themes.
@@ -48,7 +48,7 @@ The first product version is for one person:
 
 ## Backlog Capabilities
 
-The operational backlog lives in [`docs/13-backlog.md`](13-backlog.md). High-level ideas still outside MVP:
+The operational backlog lives in [`docs/13-backlog.md`](13-backlog.md). The next implementation queue is the [curated hardening backlog](35-curated-hardening-backlog.md). High-level ideas still outside MVP:
 
 - Tauri desktop app.
 - Idle detection and activity tracking.

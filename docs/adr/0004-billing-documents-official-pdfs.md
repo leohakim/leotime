@@ -2,13 +2,13 @@
 
 ## Status
 
-Accepted.
+Accepted; partially implemented (2026-07-11).
 
 ## Implementation
 
 **Partially implemented** (2026-07-09). Migration `000009_billing_documents.sql`, fiscal series store, billing package (snapshot, PDF render, issue service), HTTP routes for preview/issue/cancel/documents, invoice UI workflow, and document-aware S3 backups are in tree. See [23-invoices-api.md](../23-invoices-api.md) and [32-billing-documents.md](../32-billing-documents.md).
 
-Remaining follow-ups: richer fiscal series admin UI, client-level defaults in the dashboard, and any legal/compliance features explicitly out of scope here.
+Remaining follow-ups: [H-INV-01](../35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity) for the legacy issuance bypass and file/DB failure ordering, [H-BACKUP-04](../35-curated-hardening-backlog.md#h-backup-04--restore-database-and-documents-safely-together) for rollback-safe restore, richer fiscal series admin UI, client-level defaults in the dashboard, and any legal/compliance features explicitly out of scope here.
 
 ## Context
 

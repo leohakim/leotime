@@ -7,7 +7,7 @@ ADRs capture durable decisions. Each record has a **status** (Accepted, etc.) an
 | [0001](0001-stack-go-sqlite-react.md) | Go + SQLite + React | Accepted | **Yes** | [02-architecture-go.md](../02-architecture-go.md) |
 | [0002](0002-in-process-scheduler-outbox.md) | In-process scheduler and email outbox | Accepted | **Yes** | [29-email-notifications.md](../29-email-notifications.md) |
 | [0003](0003-s3-backup-encryption-and-restore.md) | S3 backups, encrypted credentials, restore | Accepted | **Yes** | [31-s3-daily-backups.md](../31-s3-daily-backups.md) |
-| [0004](0004-billing-documents-official-pdfs.md) | Billing documents and official PDFs | Accepted | **No** | [32-billing-documents.md](../32-billing-documents.md) (planned) |
+| [0004](0004-billing-documents-official-pdfs.md) | Billing documents and official PDFs | Accepted | **Partial; hardening queued** | [32-billing-documents.md](../32-billing-documents.md) |
 
 ## Approved designs not yet ADRs
 
@@ -16,7 +16,7 @@ These specs are approved for planning but have **no ADR number** and **no produc
 | Spec | Topic | Implementation |
 | --- | --- | --- |
 | [UI/UX experience themes](../superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Presets, tokens, responsive shell | **Not started** |
-| [Billing documents design](../superpowers/specs/2026-07-08-billing-documents-design.md) | Companion to ADR 0004 | **Not started** |
+| [Billing documents design](../superpowers/specs/2026-07-08-billing-documents-design.md) | Companion to ADR 0004 | **Implemented in `internal/billing`; hardening queued** |
 
 Implementation plans live under `docs/superpowers/plans/`. Do not treat them as shipped behavior until code and migrations land.
 

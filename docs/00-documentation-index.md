@@ -9,6 +9,7 @@ Reading order for new contributors and operators.
 | [Product vision](01-product-vision.md) | Why leotime exists and MVP scope |
 | [MVP delivery status](33-mvp-delivery-status.md) | What is shipped today (capability matrix) |
 | [Known gaps and audit](34-known-gaps-and-audit.md) | Open bugs, limitations, and hardening backlog |
+| [Curated hardening backlog](35-curated-hardening-backlog.md) | Current implementation queue with acceptance tests and gates |
 | [Development workflow](08-development-workflow.md) | Day-to-day commands and mental model |
 | [Operations](10-operations.md) | Docker, backups, seed, metrics, smoke |
 | [VPS deployment](06-deploy-vps.md) | Production deploy checklist |
@@ -26,7 +27,7 @@ Reading order for new contributors and operators.
 | [ADR 0001: Stack](adr/0001-stack-go-sqlite-react.md) | Go + SQLite + React (implemented) |
 | [ADR 0002: Scheduler](adr/0002-in-process-scheduler-outbox.md) | In-process mail scheduler (implemented) |
 | [ADR 0003: S3 backups](adr/0003-s3-backup-encryption-and-restore.md) | Encrypted S3 backup/restore (implemented) |
-| [ADR 0004: Billing PDFs](adr/0004-billing-documents-official-pdfs.md) | Official invoice PDFs (accepted, **not implemented**) |
+| [ADR 0004: Billing PDFs](adr/0004-billing-documents-official-pdfs.md) | Official invoice PDFs (accepted, **partially implemented**) |
 
 ## HTTP API Reference
 
@@ -42,7 +43,7 @@ All authenticated routes use cookie sessions unless noted. Error envelope: [API 
 | Timers | [19-timers-api.md](19-timers-api.md) |
 | Reports | [22-reports-api.md](22-reports-api.md) |
 | Invoices API | [23-invoices-api.md](23-invoices-api.md) (current) |
-| Billing documents (planned) | [32-billing-documents.md](32-billing-documents.md) + ADR 0004 |
+| Billing documents (current + hardening) | [32-billing-documents.md](32-billing-documents.md) + ADR 0004 |
 | Dashboard stats | [24-dashboard-api.md](24-dashboard-api.md) |
 | Profile settings | [26-profile-settings-api.md](26-profile-settings-api.md) |
 | Email notifications | [29-email-notifications.md](29-email-notifications.md) |
@@ -65,7 +66,8 @@ All authenticated routes use cookie sessions unless noted. Error envelope: [API 
 | --- | --- |
 | [Implementation plan](12-implementation-plan.md) | Delivery slices and quality gates |
 | [Backlog](13-backlog.md) | Product and engineering backlog |
+| [Curated hardening backlog](35-curated-hardening-backlog.md) | Agent-ready P0/P1/P2 queue |
 | [ADR index](adr/README.md) | Architecture decisions and implementation status |
-| [Billing documents spec](32-billing-documents.md) | Planned ADR 0004 (not shipped) |
+| [Billing documents](32-billing-documents.md) | Current billing behavior and remaining hardening |
 | [UI/UX experience themes](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Approved design (not shipped) |
 | [Rust alternative plan](07-rust-axum-plan.md) | Future stack exploration |

@@ -61,7 +61,15 @@ The first importer supports Solidtime export `version: 1.0` with these files:
 - `tags.csv`
 - `time_entries.csv`
 
-The importer validates expected headers. Unknown or missing required files fail the import before database writes.
+The importer validates expected headers and rejects missing required files
+before database writes. Extra ZIP members are currently tolerated; rejecting
+unknown, duplicate, absolute, or traversal-like members is part of H-IMP-03.
+
+That sentence describes the required compatibility contract; the current parser
+still accepts extra ZIP members and reads each member fully before parsing. The
+request limit is 32 MiB compressed, but there is not yet a per-member or total
+uncompressed limit. These boundary protections, duplicate-entry rejection, and
+source-path privacy are tracked in [H-IMP-03](35-curated-hardening-backlog.md#h-imp-03--solidtime-zip-boundary-and-import-privacy).
 
 ## Mapping
 
@@ -111,4 +119,5 @@ Tests use synthetic ZIP fixtures generated in memory.
 - Solidtime organization invitations and project members are validated for file shape but not imported into first-class tables.
 - The importer targets the current single-owner model.
 - Failed import runs are not persisted yet because imports run inside one transaction.
-
+- CLI imports currently receive a full local path in the import-run metadata;
+  H-IMP-03 changes this to a sanitized basename.

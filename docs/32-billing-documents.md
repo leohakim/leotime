@@ -1,10 +1,11 @@
 # Billing Documents And Official PDFs
 
-> **Status: planned, not implemented (2026-07-08).** ADR [0004](adr/0004-billing-documents-official-pdfs.md) is accepted; no `internal/billing` package or migration `000009` exists yet. For current invoices, use [23-invoices-api.md](23-invoices-api.md).
+> **Status: partially implemented (2026-07-11).** Migration `000009_billing_documents.sql`, the `internal/billing` package, fiscal series, preview/issue/cancel/document routes, invoice UI, and document-aware backups are present. For the current HTTP contract, use [23-invoices-api.md](23-invoices-api.md). Remaining correctness work is tracked in [H-INV-01](35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity) and [H-BACKUP-04](35-curated-hardening-backlog.md#h-backup-04--restore-database-and-documents-safely-together).
 
-This document describes the planned invoice document upgrade for leotime. It
-does not describe current production behavior. Current invoice API behavior is
-documented in `docs/23-invoices-api.md`.
+This document records the intended invoice document model and the parts already
+delivered. It is not a legal-compliance claim. Current HTTP behavior is
+documented in `docs/23-invoices-api.md`; known implementation limits are linked
+from the curated hardening backlog.
 
 ## Goal
 
@@ -202,6 +203,10 @@ Use when the client needs more justification.
 If rendering or file persistence fails, the transaction rolls back and the
 fiscal number is not consumed.
 
+The transaction and file promotion ordering still needs failure-injection
+coverage. A failure after one official PDF is promoted can leave a file without
+its database row. Treat this as an open invariant until [H-INV-01](35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity) is complete.
+
 ## Period Suggestions And Warnings
 
 The system should suggest likely periods, not enforce them.
@@ -247,9 +252,10 @@ document root after validating that the path stays under the root.
 
 ## Backup And Restore
 
-The existing S3 backup feature must include document files in the same delivery.
+The S3 backup feature now includes document files in the same `.tar.gz`
+delivery. Rollback-safe paired restore remains open in H-BACKUP-04.
 
-Backup output should become one archive object that contains:
+Backup output is one archive object that contains:
 
 ```text
 leotime.db
@@ -275,16 +281,16 @@ Restore validates:
 - hash and byte size match metadata,
 - no restored path escapes the document root.
 
-## Planned HTTP API
+## Current HTTP API and follow-ups
 
-All routes require a valid session cookie.
+All current routes require a valid session cookie. The authoritative current
+route and legacy-status behavior is [23-invoices-api.md](23-invoices-api.md).
 
 ```text
 GET    /api/v1/invoice-series
 POST   /api/v1/invoice-series
 PATCH  /api/v1/invoice-series/{seriesID}
 
-GET    /api/v1/invoices/suggestions?clientId=...
 POST   /api/v1/invoices/draft-from-time
 GET    /api/v1/invoices/{invoiceID}
 PATCH  /api/v1/invoices/{invoiceID}
@@ -294,6 +300,9 @@ POST   /api/v1/invoices/{invoiceID}/cancel
 GET    /api/v1/invoices/{invoiceID}/documents
 GET    /api/v1/invoices/{invoiceID}/documents/{documentID}/download
 ```
+
+Period suggestions and client-level defaults remain follow-up work; they are
+not part of the current route set.
 
 ### Issue response
 
@@ -321,9 +330,9 @@ GET    /api/v1/invoices/{invoiceID}/documents/{documentID}/download
 }
 ```
 
-## Planned UI
+## Current UI and follow-ups
 
-Invoice panel workflow:
+The current invoice panel supports this workflow:
 
 1. Select client.
 2. Pick suggested period or custom period.
@@ -334,14 +343,14 @@ Invoice panel workflow:
 7. Issue official package.
 8. Download invoice PDF, Work Protocol PDF, or both.
 
-Client settings:
+Follow-up client settings (not yet a current route):
 
 - default fiscal series,
 - default Work Protocol detail level,
 - default service description,
 - default payment instructions override if needed.
 
-Profile/business settings:
+Follow-up profile/business defaults (not yet a current route):
 
 - seller fiscal name,
 - seller tax ID,
@@ -350,9 +359,9 @@ Profile/business settings:
 - default payment instructions,
 - default fiscal series.
 
-## Validation Rules
+## Validation Rules and test coverage
 
-Issue must reject:
+The current issue service rejects:
 
 - missing active fiscal series,
 - invalid fiscal pattern,
@@ -366,7 +375,7 @@ Issue must reject:
 - hash mismatch after write,
 - file path outside `LEOTIME_DOCUMENT_ROOT`.
 
-Issue must allow:
+The current issue service allows:
 
 - periods that overlap existing invoices,
 - multiple invoices for the same client and month,
@@ -375,7 +384,7 @@ Issue must allow:
 
 ## Testing Strategy
 
-Backend tests:
+Existing backend tests cover:
 
 - fiscal series formatting and sequence increment,
 - transaction rollback does not consume numbers,
@@ -395,7 +404,7 @@ Frontend tests:
 - issue flow shows official number and document downloads,
 - cancelled invoice keeps download buttons visible.
 
-Smoke tests:
+The next billing hardening smoke coverage should:
 
 - issue one invoice from seed data,
 - download both PDFs,

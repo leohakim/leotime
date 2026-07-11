@@ -18,11 +18,12 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | **1** | Backup stability (restore latest sort, validation, generic errors, HTTP tests, prune best-effort) | **Done** |
 | **2** | UX/API coherence (`ApiError` everywhere, `taskProjectRequired`, offline queue, profile field errors) | **Done** |
 | **3** | ADR 0004 billing documents (official PDFs, fiscal series, Work Protocol) | **Done** |
-| **4** | Product polish (remaining audit medium/low items) | **Doing** |
+| **4** | Product polish (remaining audit medium/low items) | **Done** |
 | **5** | UI/UX experience themes (10-sprint design spec) | Backlog |
 | **6** | Tooling (visual regression, contributor tutorial) | Backlog |
+| **7** | Curated hardening (billing, data, import, restore, production) | **Next** |
 
-See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*, L*).
+See the [curated hardening backlog](35-curated-hardening-backlog.md) for the current H-* queue. The IDs in [Known gaps and audit](34-known-gaps-and-audit.md) are historical findings and fix records.
 
 ## Product Backlog
 
@@ -41,7 +42,7 @@ See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*,
 | Done | Weekly timesheet | Editable weekly grid, week navigation, grouped totals. |
 | Done | Calendar view | Monthly grid, day selection, inline editing. |
 | Done | Reports/export | CSV/JSON, grouped totals, optional timestamp hiding. |
-| Done | Invoices | Draft/issued/paid/cancelled, HTML/CSV/JSON export, multi-currency. |
+| Done | Invoices | Draft/issued/paid/cancelled, fiscal series, official PDFs, Work Protocol, document downloads, HTML/CSV/JSON export, multi-currency; hardening remains in Phase 7. |
 | Done | Dashboard UI Solidtime compatibility | Recent entries, last 7 days, heatmap, weekly bars, billable totals, donut. |
 | Done | Theme selector | Solidtime default, light, dark, minimal palettes with persistence. |
 | Done | Profile Settings | Change password, email, name, timezone, currency, theme, etc. |
@@ -123,11 +124,11 @@ See [Known gaps and audit](34-known-gaps-and-audit.md) for item IDs (C*, H*, M*,
 | M21 | Multiple open timers UX | **Done** — warning banner and stop controls for extras |
 | M9 | `rates` table scope | **Accepted** — reserved for future rate history per product vision |
 
-## Accepted ADRs and designs (not implemented)
+## Accepted ADRs and designs
 
 | Status | Item | Notes |
 | --- | --- | --- |
-| Accepted, implemented | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol; [32-billing-documents.md](32-billing-documents.md) |
+| Accepted, partially implemented | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol, and document-aware backups exist; hardening remains in [H-INV-01](35-curated-hardening-backlog.md#h-inv-01--fiscal-issue-invariants-and-document-atomicity) and [H-BACKUP-04](35-curated-hardening-backlog.md#h-backup-04--restore-database-and-documents-safely-together). |
 | Approved, backlog | UI/UX experience themes | Six presets + SolidTime Exact; [design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) |
 
 See [ADR index](adr/README.md) for implementation status of all records.
@@ -142,6 +143,7 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | Done | S3 backup/restore | Snapshot, S3 upload, scheduler, CLI, in-app restore |
 | Done | CI pipeline | GitHub Actions: tests, build, Docker, smoke |
 | Done | Phase 2 UX/API coherence | ApiError helpers, taskProjectRequired, offline flush, profile fields, query error banners |
+| Next | Curated hardening | Agent-ready P0/P1/P2 queue in [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md) |
 | Backlog | Visual regression checks | Add screenshot checks after core UI stabilizes |
 | Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers |
 
@@ -149,6 +151,6 @@ See [ADR index](adr/README.md) for implementation status of all records.
 
 | Status | Item | Notes |
 | --- | --- | --- |
-| Done | Product vision through MVP audit | See [00-documentation-index.md](00-documentation-index.md) |
+| Done | Product vision through MVP audit | See [00-documentation-index.md](00-documentation-index.md) and [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md) |
 | Done | Phase 0 env vars | `.env.example` (`LEOTIME_ENV`, `LEOTIME_METRICS_TOKEN`) |
 | Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers |
