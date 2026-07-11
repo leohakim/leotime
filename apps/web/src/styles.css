@@ -1010,24 +1010,47 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   color: var(--blue);
 }
 
+.surface-feedback {
+  margin: 0 0 12px;
+}
+
+.surface-feedback-loading {
+  align-items: center;
+  display: flex;
+  min-height: 40px;
+  padding: 4px 0;
+}
+
+.surface-feedback-error,
 .query-error-banner {
   align-items: center;
   background: color-mix(in srgb, var(--danger) 12%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
   border-radius: 12px;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  margin-bottom: 1rem;
   padding: 0.75rem 1rem;
+}
+
+.surface-feedback-error p,
+.query-error-banner span {
+  flex: 1;
+  margin: 0;
+}
+
+.surface-feedback-error button,
+.query-error-banner button {
+  margin-left: auto;
+}
+
+.query-error-banner {
+  margin-bottom: 1rem;
 }
 
 .query-error-banner.maintenance-banner {
   background: color-mix(in srgb, var(--warning) 14%, var(--surface));
   border-color: color-mix(in srgb, var(--warning) 40%, transparent);
-}
-
-.query-error-banner button {
-  margin-left: auto;
 }
 
 .offline-sync-button {

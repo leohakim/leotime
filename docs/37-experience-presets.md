@@ -44,4 +44,15 @@ make pre-commit
 ```
 
 Manual spot-check each preset at `1440px`, `834px`, and `390px` on dashboard,
-timesheet, and settings.
+timesheet, and settings. See [38-ui-ux-qa-checklist.md](38-ui-ux-qa-checklist.md)
+for the full responsive, visual, and accessibility gates.
+
+## Adding a new preset
+
+1. Extend `EXPERIENCE_PRESET_DEFINITIONS` in `apps/web/src/lib/experience.ts`.
+2. Add preset label/description keys to `apps/web/src/lib/i18n.ts`.
+3. Optional: add `[data-preset="<id>"]` token overrides in `apps/web/src/styles.css`.
+4. Add unit coverage in `experience.test.ts` and a navigation smoke in `App.test.tsx`
+   when the preset changes layout or nav mode.
+5. Document the row in the catalog table above and run `make pre-commit` plus the
+   three-width manual spot-check from the QA checklist.

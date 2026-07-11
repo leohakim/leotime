@@ -14,7 +14,7 @@ const apiEnv = {
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: 'visual-audit.spec.ts',
+  testMatch: /(visual|accessibility)-audit\.spec\.ts/,
   timeout: 60_000,
   fullyParallel: false,
   workers: 1,

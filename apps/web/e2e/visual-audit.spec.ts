@@ -35,6 +35,7 @@ async function signIn(page: Page) {
 
 test('login', async ({ page }, testInfo) => {
   await page.goto('/');
+  await expect(page.locator('.login-hero')).toBeVisible();
   await expect(page.locator('.login-panel')).toBeVisible();
   await capture(page, testInfo, 'login');
 });

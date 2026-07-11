@@ -22,6 +22,7 @@ import {
 } from './api';
 import { endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './calendarMonth';
 import { confirmDestructiveAction } from './destructiveUi';
+import { SurfaceEmpty, SurfaceError, SurfaceLoading } from './feedbackUi';
 import { isLocalId } from './offline/mutations';
 import type { Translator } from './timeEntryUi';
 import { useToast } from './toast';
@@ -445,17 +446,23 @@ export function InvoicePanel({
               </button>
             </div>
           </form>
-          {formError ? <p className="form-error">{formError}</p> : null}
+          {formError ? <SurfaceError message={formError} /> : null}
         </aside>
 
         <div className="invoice-directory-panel">
           <h3>{t('invoiceDirectory')}</h3>
-          {invoicesQuery.isError ? <p className="form-error">{t('invoiceLoadFailed')}</p> : null}
-          {invoicesQuery.isLoading ? <p>{t('loading')}</p> : null}
+          {invoicesQuery.isError ? (
+            <SurfaceError
+              message={t('invoiceLoadFailed')}
+              onRetry={() => void invoicesQuery.refetch()}
+              retryLabel={t('retry')}
+            />
+          ) : null}
+          {invoicesQuery.isLoading ? <SurfaceLoading label={t('loading')} /> : null}
           {!invoicesQuery.isLoading && invoices.length === 0 ? (
-            <div className="panel-empty-state">
+            <SurfaceEmpty>
               <p>{t('invoiceNoInvoices')}</p>
-            </div>
+            </SurfaceEmpty>
           ) : null}
 
           {invoices.length > 0 ? (
@@ -609,7 +616,7 @@ export function InvoicePanel({
                   </div>
                 </form>
               ) : null}
-              {editError ? <p className="form-error">{editError}</p> : null}
+              {editError ? <SurfaceError message={editError} /> : null}
 
               <div className="invoice-actions">
                 {selectedInvoice.status === 'draft' ? (
@@ -681,10 +688,12 @@ export function InvoicePanel({
                   {t('reportDownloadJson')}
                 </button>
               </div>
-              {exportError ? <p className="form-error">{exportError}</p> : null}
+              {exportError ? <SurfaceError message={exportError} /> : null}
                 </article>
               ) : (
-                <p className="panel-empty-state">{t('invoiceSelectOne')}</p>
+                <SurfaceEmpty>
+                  <p>{t('invoiceSelectOne')}</p>
+                </SurfaceEmpty>
               )}
             </div>
           ) : null}

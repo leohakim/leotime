@@ -19,7 +19,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | **2** | UX/API coherence (`ApiError` everywhere, `taskProjectRequired`, offline queue, profile field errors) | **Done** |
 | **3** | ADR 0004 billing documents (official PDFs, fiscal series, Work Protocol) | **Done** |
 | **4** | Product polish (remaining audit medium/low items) | **Done** |
-| **5** | UI/UX experience themes (10-sprint design spec) | **Doing** |
+| **5** | UI/UX experience themes (10-sprint design spec) | **Done** |
 | **6** | Tooling (visual regression, contributor tutorial) | Backlog |
 | **7** | Curated hardening (billing, data, import, restore, production, UX) | **Done** |
 
@@ -129,7 +129,7 @@ See the [curated hardening backlog](35-curated-hardening-backlog.md) for the cur
 | Status | Item | Notes |
 | --- | --- | --- |
 | Accepted, partially implemented | ADR 0004 billing documents | Official PDFs, fiscal series, Work Protocol, document-aware backups, H-INV-01 issuance hardening, and H-BACKUP-04 rollback-safe restore exist. |
-| Approved, doing | UI/UX experience themes | Sprint 9 preset pack complete; visual QA next in the [design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) |
+| Done | UI/UX experience themes | Ten-sprint roadmap complete; see [QA checklist](38-ui-ux-qa-checklist.md) |
 
 See [ADR index](adr/README.md) for implementation status of all records.
 
@@ -146,7 +146,7 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | 7 | **Done** | Tablet dashboard stacking, calendar toolbar layout, UXA-003 fix |
 | 8 | **Done** | Report/invoice workbenches, auto-loaded preview, UXA-008 fix |
 | 9 | **Done** | Preset pack polish, login hero, SolidTime Exact reference, UXA-009 fix |
-| 10 | **Next** | Visual QA, accessibility checks, and documentation |
+| 10 | **Done** | Shared feedback states, audit tooling, QA checklist, UXA-010 fix |
 
 ## Engineering Backlog
 
@@ -159,7 +159,7 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | Done | CI pipeline | GitHub Actions: tests, build, Docker, smoke |
 | Done | Phase 2 UX/API coherence | ApiError helpers, taskProjectRequired, offline flush, profile fields, query error banners |
 | Done | Curated hardening | H-INV-01 through H-UX-08 in [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md) |
-| Backlog | Visual regression checks | Add screenshot checks after core UI stabilizes |
+| Backlog | Visual regression checks | `make audit-ui` captures baseline screenshots; add diff tooling when needed |
 | Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers |
 
 ## Documentation Backlog

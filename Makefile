@@ -94,6 +94,10 @@ test-e2e: ## 🧭 Run Playwright E2E tests
 	@printf "🧭 Running Playwright tests...\n"
 	npm --workspace @leotime/web run test:e2e
 
+audit-ui: ## 📸 Capture UI screenshots and accessibility smoke checks
+	@printf "📸 Running UI audit (visual + accessibility)...\n"
+	npm --workspace @leotime/web run test:e2e:audit
+
 build-web: ## 📦 Build frontend assets
 	@printf "📦 Building web app...\n"
 	npm --workspace @leotime/web run build

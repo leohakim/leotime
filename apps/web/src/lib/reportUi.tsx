@@ -9,6 +9,7 @@ import {
   type TimeReportParams,
 } from './api';
 import { endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './calendarMonth';
+import { SurfaceEmpty, SurfaceError, SurfaceLoading } from './feedbackUi';
 import type { Translator } from './timeEntryUi';
 import { formatDuration } from './timeEntryUi';
 import { ProjectBadge } from './projectBadgeUi';
@@ -193,23 +194,21 @@ export function TimeReportPanel({
             ) : null}
           </div>
 
-          {exportError ? (
-            <div className="timer-inline-error" role="alert">
-              {exportError}
-            </div>
-          ) : null}
+          {exportError ? <SurfaceError message={exportError} /> : null}
 
           <div className="report-preview">
-            {reportQuery.isLoading ? <span className="sync-pill">{t('loading')}</span> : null}
+            {reportQuery.isLoading ? <SurfaceLoading label={t('loading')} /> : null}
             {reportQuery.isError ? (
-              <div className="timer-inline-error" role="alert">
-                {t('reportLoadFailed')}
-              </div>
+              <SurfaceError
+                message={t('reportLoadFailed')}
+                onRetry={() => void reportQuery.refetch()}
+                retryLabel={t('retry')}
+              />
             ) : null}
             {report && report.entryCount === 0 ? (
-              <div className="panel-empty-state">
+              <SurfaceEmpty>
                 <p>{t('reportNoData')}</p>
-              </div>
+              </SurfaceEmpty>
             ) : null}
             {report && report.entryCount > 0 && !report.includeTimestamps ? (
               <div className="report-table-wrap">

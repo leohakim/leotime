@@ -88,7 +88,14 @@ export function QueryErrorBanner({
   const message = maintenance ? t('maintenanceModeMessage') : isApiError(error) ? error.message : t('directoryLoadFailed');
 
   return (
-    <div className={maintenance ? 'query-error-banner maintenance-banner' : 'query-error-banner'} role="alert">
+    <div
+      className={
+        maintenance
+          ? 'surface-feedback surface-feedback-error query-error-banner maintenance-banner'
+          : 'surface-feedback surface-feedback-error query-error-banner'
+      }
+      role="alert"
+    >
       <CircleAlert aria-hidden="true" />
       <span>{message}</span>
       {maintenance ? (

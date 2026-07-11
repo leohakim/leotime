@@ -16,6 +16,7 @@ import { patchTimersCache, refreshOverviewIfOnline } from './offline/cache';
 import { useOfflineStatus } from './offline/offlineContext';
 import { isLocalId, startTimer } from './offline/mutations';
 import { formatMonthLabel, startOfMonth, weekdayLabels } from './calendarMonth';
+import { SurfaceError, SurfaceLoading } from './feedbackUi';
 import {
   buildDonutSegments,
   currentMonthKey,
@@ -400,8 +401,10 @@ export function DashboardPanel({
         {t('dashboard')}
       </h2>
 
-      {statsQuery.isLoading ? <p className="dashboard-loading">{t('loading')}</p> : null}
-      {statsQuery.isError ? <p className="form-error">{t('dashboardLoadFailed')}</p> : null}
+      {statsQuery.isLoading ? <SurfaceLoading label={t('loading')} /> : null}
+      {statsQuery.isError ? (
+        <SurfaceError message={t('dashboardLoadFailed')} onRetry={() => void statsQuery.refetch()} retryLabel={t('retry')} />
+      ) : null}
 
       {stats ? (
         <>
