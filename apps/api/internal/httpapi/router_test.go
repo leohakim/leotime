@@ -1035,7 +1035,10 @@ func TestSessionLookupDatabaseErrorReturns503(t *testing.T) {
 	outboxStore := outbox.NewStore(database)
 	passwordReset := notify.NewPasswordResetService(st, outboxStore, cfg)
 	backupService := backup.NewService(cfg, st, database, nil)
-	router := NewRouter(cfg, st, passwordReset, backupService)
+	router, err := NewRouter(cfg, st, passwordReset, backupService)
+	if err != nil {
+		t.Fatalf("new router: %v", err)
+	}
 	cookies := loginCookies(t, router)
 
 	if err := database.Close(); err != nil {
@@ -1290,7 +1293,52 @@ func newTestRouter(t *testing.T) http.Handler {
 	outboxStore := outbox.NewStore(database)
 	passwordReset := notify.NewPasswordResetService(st, outboxStore, cfg)
 	backupService := backup.NewService(cfg, st, database, nil)
-	return NewRouter(cfg, st, passwordReset, backupService)
+	router, err := NewRouter(cfg, st, passwordReset, backupService)
+	if err != nil {
+		t.Fatalf("new router: %v", err)
+	}
+	return router
+}
+
+func TestNewRouterRejectsMissingDocumentRoot(t *testing.T) {
+	ctx := context.Background()
+	database, err := db.Open(ctx, t.TempDir()+"/leotime.db")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+	if err := db.Migrate(ctx, database); err != nil {
+		t.Fatalf("migrate db: %v", err)
+	}
+
+	st := store.New(database)
+	cfg := config.Config{
+		DocumentRoot:      "",
+		SessionCookieName: "leotime_session",
+		SessionTTL:        time.Hour,
+		PublicBaseURL:     "http://127.0.0.1:8080",
+		PasswordResetTTL:  time.Hour,
+		MailMaxAttempts:   5,
+	}
+	passwordReset := notify.NewPasswordResetService(st, outbox.NewStore(database), cfg)
+	backupService := backup.NewService(cfg, st, database, nil)
+
+	if _, err := NewRouter(cfg, st, passwordReset, backupService); err == nil {
+		t.Fatal("expected router construction to fail without document root")
+	}
+}
+
+func TestLoginRejectsUnknownJSONField(t *testing.T) {
+	router := newTestRouter(t)
+
+	response := httptest.NewRecorder()
+	body := bytes.NewBufferString(`{"email":"admin@example.com","password":"change-me-now","remember":true}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", body)
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", response.Code, response.Body.String())
+	}
 }
 
 func loginCookies(t *testing.T, router http.Handler) []*http.Cookie {
@@ -1408,7 +1456,10 @@ func TestResetPasswordWithToken(t *testing.T) {
 	}
 	passwordReset := notify.NewPasswordResetService(st, outbox.NewStore(database), cfg)
 	backupService := backup.NewService(cfg, st, database, nil)
-	router := NewRouter(cfg, st, passwordReset, backupService)
+	router, err := NewRouter(cfg, st, passwordReset, backupService)
+	if err != nil {
+		t.Fatalf("new router: %v", err)
+	}
 
 	resetResponse := httptest.NewRecorder()
 	resetRequest := httptest.NewRequest(http.MethodPost, "/api/v1/auth/reset-password", bytes.NewBufferString(`{"token":"`+rawToken+`","newPassword":"brand-new-password"}`))

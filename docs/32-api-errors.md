@@ -52,6 +52,21 @@ Resource and auth errors omit `fields`:
 
 Common codes: `invalid_json`, `authentication_required`, `invalid_credentials`, `email_taken`, `backup_busy`, `backup_secrets_key_missing`.
 
+## JSON request bodies
+
+Mutation endpoints decode JSON with a 1 MiB limit and strict contract rules:
+
+| Rule | HTTP | `code` | When |
+| --- | --- | --- | --- |
+| Empty body | 400 | `invalid_json` | No JSON value |
+| Malformed JSON | 400 | `invalid_json` | Syntax error |
+| Unknown field | 400 | `invalid_json` | Property not declared on the target struct |
+| Trailing JSON | 400 | `invalid_json` | More than one top-level value |
+| Too large | 413 | `body_too_large` | Body exceeds 1 MiB |
+
+Clients must send only documented fields using the camelCase names from the API
+docs. Endpoints that do not read a body ignore extra bytes.
+
 ## Frontend
 
 `apps/web/src/lib/api.ts` exposes `ApiError` with `code`, `status`, `message`, and `fields`. Mutations that use `apiJSON` throw `ApiError` on failure. Client-side forms still validate locally; server `fields` are available for future i18n mapping.

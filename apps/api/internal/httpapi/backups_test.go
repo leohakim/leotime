@@ -276,5 +276,9 @@ func newBackupHTTPTestRouterWithSecretsKey(t *testing.T, secretsKey string) (htt
 	backupService.SetClientFactory(func(ctx context.Context, cfg storage.S3Config) (storage.Client, error) {
 		return storage.NewMemoryClient(), nil
 	})
-	return NewRouter(cfg, st, passwordReset, backupService), backupService, cfg
+	router, err := NewRouter(cfg, st, passwordReset, backupService)
+	if err != nil {
+		t.Fatalf("new router: %v", err)
+	}
+	return router, backupService, cfg
 }

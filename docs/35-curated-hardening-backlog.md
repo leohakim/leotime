@@ -40,8 +40,8 @@ restore until every P0 item is complete and its acceptance tests pass.
 | 4 | H-BACKUP-04 | P0 | Restore database and documents safely together | H-INV-01 for document cases — **Done** |
 | 5 | H-PROD-05 | P1 | Production configuration and HTTP boundary safety | none — **Done** |
 | 6 | H-MIG-06 | P1 | Upgrade migration confidence | none — **Done** |
-| 7 | H-API-07 | P1 | JSON contract discipline and startup errors | none — **next** |
-| 8 | H-UX-08 | P2 | Destructive-action clarity and focused maintenance | P0 complete |
+| 7 | H-API-07 | P1 | JSON contract discipline and startup errors | none — **Done** |
+| 8 | H-UX-08 | P2 | Destructive-action clarity and focused maintenance | P0 complete — **next** |
 
 P0 items are independent in code but should be delivered in the listed order.
 P1 follows P0. P2 is intentionally opportunistic.
@@ -217,23 +217,16 @@ now backs up and restores `time_entry_tags` without relying on pragma toggles.
 
 ## H-API-07 — JSON contract discipline and startup errors
 
-**Priority:** P1
+**Priority:** P1 — **Done** (2026-07-11)
 
-**Problem:** mutation decoding accepts unknown fields and trailing JSON values,
-and NewRouter panics when its document root cannot initialize.
+**Problem:** mutation decoding accepted unknown fields and trailing JSON values,
+and `NewRouter` panicked when the document store could not initialize.
 
-**Required outcome:**
+**Outcome:** strict `decodeJSONBody` (empty body, unknown fields, trailing JSON,
+1 MiB limit); `NewRouter` returns an error; frontend payload audit found no
+mismatches.
 
-- Reject empty JSON, unknown fields, and a second JSON value while keeping the
-  existing 1 MiB limit and structured envelope.
-- Return an error from router construction; main reports it through the
-  existing startup path.
-- Audit every frontend payload before strict decoding is enabled.
-
-**Expected files:** json_body.go, router.go, router/JSON tests, main.go; web API
-client and form tests only where the payload audit finds a mismatch; docs/32-api-errors.md.
-
-**Gates:** make test-api; make test-web; make pre-commit; make smoke.
+**Plan:** `docs/superpowers/plans/2026-07-11-h-api-07-json-contract-discipline.md`
 
 ---
 

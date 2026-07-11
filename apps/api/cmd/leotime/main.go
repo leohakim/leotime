@@ -110,9 +110,14 @@ func main() {
 		backgroundScheduler.Run(runCtx)
 	}()
 
+	handler, err := httpapi.NewRouter(cfg, st, passwordReset, backupService)
+	if err != nil {
+		log.Fatalf("http router: %v", err)
+	}
+
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(cfg, st, passwordReset, backupService),
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

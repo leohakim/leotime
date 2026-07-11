@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -35,10 +36,10 @@ type sessionResponse struct {
 	User          *store.User `json:"user"`
 }
 
-func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.PasswordResetService, backups *backup.Service) http.Handler {
+func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.PasswordResetService, backups *backup.Service) (http.Handler, error) {
 	documentStore, err := billing.NewDocumentStore(cfg.DocumentRoot)
 	if err != nil {
-		panic("billing document store: " + err.Error())
+		return nil, fmt.Errorf("billing document store: %w", err)
 	}
 	renderer := billing.NewRenderer()
 	issueService := billing.NewIssueService(st, renderer, documentStore)
@@ -141,7 +142,7 @@ func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.Passwor
 	})
 
 	r.NotFound(server.notFound)
-	return r
+	return r, nil
 }
 
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {

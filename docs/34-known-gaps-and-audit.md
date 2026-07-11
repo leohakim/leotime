@@ -24,7 +24,7 @@ queue. The current open work is:
 | H-BACKUP-04 | ~~Document restore is not rollback-safe with the database~~ **Fixed** (2026-07-11) | C1, M2 | [Plan](superpowers/plans/2026-07-11-h-backup-04-restore-document-atomicity.md) |
 | H-PROD-05 | ~~Production config, logs, proxy trust, metrics, and internal errors need stricter boundaries~~ **Fixed** (2026-07-11) | H3, H4, M7 | [Plan](superpowers/plans/2026-07-11-h-prod-05-production-http-boundaries.md) |
 | H-MIG-06 | ~~No realistic upgrade test covers the tag-table rebuild~~ **Fixed** (2026-07-11) | New reconciliation | [Plan](superpowers/plans/2026-07-11-h-mig-06-upgrade-migration-confidence.md) |
-| H-API-07 | JSON contracts and router startup errors are still permissive | New reconciliation | [Curated backlog](35-curated-hardening-backlog.md#h-api-07--json-contract-discipline-and-startup-errors) |
+| H-API-07 | ~~JSON contracts and router startup errors are still permissive~~ **Fixed** (2026-07-11) | New reconciliation | [Plan](superpowers/plans/2026-07-11-h-api-07-json-contract-discipline.md) |
 
 ---
 

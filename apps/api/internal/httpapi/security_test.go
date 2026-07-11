@@ -254,5 +254,9 @@ func newTestRouterWithConfig(t *testing.T, cfg config.Config) http.Handler {
 	outboxStore := outbox.NewStore(database)
 	passwordReset := notify.NewPasswordResetService(st, outboxStore, cfg)
 	backupService := backup.NewService(cfg, st, database, nil)
-	return NewRouter(cfg, st, passwordReset, backupService)
+	router, err := NewRouter(cfg, st, passwordReset, backupService)
+	if err != nil {
+		t.Fatalf("new router: %v", err)
+	}
+	return router
 }
