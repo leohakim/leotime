@@ -72,6 +72,14 @@ Sprint 7 improves tablet layout for the overview and calendar (UXA-003):
 - Activity heatmap month navigation wraps without clipping; donut legend stacks under the chart.
 - Calendar/timesheet `.time-list-toolbar` stacks week/month controls instead of squeezing three columns.
 
+## Reports and invoices
+
+Sprint 8 clarifies preview hierarchy on reporting screens (UXA-008):
+
+- Reports use a filters + preview workbench; the current month loads automatically on open.
+- Invoices split **Nuevo borrador** from the invoice directory/detail panel.
+- Compact `.panel-empty-state` replaces tall placeholder regions.
+
 ## UI
 
 - `ExperienceSwitcher` in the Time Tracker toolbar and profile preferences section.
@@ -87,6 +95,7 @@ Sprint 7 improves tablet layout for the overview and calendar (UXA-003):
 | --- | --- |
 | Experience switcher UI | `apps/web/src/lib/experienceUi.tsx` |
 | Timesheet rows | `apps/web/src/lib/timeEntryUi.tsx` |
+| Reports and invoices | `apps/web/src/lib/reportUi.tsx`, `apps/web/src/lib/invoiceUi.tsx` |
 | Shell navigation | `apps/web/src/features/shell/` |
 | Theme buttons | `apps/web/src/lib/themeUi.tsx` |
 | Experience state and root attributes | `apps/web/src/lib/experience.ts` |

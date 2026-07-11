@@ -2315,11 +2315,77 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
 }
 
 .report-form {
-  border-bottom: 1px solid var(--border);
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
+}
+
+.report-workbench {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+}
+
+.report-filters-panel,
+.report-results-panel,
+.invoice-draft-panel,
+.invoice-directory-panel {
+  background: #101116;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.report-filters-panel,
+.invoice-draft-panel {
   padding: 14px;
+}
+
+.report-filters-panel h3,
+.report-results-panel h3,
+.invoice-draft-panel h3,
+.invoice-directory-panel h3 {
+  color: #ececf0;
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  margin: 0 0 12px;
+}
+
+.report-results-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+}
+
+.report-results-header {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px;
+}
+
+.report-results-header h3 {
+  margin: 0;
+}
+
+.report-results-summary {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  gap: 12px;
+}
+
+.report-results-summary span:first-child {
+  color: #ececf0;
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-semibold);
 }
 
 .report-form-actions {
@@ -2331,6 +2397,7 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
 }
 
 .report-preview {
+  flex: 1;
   padding: 14px;
 }
 
@@ -2377,12 +2444,30 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   margin-bottom: 0;
 }
 
+.invoice-workbench {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+}
+
 .invoice-form {
-  border-bottom: 1px solid var(--border);
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
+}
+
+.invoice-directory-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 280px;
   padding: 14px;
+}
+
+.invoice-directory-panel .invoice-layout {
+  flex: 1;
+  padding: 0;
 }
 
 .invoice-notes-field {
@@ -2399,7 +2484,6 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   display: grid;
   gap: 16px;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  padding: 14px;
 }
 
 .invoice-list {
@@ -3630,6 +3714,23 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   width: 28px;
 }
 
+.panel-empty-state {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex: 1;
+  font-size: var(--text-sm);
+  justify-content: center;
+  margin: 0;
+  min-height: 120px;
+  padding: 16px;
+  text-align: center;
+}
+
+.panel-empty-state p {
+  margin: 0;
+}
+
 .client-editor {
   display: grid;
   gap: 16px;
@@ -3899,6 +4000,11 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
     grid-column: 1;
     grid-row: 1;
     position: static;
+  }
+
+  .report-workbench,
+  .invoice-workbench {
+    grid-template-columns: 1fr;
   }
 }
 

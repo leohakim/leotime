@@ -230,20 +230,22 @@ describe('App', () => {
     renderApp();
     await goTo('overview');
 
+    expect(await screen.findByRole('heading', { level: 3, name: 'Vista previa' })).toBeInTheDocument();
     const csvButton = await screen.findByRole('button', { name: 'Descargar CSV' });
     const jsonButton = screen.getByRole('button', { name: 'Descargar JSON' });
-    expect(csvButton).toBeDisabled();
-    expect(jsonButton).toBeDisabled();
+    await waitFor(() => expect(csvButton).not.toBeDisabled());
+    expect(jsonButton).not.toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Actualizar vista' }));
     await waitFor(() => expect(csvButton).not.toBeDisabled());
-    expect(jsonButton).not.toBeDisabled();
   });
 
   test('renders the invoice panel', async () => {
     renderApp();
     await goTo('invoices');
 
+    expect(await screen.findByRole('heading', { level: 3, name: 'Nuevo borrador' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Directorio' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Crear borrador' })).toBeInTheDocument();
     expect(await screen.findByText('INV-2026-001')).toBeInTheDocument();
   });

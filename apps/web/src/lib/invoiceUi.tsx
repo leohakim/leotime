@@ -364,114 +364,124 @@ export function InvoicePanel({
         </div>
       </div>
 
-      <form className="invoice-form" noValidate onSubmit={submitDraft}>
-        <label className="form-field">
-          {t('invoiceClient')}
-          <select
-            onChange={(event) => setForm((current) => ({ ...current, clientId: event.target.value }))}
-            required
-            value={form.clientId}
-          >
-            <option value="">{t('invoiceClientPlaceholder')}</option>
-            {activeClients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="form-field">
-          {t('invoiceSeries')}
-          <select
-            onChange={(event) => setForm((current) => ({ ...current, seriesId: event.target.value }))}
-            value={form.seriesId || defaultSeriesId}
-          >
-            {invoiceSeries.map((series) => (
-              <option key={series.id} value={series.id}>
-                {series.code} — {series.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="form-field">
-          {t('invoiceWorkProtocolDetail')}
-          <select
-            onChange={(event) =>
-              setForm((current) => ({ ...current, workProtocolDetail: event.target.value as WorkProtocolDetail }))
-            }
-            value={form.workProtocolDetail}
-          >
-            <option value="summary">{t('invoiceWorkProtocolSummary')}</option>
-            <option value="standard">{t('invoiceWorkProtocolStandard')}</option>
-            <option value="detailed">{t('invoiceWorkProtocolDetailed')}</option>
-          </select>
-        </label>
-        <label className="form-field">
-          {t('reportFrom')}
-          <input onChange={(event) => setForm((current) => ({ ...current, from: event.target.value }))} type="date" value={form.from} />
-        </label>
-        <label className="form-field">
-          {t('reportTo')}
-          <input onChange={(event) => setForm((current) => ({ ...current, to: event.target.value }))} type="date" value={form.to} />
-        </label>
-        <label className="form-field">
-          {t('invoiceTaxRate')}
-          <input
-            inputMode="decimal"
-            onChange={(event) => setForm((current) => ({ ...current, taxRatePercent: event.target.value }))}
-            placeholder="21"
-            value={form.taxRatePercent}
-          />
-        </label>
-        <label className="form-field">
-          {t('invoiceWithholding')}
-          <input
-            inputMode="decimal"
-            onChange={(event) => setForm((current) => ({ ...current, withholding: event.target.value }))}
-            placeholder="0.00"
-            value={form.withholding}
-          />
-        </label>
-        <label className="form-field invoice-notes-field">
-          {t('invoiceNotes')}
-          <textarea onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={2} value={form.notes} />
-        </label>
-        <div className="invoice-form-actions">
-          <button disabled={createMutation.isPending} type="submit">
-            {t('invoiceCreateDraft')}
-          </button>
-        </div>
-      </form>
-      {formError ? <p className="form-error">{formError}</p> : null}
-
-      {invoicesQuery.isError ? <p className="form-error">{t('invoiceLoadFailed')}</p> : null}
-      {invoicesQuery.isLoading ? <p>{t('loading')}</p> : null}
-      {!invoicesQuery.isLoading && invoices.length === 0 ? <p className="empty-state">{t('invoiceNoInvoices')}</p> : null}
-
-      {invoices.length > 0 ? (
-        <div className="invoice-layout">
-          <div className="invoice-list" role="list">
-            {invoices.map((invoice) => (
-              <button
-                key={invoice.id}
-                className={`invoice-list-item${selectedInvoiceId === invoice.id ? ' selected' : ''}`}
-                onClick={() => setSelectedInvoiceId(invoice.id)}
-                type="button"
+      <div className="invoice-workbench">
+        <aside className="invoice-draft-panel">
+          <h3>{t('invoiceNewDraft')}</h3>
+          <form className="invoice-form" noValidate onSubmit={submitDraft}>
+            <label className="form-field">
+              {t('invoiceClient')}
+              <select
+                onChange={(event) => setForm((current) => ({ ...current, clientId: event.target.value }))}
+                required
+                value={form.clientId}
               >
-                <div>
-                  <strong>{invoice.invoiceNumber}</strong>
-                  <span>{invoice.clientName}</span>
-                </div>
-                <div className="invoice-list-meta">
-                  <span className={`invoice-status ${statusClassName[invoice.status]}`}>{t(statusLabelKey[invoice.status])}</span>
-                  <span>{formatMoneyMinor(invoice.totalMinor, invoice.currency, locale)}</span>
-                </div>
+                <option value="">{t('invoiceClientPlaceholder')}</option>
+                {activeClients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-field">
+              {t('invoiceSeries')}
+              <select
+                onChange={(event) => setForm((current) => ({ ...current, seriesId: event.target.value }))}
+                value={form.seriesId || defaultSeriesId}
+              >
+                {invoiceSeries.map((series) => (
+                  <option key={series.id} value={series.id}>
+                    {series.code} — {series.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-field">
+              {t('invoiceWorkProtocolDetail')}
+              <select
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, workProtocolDetail: event.target.value as WorkProtocolDetail }))
+                }
+                value={form.workProtocolDetail}
+              >
+                <option value="summary">{t('invoiceWorkProtocolSummary')}</option>
+                <option value="standard">{t('invoiceWorkProtocolStandard')}</option>
+                <option value="detailed">{t('invoiceWorkProtocolDetailed')}</option>
+              </select>
+            </label>
+            <label className="form-field">
+              {t('reportFrom')}
+              <input onChange={(event) => setForm((current) => ({ ...current, from: event.target.value }))} type="date" value={form.from} />
+            </label>
+            <label className="form-field">
+              {t('reportTo')}
+              <input onChange={(event) => setForm((current) => ({ ...current, to: event.target.value }))} type="date" value={form.to} />
+            </label>
+            <label className="form-field">
+              {t('invoiceTaxRate')}
+              <input
+                inputMode="decimal"
+                onChange={(event) => setForm((current) => ({ ...current, taxRatePercent: event.target.value }))}
+                placeholder="21"
+                value={form.taxRatePercent}
+              />
+            </label>
+            <label className="form-field">
+              {t('invoiceWithholding')}
+              <input
+                inputMode="decimal"
+                onChange={(event) => setForm((current) => ({ ...current, withholding: event.target.value }))}
+                placeholder="0.00"
+                value={form.withholding}
+              />
+            </label>
+            <label className="form-field invoice-notes-field">
+              {t('invoiceNotes')}
+              <textarea onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={2} value={form.notes} />
+            </label>
+            <div className="invoice-form-actions">
+              <button disabled={createMutation.isPending} type="submit">
+                {t('invoiceCreateDraft')}
               </button>
-            ))}
-          </div>
+            </div>
+          </form>
+          {formError ? <p className="form-error">{formError}</p> : null}
+        </aside>
 
-          {selectedInvoice ? (
-            <article className="invoice-detail">
+        <div className="invoice-directory-panel">
+          <h3>{t('invoiceDirectory')}</h3>
+          {invoicesQuery.isError ? <p className="form-error">{t('invoiceLoadFailed')}</p> : null}
+          {invoicesQuery.isLoading ? <p>{t('loading')}</p> : null}
+          {!invoicesQuery.isLoading && invoices.length === 0 ? (
+            <div className="panel-empty-state">
+              <p>{t('invoiceNoInvoices')}</p>
+            </div>
+          ) : null}
+
+          {invoices.length > 0 ? (
+            <div className="invoice-layout">
+              <div className="invoice-list" role="list">
+                {invoices.map((invoice) => (
+                  <button
+                    key={invoice.id}
+                    className={`invoice-list-item${selectedInvoiceId === invoice.id ? ' selected' : ''}`}
+                    onClick={() => setSelectedInvoiceId(invoice.id)}
+                    type="button"
+                  >
+                    <div>
+                      <strong>{invoice.invoiceNumber}</strong>
+                      <span>{invoice.clientName}</span>
+                    </div>
+                    <div className="invoice-list-meta">
+                      <span className={`invoice-status ${statusClassName[invoice.status]}`}>{t(statusLabelKey[invoice.status])}</span>
+                      <span>{formatMoneyMinor(invoice.totalMinor, invoice.currency, locale)}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {selectedInvoice ? (
+                <article className="invoice-detail">
               <header className="invoice-detail-header">
                 <div>
                   <h3>{selectedInvoice.invoiceNumber}</h3>
@@ -672,12 +682,14 @@ export function InvoicePanel({
                 </button>
               </div>
               {exportError ? <p className="form-error">{exportError}</p> : null}
-            </article>
-          ) : (
-            <p className="empty-state">{t('invoiceSelectOne')}</p>
-          )}
+                </article>
+              ) : (
+                <p className="panel-empty-state">{t('invoiceSelectOne')}</p>
+              )}
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
     </section>
   );
 }
