@@ -179,6 +179,15 @@ describe('App', () => {
     expect(window.localStorage.getItem('leotime.nav')).toBe('bottom-tabs');
   });
 
+  test('renders responsive shell navigation landmarks', async () => {
+    renderApp();
+
+    await screen.findByRole('heading', { name: 'Time Tracker' });
+    expect(screen.getByRole('navigation', { name: 'Navegacion' })).toBeInTheDocument();
+    expect(document.querySelector('.mobile-bottom-nav')).toBeTruthy();
+    expect(document.querySelector('.shell-sidebar')).toBeTruthy();
+  });
+
   test('renders the time report panel', async () => {
     renderApp();
     await goTo('overview');
@@ -517,7 +526,7 @@ async function goTo(route: string) {
   }
 
   const link = document.querySelector(
-    `.sidebar-nav a[href="#${normalized}"], .sidebar-footer a[href="#${normalized}"]`,
+    `.sidebar-nav a[href="#${normalized}"], .sidebar-footer a[href="#${normalized}"], .mobile-bottom-nav a[href="#${normalized}"], .mobile-nav-more-panel a[href="#${normalized}"]`,
   );
   expect(link).toBeTruthy();
   fireEvent.click(link!);

@@ -71,7 +71,7 @@ All MVP slices in the original plan are complete.
 
 | Item | ADR / spec | Current behavior |
 | --- | --- | --- |
-| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Sprint 3 selector [complete](25-theme-selector.md); shell/nav redesign in Sprint 4+ |
+| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Sprint 4 shell/nav [complete](25-theme-selector.md); timer redesign in Sprint 5+ |
 
 ## Recently delivered
 
@@ -80,17 +80,17 @@ All MVP slices in the original plan are complete.
 | Billing documents + official PDFs | [ADR 0004](adr/0004-billing-documents-official-pdfs.md), [32-billing-documents.md](32-billing-documents.md) | [23-invoices-api.md](23-invoices-api.md); document-aware backups in [31-s3-daily-backups.md](31-s3-daily-backups.md) |
 | UI/UX Sprint 1 visual audit | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [24 responsive baselines and prioritized findings](36-ui-ux-visual-audit.md) |
 | UI/UX Sprint 3 experience selector | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Preset/nav controls and local persistence](25-theme-selector.md) |
+| UI/UX Sprint 4 shell navigation | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Responsive shell components and bottom nav](25-theme-selector.md) |
 
 Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-Start **UI/UX Sprint 4: shell and navigation** from the
+Start **UI/UX Sprint 5: timer and quick capture** from the
 [approved design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md),
-building on the [Sprint 3 selector](25-theme-selector.md). Limit the slice to
-responsive shell components (`SidebarNav`, compact sidebar, topbar, bottom nav)
-without breaking hash routes, timer access, settings, language, offline status,
-or logout.
+building on the [Sprint 4 shell](25-theme-selector.md). Limit the slice to timer
+start/stop, start-time editing, and manual-entry flow improvements on desktop,
+tablet, and mobile without changing backend rules.
 
 ## Quality Gates By Slice
 

@@ -30,7 +30,7 @@ Sprint 3 exposes the full experience contract in the toolbar and profile setting
 | `mobile-flow` | `light` | `compact` | `bottom-tabs` |
 | `solidtime-exact` | `solid` | `solid` | `sidebar` |
 
-Selecting a preset applies all three dimensions. Changing theme, layout, or navigation independently sets `custom`. Shell behavior for `sidebar-compact` and `bottom-tabs` remains a Sprint 4 concern; Sprint 3 only sets root attributes and persistence.
+Selecting a preset applies all three dimensions. Changing theme, layout, or navigation independently sets `custom`. Shell layout behavior for `sidebar-compact` and `bottom-tabs` is implemented in Sprint 4: compact sidebar on desktop and bottom navigation on tablet/mobile.
 
 ## Themes
 
@@ -46,6 +46,9 @@ Layout density remains separate under `leotime.layout` (`solid`, `minimal`, `com
 ## UI
 
 - `ExperienceSwitcher` in the Time Tracker toolbar and profile preferences section.
+- `ShellSidebar`, `SidebarNav`, `ShellTopbar`, and `MobileBottomNav` in `apps/web/src/features/shell/`.
+- At `max-width: 980px`, the sidebar link grid is hidden and a fixed bottom tab bar plus a More overflow menu handle navigation (UXA-001).
+- `data-nav='sidebar-compact'` uses an 84px icon rail on desktop.
 - Sets `data-theme`, `data-layout`, `data-nav`, and `data-preset` on `document.documentElement`.
 - Updates the mobile `theme-color` meta tag.
 
@@ -54,6 +57,7 @@ Layout density remains separate under `leotime.layout` (`solid`, `minimal`, `com
 | Layer | Location |
 | --- | --- |
 | Experience switcher UI | `apps/web/src/lib/experienceUi.tsx` |
+| Shell navigation | `apps/web/src/features/shell/` |
 | Theme buttons | `apps/web/src/lib/themeUi.tsx` |
 | Experience state and root attributes | `apps/web/src/lib/experience.ts` |
 | App wiring | `apps/web/src/App.tsx` |

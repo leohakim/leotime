@@ -1,20 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  BarChart3,
-  Building2,
-  CalendarDays,
-  ChevronDown,
-  Clock3,
-  FileText,
-  FolderKanban,
-  Import,
-  Languages,
-  LayoutDashboard,
-  ListTodo,
-  LogOut,
-  Settings,
-  Tags,
-} from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import {
   fetchClients,
@@ -34,24 +18,21 @@ import { ClientPanel } from '../clients/ClientPanel';
 import { ProjectPanel } from '../projects/ProjectPanel';
 import { TagPanel } from '../tags/TagPanel';
 import { TaskPanel } from '../tasks/TaskPanel';
-import { LeotimeMark } from '../../lib/leotimeLogo';
 import {
   AppRoute,
-  routeHref,
   routeShowsTimerBar,
   routeUsesTimesheetEntries,
   useAppRoute,
 } from '../../lib/appRoutes';
 import { ProfileSettingsPanel } from '../../lib/profileSettingsUi';
 import { BackupSettingsPanel } from '../../lib/backupSettingsUi';
-import { initials, QueryErrorBanner } from '../../lib/crudFormUi';
+import { QueryErrorBanner } from '../../lib/crudFormUi';
 import {
   patchTimeEntriesCache,
   refreshOverviewIfOnline,
   removeTimerFromCache,
 } from '../../lib/offline/cache';
 import { useOfflineStatus } from '../../lib/offline/offlineContext';
-import { OfflineStatusPill } from '../../lib/offline/offlineStatusUi';
 import { resetOfflineStorage } from '../../lib/offline/db';
 import { isLocalId, stopTimer } from '../../lib/offline/mutations';
 import { CalendarPanel } from '../../lib/calendarUi';
@@ -61,7 +42,7 @@ import { InvoicePanel } from '../../lib/invoiceUi';
 import { addMonths, endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from '../../lib/calendarMonth';
 import { TimeReportPanel } from '../../lib/reportUi';
 import { ManualTimeEntryPanel, TimeEntriesList } from '../../lib/timeEntryUi';
-import { SidebarTimer, TimerCommandRow } from '../../lib/timerUi';
+import { TimerCommandRow } from '../../lib/timerUi';
 import {
   addWeeks,
   MANUAL_ENTRY_DIRECTORY_DAYS,
@@ -72,7 +53,9 @@ import {
 } from '../../lib/timesheetWeek';
 import { usePersistentState } from '../../lib/persistentState';
 import type { ExperiencePreset, NamedExperiencePreset, NavigationMode } from '../../lib/experience';
-import { ExperienceSwitcher } from '../../lib/experienceUi';
+import { MobileBottomNav } from './MobileBottomNav';
+import { ShellSidebar } from './ShellSidebar';
+import { ShellTopbar } from './ShellTopbar';
 import { PlaceholderPage } from '../../lib/placeholderPageUi';
 import type { Translator } from '../../lib/translator';
 import { toastMutationSuccess, useToast } from '../../lib/toast';
@@ -129,10 +112,6 @@ function routePageTitle(route: AppRoute, t: Translator): string {
     default:
       return t('timeTracker');
   }
-}
-
-function isReportingRoute(route: AppRoute): boolean {
-  return route === 'overview' || route === 'detailed';
 }
 
 export function DashboardShell({
@@ -266,119 +245,33 @@ export function DashboardShell({
   });
 
   return (
-    <div className={`app-shell layout-${layoutMode}`}>
-      <aside className="sidebar" aria-label="Primary">
-        <div className="org-switcher">
-          <LeotimeMark className="org-avatar-logo" size={30} title="leotime" />
-          <span>{t('organizationName')}</span>
-          <ChevronDown aria-hidden="true" />
-        </div>
+    <div className={`app-shell layout-${layoutMode} shell-nav-${navigationMode}`}>
+      <ShellSidebar
+        activeTimer={activeTimer}
+        locale={locale}
+        navigate={navigate}
+        onStop={(timeEntryId) => stopTimerMutation.mutate(timeEntryId)}
+        route={route}
+        setLocale={setLocale}
+        stoppingTimerId={stopTimerMutation.isPending ? (stopTimerMutation.variables ?? null) : null}
+        t={t}
+        userName={userName}
+      />
 
-        <SidebarTimer
-          activeTimer={activeTimer}
-          onStop={(timeEntryId) => stopTimerMutation.mutate(timeEntryId)}
-          stoppingTimerId={stopTimerMutation.isPending ? (stopTimerMutation.variables ?? null) : null}
+      <main className="workspace shell-workspace">
+        <ShellTopbar
+          layoutMode={layoutMode}
+          navigationMode={navigationMode}
+          onApplyExperiencePreset={onApplyExperiencePreset}
+          onLogout={() => logoutMutation.mutate()}
+          pageTitle={routePageTitle(route, t)}
+          preset={preset}
+          setLayoutMode={setLayoutMode}
+          setNavigationMode={setNavigationMode}
+          setThemeMode={setThemeMode}
+          themeMode={themeMode}
           t={t}
         />
-
-        <nav className="sidebar-nav">
-          <a className={route === 'dashboard' ? 'active' : ''} href={routeHref('dashboard')} onClick={(event) => { event.preventDefault(); navigate('dashboard'); }}>
-            <LayoutDashboard aria-hidden="true" />
-            {t('dashboard')}
-          </a>
-          <a className={route === 'timesheet' ? 'active' : ''} href={routeHref('timesheet')} onClick={(event) => { event.preventDefault(); navigate('timesheet'); }}>
-            <Clock3 aria-hidden="true" />
-            {t('time')}
-          </a>
-          <a className={route === 'calendar' ? 'active' : ''} href={routeHref('calendar')} onClick={(event) => { event.preventDefault(); navigate('calendar'); }}>
-            <CalendarDays aria-hidden="true" />
-            {t('calendar')}
-          </a>
-          <a className={`nav-parent${isReportingRoute(route) ? ' active' : ''}`} href={routeHref('overview')} onClick={(event) => { event.preventDefault(); navigate('overview'); }}>
-            <BarChart3 aria-hidden="true" />
-            {t('reporting')}
-            <ChevronDown aria-hidden="true" />
-          </a>
-          <div className="nav-children" aria-label={t('reporting')}>
-            <a className={route === 'overview' ? 'active' : ''} href={routeHref('overview')} onClick={(event) => { event.preventDefault(); navigate('overview'); }}>
-              {t('reporting')}
-            </a>
-            <a className={route === 'detailed' ? 'active' : ''} href={routeHref('detailed')} onClick={(event) => { event.preventDefault(); navigate('detailed'); }}>
-              {t('detailed')}
-            </a>
-          </div>
-
-          <span className="nav-section-label">{t('manage')}</span>
-          <a className={route === 'projects' ? 'active' : ''} href={routeHref('projects')} onClick={(event) => { event.preventDefault(); navigate('projects'); }}>
-            <FolderKanban aria-hidden="true" />
-            {t('projects')}
-          </a>
-          <a className={route === 'tasks' ? 'active' : ''} href={routeHref('tasks')} onClick={(event) => { event.preventDefault(); navigate('tasks'); }}>
-            <ListTodo aria-hidden="true" />
-            {t('tasks')}
-          </a>
-          <a className={route === 'clients' ? 'active' : ''} href={routeHref('clients')} onClick={(event) => { event.preventDefault(); navigate('clients'); }}>
-            <Building2 aria-hidden="true" />
-            {t('clients')}
-          </a>
-          <a className={route === 'tags' ? 'active' : ''} href={routeHref('tags')} onClick={(event) => { event.preventDefault(); navigate('tags'); }}>
-            <Tags aria-hidden="true" />
-            {t('tags')}
-          </a>
-
-          <span className="nav-section-label">{t('admin')}</span>
-          <a className={route === 'import-export' ? 'active' : ''} href={routeHref('import-export')} onClick={(event) => { event.preventDefault(); navigate('import-export'); }}>
-            <Import aria-hidden="true" />
-            {t('importExport')}
-          </a>
-          <a className={route === 'invoices' ? 'active' : ''} href={routeHref('invoices')} onClick={(event) => { event.preventDefault(); navigate('invoices'); }}>
-            <FileText aria-hidden="true" />
-            {t('invoices')}
-          </a>
-          <a className={route === 'settings' ? 'active' : ''} href={routeHref('settings')} onClick={(event) => { event.preventDefault(); navigate('settings'); }}>
-            <Settings aria-hidden="true" />
-            {t('settings')}
-          </a>
-        </nav>
-
-        <div className="sidebar-footer">
-          <button type="button" title={t('language')} onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}>
-            <Languages aria-hidden="true" />
-          </button>
-          <a className={route === 'profile' ? 'active' : ''} href={routeHref('profile')} onClick={(event) => { event.preventDefault(); navigate('profile'); }}>
-            <Settings aria-hidden="true" />
-            {t('profileSettings')}
-          </a>
-          <div className="profile-avatar" aria-hidden="true">
-            {initials(userName)}
-          </div>
-        </div>
-      </aside>
-
-      <main className="workspace">
-        <header className="tracker-topbar">
-          <div className="tracker-title">
-            <LeotimeMark size={18} />
-            <h1>{routePageTitle(route, t)}</h1>
-          </div>
-          <div className="toolbar">
-            <OfflineStatusPill t={t} />
-            <ExperienceSwitcher
-              layoutMode={layoutMode}
-              navigationMode={navigationMode}
-              onApplyPreset={onApplyExperiencePreset}
-              preset={preset}
-              setLayoutMode={setLayoutMode}
-              setNavigationMode={setNavigationMode}
-              setThemeMode={setThemeMode}
-              themeMode={themeMode}
-              t={t}
-            />
-            <button type="button" title={t('logout')} onClick={() => logoutMutation.mutate()}>
-              <LogOut aria-hidden="true" />
-            </button>
-          </div>
-        </header>
 
         <div className="page-content">
           {routeShowsTimerBar(route) ? (
@@ -545,6 +438,8 @@ export function DashboardShell({
           ) : null}
         </div>
       </main>
+
+      <MobileBottomNav locale={locale} navigate={navigate} route={route} setLocale={setLocale} t={t} userName={userName} />
     </div>
   );
 }
