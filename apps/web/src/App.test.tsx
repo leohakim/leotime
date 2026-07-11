@@ -265,6 +265,31 @@ describe('App', () => {
     expect(screen.getByRole('grid', { name: 'Calendario' })).toBeInTheDocument();
   });
 
+  test('shows calendar day entries for the selected day', async () => {
+    const now = new Date();
+    const startedAt = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+    const endedAt = now.toISOString();
+    timeEntriesMock = [
+      buildTimeEntryMock(
+        'ten_calendar_1',
+        { description: 'Client review', projectId: 'prj_1' },
+        {
+          project: projectsMock[0],
+          startedAt,
+          endedAt,
+          durationSeconds: 3600,
+          source: 'manual',
+        },
+      ),
+    ];
+
+    renderApp();
+    await goTo('calendar');
+
+    const dayEntries = await screen.findByRole('table', { name: 'Entradas del dia' });
+    expect(within(dayEntries).getByDisplayValue('Client review')).toBeInTheDocument();
+  });
+
   test('switches language', async () => {
     renderApp();
 

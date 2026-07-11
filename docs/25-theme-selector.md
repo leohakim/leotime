@@ -64,6 +64,14 @@ Sprint 6 improves mobile scanning for the weekly timesheet (UXA-004):
 - **Editar** expands the existing inline editor; **Listo** collapses back to summary.
 - Desktop keeps always-inline editing.
 
+## Dashboard and calendar
+
+Sprint 7 improves tablet layout for the overview and calendar (UXA-003):
+
+- Below `980px`, `.dashboard-top-grid` and `.dashboard-week-layout` stack to one column.
+- Activity heatmap month navigation wraps without clipping; donut legend stacks under the chart.
+- Calendar/timesheet `.time-list-toolbar` stacks week/month controls instead of squeezing three columns.
+
 ## UI
 
 - `ExperienceSwitcher` in the Time Tracker toolbar and profile preferences section.

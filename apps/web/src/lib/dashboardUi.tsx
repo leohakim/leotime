@@ -211,7 +211,7 @@ function ActivityGraphCard({
 
   return (
     <div className="dashboard-card dashboard-activity-card">
-      <div className="dashboard-card-header">
+      <div className="dashboard-card-header dashboard-activity-header">
         <h3>{t('dashboardActivityGraph')}</h3>
         <div className="dashboard-month-nav">
           <button aria-label={t('previousMonth')} onClick={onPreviousMonth} type="button">

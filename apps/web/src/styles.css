@@ -1806,6 +1806,7 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
 .dashboard-panel {
   display: grid;
   gap: 16px;
+  min-width: 0;
 }
 
 .dashboard-loading {
@@ -1825,10 +1826,12 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   display: flex;
   gap: 12px;
   justify-content: space-between;
+  min-width: 0;
 }
 
 .dashboard-card-header h3 {
   margin: 0;
+  min-width: 0;
 }
 
 .dashboard-month-nav {
@@ -1840,7 +1843,7 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
 .dashboard-month-nav span {
   color: #ececf0;
   font-size: var(--text-sm);
-  min-width: 120px;
+  min-width: 0;
   text-align: center;
 }
 
@@ -1880,6 +1883,7 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   flex-direction: column;
   gap: 14px;
   min-height: 220px;
+  min-width: 0;
   padding: 18px;
 }
 
@@ -2553,6 +2557,10 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   min-height: 34px;
   padding: 0 14px;
   width: auto;
+}
+
+.calendar-panel {
+  min-width: 0;
 }
 
 .calendar-toolbar {
@@ -3964,6 +3972,69 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   .manual-entry-button {
     width: 100%;
   }
+
+  .time-list-toolbar {
+    grid-template-columns: 1fr;
+    padding-inline: 12px;
+  }
+
+  .week-nav {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .week-summary {
+    justify-content: center;
+  }
+
+  .calendar-day {
+    min-height: 76px;
+  }
+
+  .calendar-day-count {
+    display: none;
+  }
+
+  .calendar-day-detail-header {
+    padding-inline: 14px;
+  }
+
+  .dashboard-top-grid,
+  .dashboard-week-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-card-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-month-nav {
+    margin-left: auto;
+    max-width: 100%;
+  }
+
+  .dashboard-activity-header {
+    row-gap: 10px;
+  }
+
+  .dashboard-activity-header h3 {
+    flex: 1 1 auto;
+  }
+
+  .dashboard-fill-card,
+  .dashboard-activity-card {
+    min-height: auto;
+  }
+
+  .dashboard-donut-wrap {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .dashboard-donut-legend {
+    width: 100%;
+  }
 }
 
 @media (max-width: 760px) {
@@ -3982,7 +4053,7 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   }
 
   .time-list-toolbar {
-    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .week-nav {
@@ -3998,16 +4069,7 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
     padding: 6px;
   }
 
-  .calendar-day-count {
-    display: none;
-  }
-
   .report-form {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard-top-grid,
-  .dashboard-week-layout {
     grid-template-columns: 1fr;
   }
 

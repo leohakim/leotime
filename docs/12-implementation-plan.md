@@ -71,7 +71,7 @@ All MVP slices in the original plan are complete.
 
 | Item | ADR / spec | Current behavior |
 | --- | --- | --- |
-| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Sprint 6 timesheet [complete](25-theme-selector.md); calendar/dashboard in Sprint 7+ |
+| UI/UX experience themes | [Design spec](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | Sprint 7 calendar/dashboard [complete](25-theme-selector.md); reports/invoices in Sprint 8+ |
 
 ## Recently delivered
 
@@ -83,16 +83,16 @@ All MVP slices in the original plan are complete.
 | UI/UX Sprint 4 shell navigation | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Responsive shell components and bottom nav](25-theme-selector.md) |
 | UI/UX Sprint 5 timer quick capture | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Manual entry scroll, sticky editor, timer capture bar](25-theme-selector.md) |
 | UI/UX Sprint 6 weekly timesheet | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Compact summary rows and expand-to-edit on mobile](25-theme-selector.md) |
+| UI/UX Sprint 7 calendar dashboard | [Experience design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md) | [Tablet dashboard stacking and calendar toolbar layout](25-theme-selector.md) |
 
 Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-Start **UI/UX Sprint 7: calendar and dashboard** from the
+Start **UI/UX Sprint 8: reports and invoices** from the
 [approved design](superpowers/specs/2026-07-08-ui-ux-experience-themes-design.md),
-building on the [Sprint 6 timesheet rows](25-theme-selector.md). Limit the slice to
-calendar legibility, day detail, and dashboard card clarity without changing
-backend rules.
+building on the [Sprint 7 calendar/dashboard layout](25-theme-selector.md). Limit the slice to
+report preview hierarchy and invoice form clarity without changing backend rules.
 
 ## Quality Gates By Slice
 
