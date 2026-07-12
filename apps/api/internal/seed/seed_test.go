@@ -34,6 +34,20 @@ func TestSeedCreatesDemoData(t *testing.T) {
 	}
 }
 
+func TestNewWithNowPinsSeedTimeline(t *testing.T) {
+	ctx := context.Background()
+	st, user := newSeedTestStore(t, ctx)
+
+	fixed := time.Date(2026, 7, 11, 12, 0, 0, 0, time.UTC)
+	summary, err := NewWithNow(st, func() time.Time { return fixed }).Run(ctx, Options{UserID: user.ID})
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	if summary.Status != "seeded" {
+		t.Fatalf("expected seeded status, got %+v", summary)
+	}
+}
+
 func TestSeedSkipsWhenDataExists(t *testing.T) {
 	ctx := context.Background()
 	st, user := newSeedTestStore(t, ctx)

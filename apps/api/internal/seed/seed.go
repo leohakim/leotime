@@ -40,6 +40,12 @@ func New(st *store.Store) *Service {
 	}
 }
 
+func NewWithNow(st *store.Store, now func() time.Time) *Service {
+	service := New(st)
+	service.now = now
+	return service
+}
+
 func (s *Service) Run(ctx context.Context, opts Options) (*Summary, error) {
 	if opts.UserID == "" {
 		return nil, fmt.Errorf("user id is required")

@@ -10,7 +10,9 @@
     "test": "vitest --config vitest.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:audit": "playwright test --config playwright.audit.config.ts",
-    "test:e2e:audit:smoke": "playwright test --config playwright.audit.config.ts accessibility-audit.spec.ts"
+    "test:e2e:audit:smoke": "playwright test --config playwright.audit.config.ts accessibility-audit.spec.ts",
+    "test:e2e:visual-regression": "playwright test --config playwright.visual-regression.config.ts",
+    "test:e2e:visual-regression:update": "playwright test --config playwright.visual-regression.config.ts --update-snapshots"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.12",

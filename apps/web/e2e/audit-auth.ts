@@ -4,6 +4,8 @@ import { dirname, join } from 'node:path';
 
 export const auditAuthFile = join(process.cwd(), 'e2e/.auth/audit-owner.json');
 
+export const visualRegressionNow = '2026-07-11T12:00:00Z';
+
 export const emptyStorageState = { cookies: [] as [], origins: [] as [] };
 
 export async function signIn(page: Page) {

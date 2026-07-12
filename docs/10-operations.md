@@ -78,6 +78,7 @@ Behavior:
 - **Skipped** when the database already has clients (safe to run repeatedly).
 - **Seeded** on an empty database: 2 clients, 3 projects, 4 tasks, 3 tags, ~30 time entries, 1 open timer.
 - `--force` returns an error if data already exists; use a fresh database or delete existing rows first.
+- Optional `LEOTIME_SEED_NOW` (RFC3339) pins the demo timeline for reproducible UI screenshots and visual regression.
 
 Docker:
 

@@ -102,6 +102,14 @@ audit-ui-smoke: ## 🔍 Run UI accessibility audit smoke (CI-friendly)
 	@printf "🔍 Running UI accessibility audit smoke...\n"
 	npm --workspace @leotime/web run test:e2e:audit:smoke
 
+audit-ui-regression: ## 🖼️ Compare UI against committed Playwright snapshots
+	@printf "🖼️ Running UI visual regression...\n"
+	npm --workspace @leotime/web run test:e2e:visual-regression
+
+audit-ui-regression-update: ## 🖼️ Refresh committed UI visual regression snapshots
+	@printf "🖼️ Updating UI visual regression snapshots...\n"
+	npm --workspace @leotime/web run test:e2e:visual-regression:update
+
 build-web: ## 📦 Build frontend assets
 	@printf "📦 Building web app...\n"
 	npm --workspace @leotime/web run build

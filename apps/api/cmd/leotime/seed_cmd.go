@@ -50,10 +50,16 @@ func runSeedCommand(ctx context.Context, args []string) error {
 		return fmt.Errorf("load seed user %q: %w", email, err)
 	}
 
-	summary, err := seed.New(st).Run(ctx, seed.Options{
-		UserID: user.ID,
-		Force:  *force,
-	})
+	summary, err := func() (*seed.Summary, error) {
+		service, err := seedServiceForCommand(st)
+		if err != nil {
+			return nil, err
+		}
+		return service.Run(ctx, seed.Options{
+			UserID: user.ID,
+			Force:  *force,
+		})
+	}()
 	if err != nil {
 		return err
 	}

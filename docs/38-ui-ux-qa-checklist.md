@@ -11,6 +11,7 @@ states after the ten-sprint UI/UX roadmap.
 | E2E product flows | `make test-e2e` | Authenticated CRUD, timer, navigation smoke |
 | Visual + a11y audit | `make audit-ui` | Screenshots at `1440`, `834`, `390` plus accessibility smoke |
 | CI accessibility smoke | `make audit-ui-smoke` | Shared-session Playwright checks without regenerating JPEG evidence |
+| Visual regression | `make audit-ui-regression` | PNG snapshot diff for login, timesheet, and dashboard |
 
 Audit screenshots land in `docs/assets/ui-audit/<date>/` (JPEG, full page). Re-run
 after layout changes and commit refreshed assets when the visual baseline should

@@ -59,6 +59,7 @@ All authenticated routes use cookie sessions unless noted. Error envelope: [API 
 | [Theme selector](25-theme-selector.md) | Palettes and persistence |
 | [Experience presets](37-experience-presets.md) | Named preset catalog and SolidTime Exact reference |
 | [UI/UX QA checklist](38-ui-ux-qa-checklist.md) | Responsive, visual, and accessibility gates after the UI/UX roadmap |
+| [Visual regression](39-visual-regression.md) | Playwright PNG snapshot baselines and update workflow |
 | [Solidtime-like theme](15-solidtime-theme.md) | Default visual language |
 | [UI/UX visual audit](36-ui-ux-visual-audit.md) | Responsive baseline and prioritized friction map for the experience-theme roadmap |
 | [Offline queue MVP](27-offline-queue-mvp.md) | Browser offline behavior |
