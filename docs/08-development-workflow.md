@@ -17,6 +17,8 @@ Django tests         go test ./...
 
 Go does less implicit wiring. That is good for this project because the code should be easy to follow.
 
+**New contributors:** start with the [Contributor tutorial](40-contributor-tutorial.md) (Spanish, Django/Python audience) for a guided first endpoint exercise before reading the rest of this file cover to cover.
+
 ## Adding A Backend Feature
 
 Example: adding clients.

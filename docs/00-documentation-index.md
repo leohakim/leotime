@@ -11,6 +11,7 @@ Reading order for new contributors and operators.
 | [Known gaps and audit](34-known-gaps-and-audit.md) | Open bugs, limitations, and hardening backlog |
 | [Curated hardening backlog](35-curated-hardening-backlog.md) | Current implementation queue with acceptance tests and gates |
 | [Development workflow](08-development-workflow.md) | Day-to-day commands and mental model |
+| [Contributor tutorial](40-contributor-tutorial.md) | First PR walkthrough for Django/Python readers (Spanish) |
 | [Operations](10-operations.md) | Docker, backups, seed, metrics, smoke |
 | [VPS deployment](06-deploy-vps.md) | Production deploy checklist |
 

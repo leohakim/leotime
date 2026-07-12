@@ -20,7 +20,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | **3** | ADR 0004 billing documents (official PDFs, fiscal series, Work Protocol) | **Done** |
 | **4** | Product polish (remaining audit medium/low items) | **Done** |
 | **5** | UI/UX experience themes (10-sprint design spec) | **Done** |
-| **6** | Tooling (visual regression, contributor tutorial) | **Partial** — regression done; tutorial backlog |
+| **6** | Tooling (visual regression, contributor tutorial) | **Done** |
 | **7** | Curated hardening (billing, data, import, restore, production, UX) | **Done** |
 
 See the [curated hardening backlog](35-curated-hardening-backlog.md) for the current H-* queue. The IDs in [Known gaps and audit](34-known-gaps-and-audit.md) are historical findings and fix records.
@@ -159,13 +159,13 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | Done | CI pipeline | GitHub Actions: tests, build, Docker, smoke |
 | Done | Phase 2 UX/API coherence | ApiError helpers, taskProjectRequired, offline flush, profile fields, query error banners |
 | Done | Curated hardening | H-INV-01 through H-UX-08 in [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md) |
-| Done | Visual regression checks | `make audit-ui-regression` + committed PNG baselines; contributor tutorial still backlog |
-| Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers |
+| Done | Visual regression checks | `make audit-ui-regression` + committed PNG baselines |
+| Done | Contributor tutorial | [First-issue walkthrough for Django/Python readers](40-contributor-tutorial.md) |
 
 ## Documentation Backlog
 
 | Status | Item | Notes |
 | --- | --- | --- |
 | Done | Product vision through MVP audit | See [00-documentation-index.md](00-documentation-index.md) and [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md) |
+| Done | Contributor tutorial | [40-contributor-tutorial.md](40-contributor-tutorial.md) |
 | Done | Phase 0 env vars | `.env.example` (`LEOTIME_ENV`, `LEOTIME_METRICS_TOKEN`) |
-| Backlog | Contributor tutorial | First issue walkthrough for Django/Python readers |

@@ -4,6 +4,8 @@
 
 The project is being built as an open-source learning-friendly codebase for people coming from Python/Django who want to understand a Go API, a React frontend, SQLite, Docker-first deployment, and a test-heavy workflow.
 
+**New contributors:** read [docs/40-contributor-tutorial.md](docs/40-contributor-tutorial.md) for a detailed Spanish walkthrough from Django concepts to your first Go endpoint and PR.
+
 ## MVP Status (2026-07-11)
 
 **The single-owner MVP is delivered.** Billing documents and official PDFs are partially implemented and usable through the current invoice workflow. Before trusting production data, follow the [curated hardening backlog](docs/35-curated-hardening-backlog.md), which supersedes the ordering in the historical audit.
