@@ -58,6 +58,7 @@ export function ShellTopbar({
         </div>
         <button
           aria-expanded={experienceOpen}
+          aria-label={t('experience')}
           className="shell-toolbar-menu-button"
           onClick={() => setExperienceOpen((open) => !open)}
           title={t('experience')}
@@ -66,7 +67,7 @@ export function ShellTopbar({
           <MoreHorizontal aria-hidden="true" />
           <span>{t('experience')}</span>
         </button>
-        <button type="button" title={t('logout')} onClick={onLogout}>
+        <button aria-label={t('logout')} className="shell-toolbar-logout-button" onClick={onLogout} title={t('logout')} type="button">
           <LogOut aria-hidden="true" />
         </button>
       </div>

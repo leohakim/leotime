@@ -93,6 +93,7 @@ Sprint 9 polishes the six named presets and the login entry screen (UXA-009):
 - `ExperienceSwitcher` in the Time Tracker toolbar and profile preferences section.
 - `ShellSidebar`, `SidebarNav`, `ShellTopbar`, and `MobileBottomNav` in `apps/web/src/features/shell/`.
 - At `max-width: 980px`, the sidebar link grid is hidden and a fixed bottom tab bar plus a More overflow menu handle navigation (UXA-001).
+- At the same breakpoint, shell toolbar logout and experience controls use `44px` minimum targets and labeled buttons (UXA-005).
 - `data-nav='sidebar-compact'` uses an 84px icon rail on desktop.
 - Sets `data-theme`, `data-layout`, `data-nav`, and `data-preset` on `document.documentElement`.
 - Updates the mobile `theme-color` meta tag.

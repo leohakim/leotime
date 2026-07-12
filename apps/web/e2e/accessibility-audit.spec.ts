@@ -53,4 +53,19 @@ test.describe('authenticated shell', () => {
     await expect(sectionNav.getByRole('button', { name: 'Seguridad', exact: true })).toBeVisible();
     await expect(sectionNav.getByRole('button', { name: 'Copias de seguridad S3', exact: true })).toBeVisible();
   });
+
+  test('toolbar controls meet touch target size on narrow viewports', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'desktop-1440', 'Touch targets expand below 980px');
+
+    await openAuthenticatedRoute(page, 'timesheet');
+
+    const logout = page.getByRole('button', { name: /salir|log out/i });
+    const experience = page.getByRole('button', { name: /experiencia|experience/i });
+
+    for (const control of [logout, experience]) {
+      const box = await control.boundingBox();
+      expect(box?.width).toBeGreaterThanOrEqual(44);
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+    }
+  });
 });

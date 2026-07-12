@@ -92,9 +92,10 @@ Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-The UI/UX experience-themes ten-sprint roadmap is complete. Remaining visual-audit
-items include UXA-005 (toolbar touch targets). Pick the next slice from
-[13-backlog.md](13-backlog.md) or [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md).
+The UI/UX experience-themes ten-sprint roadmap is complete and all `UXA-*`
+findings from the visual audit are addressed. Pick the next slice from
+[13-backlog.md](13-backlog.md) (Phase 6 tooling) or
+[35-curated-hardening-backlog.md](35-curated-hardening-backlog.md).
 
 ## Quality Gates By Slice
 

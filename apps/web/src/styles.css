@@ -817,7 +817,9 @@ a:focus-visible {
 }
 
 .shell-toolbar-menu-button {
+  align-items: center;
   display: none;
+  gap: 6px;
 }
 
 .shell-toolbar-drawer {
@@ -4252,6 +4254,17 @@ html[data-preset='solidtime-exact'] {
 
   .shell-toolbar-menu-button {
     display: inline-flex;
+  }
+
+  .shell-toolbar > button,
+  .shell-toolbar-drawer .segmented-control button {
+    min-height: var(--target-min);
+    min-width: var(--target-min);
+  }
+
+  .shell-toolbar > .shell-toolbar-menu-button {
+    padding-inline: 12px;
+    width: auto;
   }
 
   .shell-topbar:has(.shell-toolbar-drawer) .shell-toolbar-drawer {
