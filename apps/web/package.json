@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest --config vitest.config.ts",
     "test:e2e": "playwright test",
-    "test:e2e:audit": "playwright test --config playwright.audit.config.ts"
+    "test:e2e:audit": "playwright test --config playwright.audit.config.ts",
+    "test:e2e:audit:smoke": "playwright test --config playwright.audit.config.ts accessibility-audit.spec.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.12",

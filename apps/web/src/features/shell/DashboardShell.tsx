@@ -26,6 +26,7 @@ import {
 } from '../../lib/appRoutes';
 import { ProfileSettingsPanel } from '../../lib/profileSettingsUi';
 import { BackupSettingsPanel } from '../../lib/backupSettingsUi';
+import { SettingsSectionNav } from '../../lib/settingsSectionNavUi';
 import { QueryErrorBanner } from '../../lib/crudFormUi';
 import {
   patchTimeEntriesCache,
@@ -418,7 +419,8 @@ export function DashboardShell({
           {route === 'import-export' ? <ImportExportPanel t={t} /> : null}
 
           {route === 'settings' || route === 'profile' ? (
-            <>
+            <div className="settings-workbench">
+              <SettingsSectionNav t={t} />
               <ProfileSettingsPanel
                 focusSection={route === 'settings' ? 'settings' : undefined}
                 layoutMode={layoutMode}
@@ -434,7 +436,7 @@ export function DashboardShell({
                 user={user}
               />
               <BackupSettingsPanel t={t} />
-            </>
+            </div>
           ) : null}
         </div>
       </main>

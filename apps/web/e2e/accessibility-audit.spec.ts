@@ -37,4 +37,20 @@ test.describe('authenticated shell', () => {
 
     await expect(page.locator('.surface-feedback-loading, .dashboard-top-grid').first()).toBeVisible();
   });
+
+  test('profile settings exposes section jump navigation', async ({ page }, testInfo) => {
+    await openAuthenticatedRoute(page, 'profile');
+
+    const sectionNav = page.locator('.settings-section-nav');
+    await expect(sectionNav).toBeAttached();
+
+    if (testInfo.project.name === 'desktop-1440') {
+      await expect(sectionNav).toBeHidden();
+      return;
+    }
+
+    await expect(sectionNav).toBeVisible();
+    await expect(sectionNav.getByRole('button', { name: 'Seguridad', exact: true })).toBeVisible();
+    await expect(sectionNav.getByRole('button', { name: 'Copias de seguridad S3', exact: true })).toBeVisible();
+  });
 });

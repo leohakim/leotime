@@ -98,6 +98,10 @@ audit-ui: ## 📸 Capture UI screenshots and accessibility smoke checks
 	@printf "📸 Running UI audit (visual + accessibility)...\n"
 	npm --workspace @leotime/web run test:e2e:audit
 
+audit-ui-smoke: ## 🔍 Run UI accessibility audit smoke (CI-friendly)
+	@printf "🔍 Running UI accessibility audit smoke...\n"
+	npm --workspace @leotime/web run test:e2e:audit:smoke
+
 build-web: ## 📦 Build frontend assets
 	@printf "📦 Building web app...\n"
 	npm --workspace @leotime/web run build

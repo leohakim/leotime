@@ -359,7 +359,7 @@ export function ProfileSettingsPanel({
 
       <div className="profile-settings-grid">
         <form className="client-editor profile-settings-form" noValidate onSubmit={submitProfile}>
-          <div className="editor-header">
+          <div className="editor-header" id="profile-section-account">
             <div>
               <span>{t('profileAccountSection')}</span>
               <h3>{t('profileAccountHeading')}</h3>
@@ -478,7 +478,7 @@ export function ProfileSettingsPanel({
 
           <div className="profile-settings-divider" />
 
-          <div className="editor-header profile-notifications-header">
+          <div className="editor-header profile-notifications-header" id="profile-section-notifications">
             <div>
               <span>{t('profileEmailNotificationsSection')}</span>
               <h3>{t('profileEmailNotificationsHeading')}</h3>
@@ -565,7 +565,7 @@ export function ProfileSettingsPanel({
           </div>
         </form>
 
-        <form className="client-editor profile-password-form" noValidate onSubmit={submitPassword}>
+        <form className="client-editor profile-password-form" id="profile-section-password" noValidate onSubmit={submitPassword}>
           <div className="editor-header">
             <div>
               <span>{t('profilePasswordSection')}</span>

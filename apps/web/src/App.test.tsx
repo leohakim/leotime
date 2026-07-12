@@ -267,6 +267,15 @@ describe('App', () => {
     expect(await screen.findByText('INV-2026-001')).toBeInTheDocument();
   });
 
+  test('renders settings section navigation on profile', async () => {
+    renderApp();
+    await goTo('profile');
+
+    expect(await screen.findByRole('navigation', { name: /secciones de ajustes/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cuenta' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copias de seguridad S3' })).toBeInTheDocument();
+  });
+
   test('renders the import export panel', async () => {
     renderApp();
     await goTo('import-export');
