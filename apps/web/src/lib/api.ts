@@ -939,6 +939,34 @@ export type DailySummaryRecord = {
   updatedAt: string;
 };
 
+export type DailySummaryIndexItem = {
+  date: string;
+  status: DailySummaryRecordStatus;
+  generationSource: string;
+  generationCount: number;
+  updatedAt: string;
+};
+
+export async function fetchDailySummaryIndex(
+  from: string,
+  to: string,
+  params: Pick<DailySummaryParams, 'clientId' | 'projectId'> & { allScopes?: boolean } = {},
+): Promise<DailySummaryIndexItem[]> {
+  const search = new URLSearchParams({ from, to });
+  if (params.allScopes) {
+    search.set('allScopes', 'true');
+  } else {
+    if (params.clientId) {
+      search.set('clientId', params.clientId);
+    }
+    if (params.projectId) {
+      search.set('projectId', params.projectId);
+    }
+  }
+  const payload = await apiGet<{ items: DailySummaryIndexItem[] }>(`/api/v1/daily-summaries?${search.toString()}`);
+  return payload.items;
+}
+
 export type DailySummaryEnrichContext = {
   date: string;
   templateText: string;

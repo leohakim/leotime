@@ -47,6 +47,60 @@ type DailySummaryRecordInput struct {
 	IncrementCount   bool
 }
 
+type DailySummaryIndex struct {
+	Date             string             `json:"date"`
+	Status           DailySummaryStatus `json:"status"`
+	GenerationSource string             `json:"generationSource"`
+	GenerationCount  int                `json:"generationCount"`
+	UpdatedAt        string             `json:"updatedAt"`
+}
+
+func (s *Store) ListDailySummaryIndex(ctx context.Context, userID, from, to, clientID, projectID string, allScopes bool) ([]DailySummaryIndex, error) {
+	from = strings.TrimSpace(from)
+	to = strings.TrimSpace(to)
+	if from == "" || to == "" {
+		return nil, validationError(ErrInvalidTimeEntryInput, "date", "required", "from and to are required")
+	}
+	if _, err := time.Parse("2006-01-02", from); err != nil {
+		return nil, validationError(ErrInvalidTimeEntryInput, "from", "invalid", "from must be YYYY-MM-DD")
+	}
+	if _, err := time.Parse("2006-01-02", to); err != nil {
+		return nil, validationError(ErrInvalidTimeEntryInput, "to", "invalid", "to must be YYYY-MM-DD")
+	}
+	clientID, projectID = NormalizeDailySummaryScope(clientID, projectID)
+
+	query := `
+		SELECT summary_date, status, generation_source, generation_count, updated_at
+		FROM daily_summary_records
+		WHERE user_id = ? AND summary_date >= ? AND summary_date <= ?
+	`
+	args := []any{userID, from, to}
+	if !allScopes {
+		query += ` AND client_id = ? AND project_id = ?`
+		args = append(args, clientID, projectID)
+	}
+	query += ` ORDER BY summary_date ASC`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list daily summaries: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]DailySummaryIndex, 0)
+	for rows.Next() {
+		var item DailySummaryIndex
+		if err := rows.Scan(&item.Date, &item.Status, &item.GenerationSource, &item.GenerationCount, &item.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan daily summary index: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate daily summaries: %w", err)
+	}
+	return items, nil
+}
+
 func NormalizeDailySummaryScope(clientID, projectID string) (string, string) {
 	return strings.TrimSpace(clientID), strings.TrimSpace(projectID)
 }

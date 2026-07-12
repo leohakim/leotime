@@ -4862,6 +4862,16 @@ html[data-preset='solidtime-exact'] {
   box-shadow: inset 0 0 0 1px rgb(37 99 235 / 18%);
 }
 
+[data-theme='light'] .daily-summary-calendar-day.has-approved {
+  background: color-mix(in srgb, var(--green) 14%, white);
+  border-color: color-mix(in srgb, var(--green) 45%, var(--border));
+}
+
+[data-theme='light'] .daily-summary-calendar-day.has-draft {
+  background: color-mix(in srgb, var(--amber) 16%, white);
+  border-color: color-mix(in srgb, var(--amber) 42%, var(--border));
+}
+
 [data-theme='light'] .active-timer-card {
   background: var(--surface);
   border-color: var(--border);
@@ -5147,3 +5157,220 @@ html[data-preset='solidtime-exact'] {
     transform: translateY(0);
   }
 }
+
+.daily-summary-section .daily-summary-scope-label {
+  margin-bottom: 10px;
+}
+
+.daily-summary-status-badge {
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  max-width: 100%;
+  padding: 10px 14px;
+}
+
+.daily-summary-status-badge-label {
+  font-weight: 600;
+}
+
+.daily-summary-status-badge-detail {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.daily-summary-status-badge.tone-approved {
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+  border-color: color-mix(in srgb, var(--green) 35%, var(--border));
+}
+
+.daily-summary-status-badge.tone-draft {
+  background: color-mix(in srgb, var(--amber) 12%, transparent);
+  border-color: color-mix(in srgb, var(--amber) 35%, var(--border));
+}
+
+.daily-summary-status-badge.tone-unsaved {
+  background: color-mix(in srgb, var(--rose) 10%, transparent);
+  border-color: color-mix(in srgb, var(--rose) 30%, var(--border));
+}
+
+.daily-summary-status-badge.tone-empty {
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+}
+
+.daily-summary-sidebar {
+  display: grid;
+  gap: 18px;
+}
+
+.daily-summary-calendar {
+  display: grid;
+  gap: 12px;
+}
+
+.daily-summary-calendar-toolbar {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto 1fr auto;
+}
+
+.daily-summary-calendar-heading {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.daily-summary-calendar-grid .daily-summary-calendar-day {
+  align-items: center;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  min-height: 58px;
+  padding: 8px 4px;
+}
+
+.daily-summary-calendar-day.has-approved {
+  background: color-mix(in srgb, var(--green) 16%, #111217);
+  border-color: color-mix(in srgb, var(--green) 55%, #24262e);
+}
+
+.daily-summary-calendar-day.has-draft {
+  background: color-mix(in srgb, var(--amber) 14%, #111217);
+  border-color: color-mix(in srgb, var(--amber) 50%, #24262e);
+}
+
+.daily-summary-calendar-day.has-approved.selected {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 45%, transparent);
+}
+
+.daily-summary-calendar-day.has-draft.selected {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 45%, transparent);
+}
+
+.daily-summary-calendar-marker {
+  border-radius: 999px;
+  display: block;
+  flex-shrink: 0;
+  height: 10px;
+  width: 10px;
+}
+
+.daily-summary-calendar-marker.has-approved,
+.daily-summary-calendar-day.has-approved .daily-summary-calendar-marker {
+  background: var(--green);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--green) 28%, transparent);
+}
+
+.daily-summary-calendar-marker.has-draft,
+.daily-summary-calendar-day.has-draft .daily-summary-calendar-marker {
+  background: var(--amber);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--amber) 28%, transparent);
+}
+
+.daily-summary-calendar-marker.is-empty,
+.daily-summary-calendar-day.is-empty .daily-summary-calendar-marker {
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+.daily-summary-calendar-legend {
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.daily-summary-calendar-legend li {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.daily-summary-preview-shell {
+  position: relative;
+}
+
+.daily-summary-progress-overlay {
+  align-items: center;
+  backdrop-filter: blur(2px);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  display: grid;
+  inset: 0;
+  justify-items: center;
+  padding: 20px;
+  position: absolute;
+  z-index: 2;
+}
+
+.daily-summary-progress-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--bg) 35%, transparent);
+  max-width: 420px;
+  padding: 20px 22px;
+  width: 100%;
+}
+
+.daily-summary-progress-title {
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+
+.daily-summary-progress-steps {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.daily-summary-progress-step {
+  align-items: center;
+  color: var(--muted);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto 1fr;
+}
+
+.daily-summary-progress-step.is-active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.daily-summary-progress-step.is-done {
+  color: var(--text);
+}
+
+.daily-summary-progress-icon {
+  align-items: center;
+  display: inline-flex;
+  height: 18px;
+  justify-content: center;
+  width: 18px;
+}
+
+.daily-summary-progress-step.is-done .daily-summary-progress-icon {
+  color: var(--green);
+}
+
+.daily-summary-progress-step.is-active .daily-summary-progress-icon {
+  color: var(--accent);
+}
+
+@media (max-width: 900px) {
+  .daily-summary-calendar-grid .daily-summary-calendar-day {
+    min-height: 48px;
+  }
+}
+

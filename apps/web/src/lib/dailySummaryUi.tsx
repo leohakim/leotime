@@ -1,20 +1,36 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ClipboardCopy, MessageSquareText, RefreshCw, Sparkles } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, ClipboardCopy, MessageSquareText, RefreshCw, Sparkles } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   applyDailySummaryEnrichment,
   approveDailySummaryRecord,
   enrichDailySummaryLocally,
   fetchDailySummaryEnrichContext,
+  fetchDailySummaryIndex,
   fetchDailySummaryRecord,
   generateDailySummaryRecord,
   reopenDailySummaryRecord,
   saveDailySummaryDraft,
   type Client,
+  type DailySummaryIndexItem,
   type DailySummaryParams,
+  type Locale,
   type Project,
 } from './api';
+import {
+  addMonths,
+  buildMonthGrid,
+  formatMonthLabel,
+  isSameLocalDay,
+  isSameMonth,
+  weekdayLabels,
+} from './calendarMonth';
 import { SurfaceEmpty, SurfaceError, SurfaceLoading } from './feedbackUi';
+import {
+  DailySummaryProgressOverlay,
+  DailySummaryStatusBadge,
+  type DailySummaryWorkflowStep,
+} from './dailySummaryProgress';
 import type { Translator } from './timeEntryUi';
 import { useToast } from './toast';
 
@@ -29,6 +45,11 @@ type DailySummaryFormState = {
   note: string;
   projectId: string;
 };
+
+type WorkflowProgress =
+  | { kind: 'generate'; step: string }
+  | { kind: 'enrich'; step: string }
+  | null;
 
 function todayInputValue(): string {
   const today = new Date();
@@ -63,6 +84,11 @@ function formToParams(form: DailySummaryFormState): DailySummaryParams {
   };
 }
 
+function monthAnchorFromDate(date: string): Date {
+  const [year, month] = date.split('-').map(Number);
+  return new Date(year, month - 1, 1);
+}
+
 function scopeLabel(
   form: DailySummaryFormState,
   clients: Client[],
@@ -80,20 +106,166 @@ function scopeLabel(
   return t('dailySummaryScopeAll');
 }
 
+function formatStatusTimestamp(value: string, locale: Locale): string {
+  if (!value) {
+    return '';
+  }
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return '';
+  }
+  return new Date(parsed).toLocaleString(locale === 'es' ? 'es-ES' : 'en-US', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function generationSourceLabel(source: string, t: Translator): string {
+  if (source === 'cursor') {
+    return t('dailySummarySourceCursor');
+  }
+  if (source === 'context') {
+    return t('dailySummarySourceContext');
+  }
+  return t('dailySummarySourceTemplate');
+}
+
+function aggregateSummaryIndex(items: DailySummaryIndexItem[]): Map<string, DailySummaryIndexItem> {
+  const map = new Map<string, DailySummaryIndexItem>();
+  for (const item of items) {
+    const existing = map.get(item.date);
+    if (!existing) {
+      map.set(item.date, item);
+      continue;
+    }
+    if (existing.status === 'approved' || item.status === 'approved') {
+      map.set(item.date, {
+        ...existing,
+        status: 'approved',
+        updatedAt: item.updatedAt > existing.updatedAt ? item.updatedAt : existing.updatedAt,
+      });
+      continue;
+    }
+    map.set(item.date, item.updatedAt > existing.updatedAt ? item : existing);
+  }
+  return map;
+}
+
+function DailySummaryMonthCalendar({
+  indexByDate,
+  locale,
+  monthAnchor,
+  onNextMonth,
+  onPreviousMonth,
+  onSelectDay,
+  onTodayMonth,
+  selectedDate,
+  t,
+}: {
+  indexByDate: Map<string, DailySummaryIndexItem>;
+  locale: Locale;
+  monthAnchor: Date;
+  onNextMonth: () => void;
+  onPreviousMonth: () => void;
+  onSelectDay: (date: string) => void;
+  onTodayMonth: () => void;
+  selectedDate: string;
+  t: Translator;
+}) {
+  const monthStart = useMemo(() => new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1), [monthAnchor]);
+  const cells = useMemo(() => buildMonthGrid(monthStart, []), [monthStart]);
+  const weekdays = useMemo(() => weekdayLabels(locale), [locale]);
+  const viewingCurrentMonth = isSameMonth(monthStart, new Date());
+  const todayKey = todayInputValue();
+
+  return (
+    <div className="daily-summary-calendar">
+      <div className="daily-summary-calendar-toolbar">
+        <button aria-label={t('previousMonth')} className="icon-button" onClick={onPreviousMonth} type="button">
+          <ChevronLeft aria-hidden="true" />
+        </button>
+        <div className="daily-summary-calendar-heading">
+          <strong>{formatMonthLabel(monthStart, locale)}</strong>
+          {!viewingCurrentMonth ? (
+            <button className="link-button" onClick={onTodayMonth} type="button">
+              {t('thisMonth')}
+            </button>
+          ) : null}
+        </div>
+        <button aria-label={t('nextMonth')} className="icon-button" onClick={onNextMonth} type="button">
+          <ChevronRight aria-hidden="true" />
+        </button>
+      </div>
+
+      <div className="calendar-grid daily-summary-calendar-grid" role="grid" aria-label={t('dailySummaryCalendarLabel')}>
+        <div className="calendar-weekdays" role="row">
+          {weekdays.map((label) => (
+            <span className="calendar-weekday" key={label} role="columnheader">
+              {label}
+            </span>
+          ))}
+        </div>
+        <div className="calendar-days">
+          {cells.map((cell) => {
+            const index = indexByDate.get(cell.date);
+            const statusClass = index?.status === 'approved' ? 'has-approved' : index ? 'has-draft' : 'is-empty';
+            const isSelected = isSameLocalDay(cell.date, selectedDate);
+            const isToday = isSameLocalDay(cell.date, todayKey);
+            return (
+              <button
+                aria-label={`${cell.dayNumber} ${index?.status === 'approved' ? t('dailySummaryLegendApproved') : index ? t('dailySummaryLegendDraft') : t('dailySummaryLegendEmpty')}`}
+                aria-pressed={isSelected}
+                className={`calendar-day daily-summary-calendar-day ${statusClass}${cell.inMonth ? '' : ' outside-month'}${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`}
+                key={cell.date}
+                onClick={() => onSelectDay(cell.date)}
+                type="button"
+              >
+                <span className="calendar-day-number">{cell.dayNumber}</span>
+                <span aria-hidden="true" className="daily-summary-calendar-marker" />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <ul className="daily-summary-calendar-legend">
+        <li>
+          <span className="daily-summary-calendar-marker has-approved" />
+          {t('dailySummaryLegendApproved')}
+        </li>
+        <li>
+          <span className="daily-summary-calendar-marker has-draft" />
+          {t('dailySummaryLegendDraft')}
+        </li>
+        <li>
+          <span className="daily-summary-calendar-marker is-empty" />
+          {t('dailySummaryLegendEmpty')}
+        </li>
+      </ul>
+    </div>
+  );
+}
+
 export function DailySummaryPanel({
   clients,
+  locale,
   projects,
   t,
 }: {
   clients: Client[];
+  locale: Locale;
   projects: Project[];
   t: Translator;
 }) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<DailySummaryFormState>(() => defaultDailySummaryForm());
+  const [monthAnchor, setMonthAnchor] = useState<Date>(() => monthAnchorFromDate(defaultDailySummaryForm().date));
   const [draftText, setDraftText] = useState('');
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [workflowProgress, setWorkflowProgress] = useState<WorkflowProgress>(null);
 
   const params = useMemo(() => formToParams(form), [form]);
   const activeClients = useMemo(() => clients.filter((client) => !client.archivedAt), [clients]);
@@ -105,6 +277,19 @@ export function DailySummaryPanel({
     return list;
   }, [form.clientId, projects]);
 
+  const monthStart = useMemo(() => new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1), [monthAnchor]);
+  const calendarCells = useMemo(() => buildMonthGrid(monthStart, []), [monthStart]);
+  const calendarFrom = calendarCells[0]?.date ?? '';
+  const calendarTo = calendarCells[calendarCells.length - 1]?.date ?? '';
+
+  const indexQuery = useQuery({
+    queryKey: ['daily-summary-index', calendarFrom, calendarTo, 'all-scopes'],
+    queryFn: () => fetchDailySummaryIndex(calendarFrom, calendarTo, { allScopes: true }),
+    enabled: Boolean(calendarFrom && calendarTo),
+  });
+
+  const indexByDate = useMemo(() => aggregateSummaryIndex(indexQuery.data ?? []), [indexQuery.data]);
+
   const recordQuery = useQuery({
     queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId],
     queryFn: () => fetchDailySummaryRecord(form.date, { clientId: form.clientId, projectId: form.projectId }),
@@ -114,6 +299,30 @@ export function DailySummaryPanel({
   const record = recordQuery.data ?? null;
   const isApproved = record?.status === 'approved';
   const currentScope = scopeLabel(form, clients, projects, t);
+  const savedText = record ? (record.status === 'approved' ? record.approvedText : record.draftText) : '';
+  const hasUnsavedChanges = Boolean(record && !isApproved && draftText !== savedText);
+
+  const generateSteps = useMemo<DailySummaryWorkflowStep[]>(
+    () => [
+      { id: 'entries', label: t('dailySummaryStepEntries') },
+      { id: 'template', label: t('dailySummaryStepTemplate') },
+    ],
+    [t],
+  );
+
+  const enrichSteps = useMemo<DailySummaryWorkflowStep[]>(
+    () => [
+      { id: 'collect', label: t('dailySummaryStepCollect') },
+      { id: 'context', label: t('dailySummaryStepContext') },
+      { id: 'ai', label: t('dailySummaryStepAI') },
+      { id: 'save', label: t('dailySummaryStepSave') },
+    ],
+    [t],
+  );
+
+  useEffect(() => {
+    setMonthAnchor(monthAnchorFromDate(form.date));
+  }, [form.date]);
 
   useEffect(() => {
     setDraftText('');
@@ -137,14 +346,25 @@ export function DailySummaryPanel({
     }));
   }, [record, recordQuery.isFetching]);
 
+  function invalidateSummaryQueries() {
+    void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
+    void queryClient.invalidateQueries({ queryKey: ['daily-summary-index'] });
+  }
+
   const generateMutation = useMutation({
-    mutationFn: () => generateDailySummaryRecord(form.date, params, form.note),
+    mutationFn: async () => {
+      setWorkflowProgress({ kind: 'generate', step: 'entries' });
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+      setWorkflowProgress({ kind: 'generate', step: 'template' });
+      return generateDailySummaryRecord(form.date, params, form.note);
+    },
     onSuccess: (saved) => {
       setDraftText(saved.draftText);
-      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
+      invalidateSummaryQueries();
       toast.success(t('dailySummaryGenerated'));
     },
     onError: () => toast.error(t('dailySummaryLoadFailed')),
+    onSettled: () => setWorkflowProgress(null),
   });
 
   const saveMutation = useMutation({
@@ -155,7 +375,7 @@ export function DailySummaryPanel({
         options: params,
       }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
+      invalidateSummaryQueries();
       toast.success(t('dailySummarySaved'));
     },
     onError: () => toast.error(t('dailySummarySaveFailed')),
@@ -163,7 +383,11 @@ export function DailySummaryPanel({
 
   const enrichMutation = useMutation({
     mutationFn: async () => {
+      setWorkflowProgress({ kind: 'enrich', step: 'collect' });
       const context = await fetchDailySummaryEnrichContext(form.date, params, form.note);
+      setWorkflowProgress({ kind: 'enrich', step: 'context' });
+      await new Promise((resolve) => window.setTimeout(resolve, 200));
+      setWorkflowProgress({ kind: 'enrich', step: 'ai' });
       const enriched = await enrichDailySummaryLocally({
         date: form.date,
         templateText: context.templateText,
@@ -174,6 +398,7 @@ export function DailySummaryPanel({
         authorEmail: context.authorEmail,
         projects: context.projects,
       });
+      setWorkflowProgress({ kind: 'enrich', step: 'save' });
       return applyDailySummaryEnrichment(form.date, {
         text: enriched.text,
         manualNote: form.note,
@@ -184,16 +409,17 @@ export function DailySummaryPanel({
     onSuccess: (saved) => {
       setDraftText(saved.draftText);
       setForm((current) => ({ ...current, feedback: '' }));
-      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
+      invalidateSummaryQueries();
       toast.success(t('dailySummaryEnriched'));
     },
     onError: () => toast.error(t('dailySummaryEnrichFailed')),
+    onSettled: () => setWorkflowProgress(null),
   });
 
   const approveMutation = useMutation({
     mutationFn: () => approveDailySummaryRecord(form.date, draftText, { clientId: form.clientId, projectId: form.projectId }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
+      invalidateSummaryQueries();
       toast.success(t('dailySummaryApprovedToast'));
     },
     onError: () => toast.error(t('dailySummaryApproveFailed')),
@@ -203,7 +429,7 @@ export function DailySummaryPanel({
     mutationFn: () => reopenDailySummaryRecord(form.date, { clientId: form.clientId, projectId: form.projectId }),
     onSuccess: (saved) => {
       setDraftText(saved.draftText);
-      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
+      invalidateSummaryQueries();
       toast.success(t('dailySummaryReopened'));
     },
     onError: () => toast.error(t('dailySummaryReopenFailed')),
@@ -258,6 +484,53 @@ export function DailySummaryPanel({
     approveMutation.isPending ||
     reopenMutation.isPending;
 
+  const statusBadge = (() => {
+    if (isApproved) {
+      return {
+        tone: 'approved' as const,
+        label: t('dailySummaryStatusApproved'),
+        detail: formatStatusTimestamp(record?.approvedAt ?? record?.updatedAt ?? '', locale),
+      };
+    }
+    if (hasUnsavedChanges) {
+      return {
+        tone: 'unsaved' as const,
+        label: t('dailySummaryStatusUnsaved'),
+        detail: t('dailySummaryStatusUnsavedHint'),
+      };
+    }
+    if (record) {
+      return {
+        tone: 'draft' as const,
+        label: t('dailySummaryStatusDraftSaved'),
+        detail: `${generationSourceLabel(record.generationSource, t)} · ${t('dailySummaryGenerationCount').replace('{count}', String(record.generationCount))}`,
+      };
+    }
+    if (draftText.trim()) {
+      return {
+        tone: 'draft' as const,
+        label: t('dailySummaryStatusGenerated'),
+        detail: t('dailySummaryStatusGeneratedHint'),
+      };
+    }
+    return {
+      tone: 'empty' as const,
+      label: t('dailySummaryStatusEmpty'),
+      detail: t('dailySummaryStatusEmptyHint'),
+    };
+  })();
+
+  const progressOverlay =
+    workflowProgress?.kind === 'generate' ? (
+      <DailySummaryProgressOverlay
+        activeStepId={workflowProgress.step}
+        steps={generateSteps}
+        title={t('dailySummaryGeneratingTitle')}
+      />
+    ) : workflowProgress?.kind === 'enrich' ? (
+      <DailySummaryProgressOverlay activeStepId={workflowProgress.step} steps={enrichSteps} title={t('dailySummaryEnrichingTitle')} />
+    ) : null;
+
   return (
     <section className="clients-section report-section daily-summary-section" id="daily-summary" aria-labelledby="daily-summary-title">
       <div className="clients-heading">
@@ -271,17 +544,28 @@ export function DailySummaryPanel({
           <p className="daily-summary-scope-label">
             {t('dailySummaryScopeLabel').replace('{scope}', currentScope)}
           </p>
-          {record ? (
-            <p className="daily-summary-status">
-              {isApproved ? t('dailySummaryApprovedStatus') : t('dailySummaryDraftStatus')}
-              {record.generationCount > 0 ? ` · ${t('dailySummaryGenerationCount').replace('{count}', String(record.generationCount))}` : ''}
-            </p>
-          ) : null}
+          <DailySummaryStatusBadge detail={statusBadge.detail} label={statusBadge.label} tone={statusBadge.tone} />
         </div>
       </div>
 
       <div className="report-workbench daily-summary-workbench">
-        <aside className="report-filters-panel">
+        <aside className="report-filters-panel daily-summary-sidebar">
+          <DailySummaryMonthCalendar
+            indexByDate={indexByDate}
+            locale={locale}
+            monthAnchor={monthAnchor}
+            onNextMonth={() => setMonthAnchor((current) => addMonths(current, 1))}
+            onPreviousMonth={() => setMonthAnchor((current) => addMonths(current, -1))}
+            onSelectDay={(date) => setForm((current) => ({ ...current, date }))}
+            onTodayMonth={() => {
+              const today = todayInputValue();
+              setMonthAnchor(monthAnchorFromDate(today));
+              setForm((current) => ({ ...current, date: today }));
+            }}
+            selectedDate={form.date}
+            t={t}
+          />
+
           <h3>{t('dailySummaryOptions')}</h3>
           <form className="report-form" noValidate onSubmit={submitPreview}>
             <label className="form-field">
@@ -404,7 +688,8 @@ export function DailySummaryPanel({
             <h3>{t('dailySummaryPreview')}</h3>
           </div>
 
-          <div className="report-preview">
+          <div className="report-preview daily-summary-preview-shell">
+            {progressOverlay}
             {recordQuery.isLoading ? <SurfaceLoading label={t('loading')} /> : null}
             {recordQuery.isError ? (
               <SurfaceError message={t('dailySummaryLoadFailed')} onRetry={() => void recordQuery.refetch()} retryLabel={t('retry')} />
@@ -438,13 +723,13 @@ export function DailySummaryPanel({
                     <>
                       <button
                         className="secondary-button"
-                        disabled={!draftText.trim() || busy}
+                        disabled={!draftText.trim() || busy || !hasUnsavedChanges}
                         onClick={() => saveMutation.mutate()}
                         type="button"
                       >
                         {t('dailySummarySaveDraft')}
                       </button>
-                      <button disabled={!draftText.trim() || busy} onClick={() => approveMutation.mutate()} type="button">
+                      <button disabled={!draftText.trim() || busy || hasUnsavedChanges} onClick={() => approveMutation.mutate()} type="button">
                         <Check aria-hidden="true" />
                         {t('dailySummaryApprove')}
                       </button>

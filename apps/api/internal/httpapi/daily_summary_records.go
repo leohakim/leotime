@@ -31,6 +31,24 @@ type dailySummaryEnrichContextResponse struct {
 	Record       *store.DailySummaryRecord `json:"record,omitempty"`
 }
 
+func (s *Server) listDailySummaryRecords(w http.ResponseWriter, r *http.Request, user *store.User) {
+	from := strings.TrimSpace(r.URL.Query().Get("from"))
+	to := strings.TrimSpace(r.URL.Query().Get("to"))
+	clientID, projectID := dailySummaryScopeFromQuery(r)
+	allScopes := strings.EqualFold(r.URL.Query().Get("allScopes"), "true")
+
+	items, err := s.store.ListDailySummaryIndex(r.Context(), user.ID, from, to, clientID, projectID, allScopes)
+	if err != nil {
+		if store.IsValidation(err, store.ErrInvalidTimeEntryInput) {
+			writeValidationStoreError(w, err)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "daily_summary_list_failed", "list daily summaries failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
 func (s *Server) getDailySummaryRecord(w http.ResponseWriter, r *http.Request, user *store.User) {
 	date := strings.TrimSpace(chi.URLParam(r, "date"))
 	clientID, projectID := dailySummaryScopeFromQuery(r)

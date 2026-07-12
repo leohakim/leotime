@@ -356,6 +356,7 @@ export function DashboardShell({
           {route === 'daily-summary' ? (
             <DailySummaryPanel
               clients={clientsQuery.data?.clients ?? []}
+              locale={locale}
               projects={projectsQuery.data?.projects ?? []}
               t={t}
             />

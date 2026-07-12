@@ -45,7 +45,7 @@ function renderPanel() {
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <DailySummaryPanel clients={[]} projects={[]} t={t} />
+        <DailySummaryPanel clients={[]} locale="es" projects={[]} t={t} />
       </ToastProvider>
     </QueryClientProvider>,
   );
@@ -58,6 +58,13 @@ describe('DailySummaryPanel', () => {
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         const method = init?.method ?? 'GET';
+
+        if (/(\/api\/v1\/daily-summaries)\?/.test(url) && method === 'GET') {
+          return new Response(JSON.stringify({ items: [{ date: '2026-07-12', status: 'approved', generationSource: 'template', generationCount: 1, updatedAt: '2026-07-12T10:00:00Z' }] }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
 
         if (url.includes('/api/v1/daily-summaries/2026-07-12/generate') && method === 'POST') {
           return new Response(JSON.stringify(sampleRecord()), {
