@@ -22,7 +22,7 @@ func TestDailySummaryApproveAndReopen(t *testing.T) {
 		t.Fatalf("expected draft, got %s", draft.Status)
 	}
 
-	approved, err := st.ApproveDailySummary(ctx, user.ID, date, draft.DraftText)
+	approved, err := st.ApproveDailySummary(ctx, user.ID, date, "", "", draft.DraftText)
 	if err != nil {
 		t.Fatalf("approve: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestDailySummaryApproveAndReopen(t *testing.T) {
 		t.Fatal("expected approved lock on draft update")
 	}
 
-	reopened, err := st.ReopenDailySummary(ctx, user.ID, date)
+	reopened, err := st.ReopenDailySummary(ctx, user.ID, date, "", "")
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}

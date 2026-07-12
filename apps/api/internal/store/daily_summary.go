@@ -10,14 +10,16 @@ import (
 )
 
 type DailySummaryOptions struct {
-	Date           string
-	Timezone       string
-	Locale         string
-	IncludeClient  bool
-	IncludeProject bool
-	IncludeClosing bool
-	BillableOnly   bool
-	ManualNote     string
+	Date           string `json:"date"`
+	Timezone       string `json:"timezone,omitempty"`
+	Locale         string `json:"locale,omitempty"`
+	IncludeClient  bool   `json:"includeClient"`
+	IncludeProject bool   `json:"includeProject"`
+	IncludeClosing bool   `json:"includeClosing"`
+	BillableOnly   bool   `json:"billableOnly"`
+	ManualNote     string `json:"manualNote,omitempty"`
+	ClientID       string `json:"clientId"`
+	ProjectID      string `json:"projectId"`
 }
 
 type DailySummary struct {
@@ -71,8 +73,16 @@ func (s *Store) BuildDailySummary(ctx context.Context, userID string, options Da
 	}
 
 	filtered := make([]TimeEntry, 0, len(entries))
+	clientID := strings.TrimSpace(options.ClientID)
+	projectID := strings.TrimSpace(options.ProjectID)
 	for _, entry := range entries {
 		if options.BillableOnly && !entry.Billable {
+			continue
+		}
+		if projectID != "" && entry.ProjectID != projectID {
+			continue
+		}
+		if clientID != "" && entry.ClientID != clientID {
 			continue
 		}
 		filtered = append(filtered, entry)

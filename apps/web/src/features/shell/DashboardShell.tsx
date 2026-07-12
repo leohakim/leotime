@@ -352,7 +352,13 @@ export function DashboardShell({
 
           {route === 'overview' ? <TimeReportPanel locale={locale} t={t} /> : null}
           {route === 'detailed' ? <TimeReportPanel detailed locale={locale} t={t} /> : null}
-          {route === 'daily-summary' ? <DailySummaryPanel t={t} /> : null}
+          {route === 'daily-summary' ? (
+            <DailySummaryPanel
+              clients={clientsQuery.data?.clients ?? []}
+              projects={projectsQuery.data?.projects ?? []}
+              t={t}
+            />
+          ) : null}
           {route === 'shared' ? <PlaceholderPage titleKey="shared" t={t} /> : null}
 
           {route === 'invoices' ? <InvoicePanel clients={clientsQuery.data?.clients ?? []} locale={locale} t={t} userName={userName} /> : null}

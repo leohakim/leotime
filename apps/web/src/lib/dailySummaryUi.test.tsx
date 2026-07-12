@@ -13,12 +13,16 @@ const sampleText =
 function sampleRecord(status: 'draft' | 'approved' = 'draft') {
   return {
     date: '2026-07-12',
+    clientId: '',
+    projectId: '',
     status,
     draftText: sampleText,
     approvedText: status === 'approved' ? sampleText : '',
     manualNote: '',
     options: {
       date: '2026-07-12',
+      clientId: '',
+      projectId: '',
       includeClient: true,
       includeProject: true,
       includeClosing: true,
@@ -41,7 +45,7 @@ function renderPanel() {
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <DailySummaryPanel t={t} />
+        <DailySummaryPanel clients={[]} projects={[]} t={t} />
       </ToastProvider>
     </QueryClientProvider>,
   );

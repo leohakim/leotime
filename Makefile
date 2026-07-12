@@ -66,6 +66,7 @@ dev: ## 🚀 Run API and web dev servers in parallel
 
 dev-api: ## 🧪 Run only the Go API
 	@printf "🧪 Starting Go API...\n"
+	@lsof -ti :8080 | xargs kill -9 2>/dev/null || true
 	@$(load_dev_env); cd apps/api && go run ./cmd/leotime
 
 dev-web: ## 🎨 Run only the web app

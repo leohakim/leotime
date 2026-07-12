@@ -12,9 +12,9 @@ import (
 )
 
 type dailySummaryRecordRequest struct {
-	DraftText  string                    `json:"draftText"`
-	ManualNote string                    `json:"manualNote"`
-	Options    store.DailySummaryOptions `json:"options"`
+	DraftText  string                     `json:"draftText"`
+	ManualNote string                     `json:"manualNote"`
+	Options    dailySummaryOptionsPayload `json:"options"`
 }
 
 type dailySummaryApproveRequest struct {
@@ -33,7 +33,8 @@ type dailySummaryEnrichContextResponse struct {
 
 func (s *Server) getDailySummaryRecord(w http.ResponseWriter, r *http.Request, user *store.User) {
 	date := strings.TrimSpace(chi.URLParam(r, "date"))
-	record, err := s.store.DailySummaryByDate(r.Context(), user.ID, date)
+	clientID, projectID := dailySummaryScopeFromQuery(r)
+	record, err := s.store.DailySummaryByScope(r.Context(), user.ID, date, clientID, projectID)
 	if err != nil {
 		if errors.Is(err, store.ErrDailySummaryNotFound) {
 			writeError(w, http.StatusNotFound, "daily_summary_not_found", "daily summary not found")
@@ -55,7 +56,7 @@ func (s *Server) putDailySummaryRecord(w http.ResponseWriter, r *http.Request, u
 	record, err := s.store.UpsertDailySummaryDraft(r.Context(), user.ID, date, store.DailySummaryRecordInput{
 		DraftText:        body.DraftText,
 		ManualNote:       body.ManualNote,
-		Options:          body.Options,
+		Options:          body.Options.toStore(date),
 		GenerationSource: "manual",
 		IncrementCount:   false,
 	})
@@ -125,10 +126,11 @@ func (s *Server) generateDailySummaryTemplate(w http.ResponseWriter, r *http.Req
 func (s *Server) applyDailySummaryEnrichment(w http.ResponseWriter, r *http.Request, user *store.User) {
 	date := strings.TrimSpace(chi.URLParam(r, "date"))
 	var body struct {
-		Text             string `json:"text"`
-		ManualNote       string `json:"manualNote"`
-		GenerationSource string `json:"generationSource"`
-		ContextJSON      string `json:"contextJson"`
+		Text             string                     `json:"text"`
+		ManualNote       string                     `json:"manualNote"`
+		GenerationSource string                     `json:"generationSource"`
+		ContextJSON      string                     `json:"contextJson"`
+		Options          dailySummaryOptionsPayload `json:"options"`
 	}
 	if !decodeJSONBody(w, r, &body) {
 		return
@@ -142,10 +144,18 @@ func (s *Server) applyDailySummaryEnrichment(w http.ResponseWriter, r *http.Requ
 	if source == "" {
 		source = "context"
 	}
+	options := body.Options.toStore(date)
+	clientID, projectID := store.NormalizeDailySummaryScope(options.ClientID, options.ProjectID)
+	if clientID == "" && projectID == "" {
+		clientID, projectID = dailySummaryScopeFromQuery(r)
+		options.ClientID = clientID
+		options.ProjectID = projectID
+	}
 
 	record, err := s.store.UpsertDailySummaryDraft(r.Context(), user.ID, date, store.DailySummaryRecordInput{
 		DraftText:        body.Text,
 		ManualNote:       body.ManualNote,
+		Options:          options,
 		GenerationSource: source,
 		ContextJSON:      body.ContextJSON,
 		IncrementCount:   true,
@@ -163,12 +173,13 @@ func (s *Server) applyDailySummaryEnrichment(w http.ResponseWriter, r *http.Requ
 
 func (s *Server) approveDailySummaryRecord(w http.ResponseWriter, r *http.Request, user *store.User) {
 	date := strings.TrimSpace(chi.URLParam(r, "date"))
+	clientID, projectID := dailySummaryScopeFromQuery(r)
 	var body dailySummaryApproveRequest
 	if !decodeJSONBody(w, r, &body) {
 		return
 	}
 
-	record, err := s.store.ApproveDailySummary(r.Context(), user.ID, date, body.ApprovedText)
+	record, err := s.store.ApproveDailySummary(r.Context(), user.ID, date, clientID, projectID, body.ApprovedText)
 	if err != nil {
 		if errors.Is(err, store.ErrDailySummaryNotFound) {
 			writeError(w, http.StatusNotFound, "daily_summary_not_found", "daily summary not found")
@@ -186,7 +197,8 @@ func (s *Server) approveDailySummaryRecord(w http.ResponseWriter, r *http.Reques
 
 func (s *Server) reopenDailySummaryRecord(w http.ResponseWriter, r *http.Request, user *store.User) {
 	date := strings.TrimSpace(chi.URLParam(r, "date"))
-	record, err := s.store.ReopenDailySummary(r.Context(), user.ID, date)
+	clientID, projectID := dailySummaryScopeFromQuery(r)
+	record, err := s.store.ReopenDailySummary(r.Context(), user.ID, date, clientID, projectID)
 	if err != nil {
 		if errors.Is(err, store.ErrDailySummaryNotFound) {
 			writeError(w, http.StatusNotFound, "daily_summary_not_found", "daily summary not found")
@@ -213,7 +225,7 @@ func (s *Server) getDailySummaryEnrichContext(w http.ResponseWriter, r *http.Req
 	options.Date = date
 
 	var record *store.DailySummaryRecord
-	if existing, err := s.store.DailySummaryByDate(r.Context(), user.ID, date); err == nil {
+	if existing, err := s.store.DailySummaryByScope(r.Context(), user.ID, date, options.ClientID, options.ProjectID); err == nil {
 		record = existing
 	}
 
@@ -237,6 +249,12 @@ func (s *Server) getDailySummaryEnrichContext(w http.ResponseWriter, r *http.Req
 
 	workspaces := make([]enrich.ProjectWorkspace, 0, len(projects))
 	for _, project := range projects {
+		if options.ProjectID != "" && project.ID != options.ProjectID {
+			continue
+		}
+		if options.ClientID != "" && project.ClientID != options.ClientID {
+			continue
+		}
 		if project.LocalRepoPath == "" && project.CursorWorkspaceSlug == "" {
 			continue
 		}
@@ -278,6 +296,7 @@ func (s *Server) parseDailySummaryOptionsFromQuery(w http.ResponseWriter, r *htt
 	includeProject := !strings.EqualFold(r.URL.Query().Get("includeProject"), "false")
 	includeClosing := !strings.EqualFold(r.URL.Query().Get("includeClosing"), "false")
 	billableOnly := strings.EqualFold(r.URL.Query().Get("billableOnly"), "true")
+	clientID, projectID := dailySummaryScopeFromQuery(r)
 	return store.DailySummaryOptions{
 		Date:           date,
 		Timezone:       profile.Settings.Timezone,
@@ -286,5 +305,14 @@ func (s *Server) parseDailySummaryOptionsFromQuery(w http.ResponseWriter, r *htt
 		IncludeProject: includeProject,
 		IncludeClosing: includeClosing,
 		BillableOnly:   billableOnly,
+		ClientID:       clientID,
+		ProjectID:      projectID,
 	}, true
+}
+
+func dailySummaryScopeFromQuery(r *http.Request) (string, string) {
+	return store.NormalizeDailySummaryScope(
+		r.URL.Query().Get("clientId"),
+		r.URL.Query().Get("projectId"),
+	)
 }

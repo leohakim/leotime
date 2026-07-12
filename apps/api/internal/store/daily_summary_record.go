@@ -23,6 +23,8 @@ const (
 type DailySummaryRecord struct {
 	ID               string              `json:"id"`
 	Date             string              `json:"date"`
+	ClientID         string              `json:"clientId"`
+	ProjectID        string              `json:"projectId"`
 	Status           DailySummaryStatus  `json:"status"`
 	DraftText        string              `json:"draftText"`
 	ApprovedText     string              `json:"approvedText"`
@@ -45,14 +47,23 @@ type DailySummaryRecordInput struct {
 	IncrementCount   bool
 }
 
+func NormalizeDailySummaryScope(clientID, projectID string) (string, string) {
+	return strings.TrimSpace(clientID), strings.TrimSpace(projectID)
+}
+
 func (s *Store) DailySummaryByDate(ctx context.Context, userID string, date string) (*DailySummaryRecord, error) {
+	return s.DailySummaryByScope(ctx, userID, date, "", "")
+}
+
+func (s *Store) DailySummaryByScope(ctx context.Context, userID string, date, clientID, projectID string) (*DailySummaryRecord, error) {
 	date = strings.TrimSpace(date)
+	clientID, projectID = NormalizeDailySummaryScope(clientID, projectID)
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, summary_date, status, draft_text, approved_text, manual_note, options_json,
+		SELECT id, summary_date, client_id, project_id, status, draft_text, approved_text, manual_note, options_json,
 			generation_source, generation_count, context_json, COALESCE(approved_at, ''), created_at, updated_at
 		FROM daily_summary_records
-		WHERE user_id = ? AND summary_date = ?
-	`, userID, date)
+		WHERE user_id = ? AND summary_date = ? AND client_id = ? AND project_id = ?
+	`, userID, date, clientID, projectID)
 
 	record, err := scanDailySummaryRecord(row)
 	if err != nil {
@@ -70,7 +81,11 @@ func (s *Store) UpsertDailySummaryDraft(ctx context.Context, userID string, date
 		return nil, validationError(ErrInvalidTimeEntryInput, "date", "invalid", "date must be YYYY-MM-DD")
 	}
 
-	existing, err := s.DailySummaryByDate(ctx, userID, date)
+	clientID, projectID := NormalizeDailySummaryScope(input.Options.ClientID, input.Options.ProjectID)
+	input.Options.ClientID = clientID
+	input.Options.ProjectID = projectID
+
+	existing, err := s.DailySummaryByScope(ctx, userID, date, clientID, projectID)
 	if err != nil && !errors.Is(err, ErrDailySummaryNotFound) {
 		return nil, err
 	}
@@ -103,14 +118,14 @@ func (s *Store) UpsertDailySummaryDraft(ctx context.Context, userID string, date
 		}
 		if _, err := s.db.ExecContext(ctx, `
 			INSERT INTO daily_summary_records (
-				id, user_id, summary_date, status, draft_text, approved_text, manual_note, options_json,
+				id, user_id, summary_date, client_id, project_id, status, draft_text, approved_text, manual_note, options_json,
 				generation_source, generation_count, context_json, created_at, updated_at
-			) VALUES (?, ?, ?, 'draft', ?, '', ?, ?, ?, ?, ?, ?, ?)
-		`, recordID, userID, date, strings.TrimSpace(input.DraftText), strings.TrimSpace(input.ManualNote),
+			) VALUES (?, ?, ?, ?, ?, 'draft', ?, '', ?, ?, ?, ?, ?, ?, ?)
+		`, recordID, userID, date, clientID, projectID, strings.TrimSpace(input.DraftText), strings.TrimSpace(input.ManualNote),
 			string(optionsJSON), generationSource, generationCount, contextJSON, now, now); err != nil {
 			return nil, fmt.Errorf("insert daily summary: %w", err)
 		}
-		return s.DailySummaryByDate(ctx, userID, date)
+		return s.DailySummaryByScope(ctx, userID, date, clientID, projectID)
 	}
 
 	generationCount := existing.GenerationCount
@@ -121,16 +136,17 @@ func (s *Store) UpsertDailySummaryDraft(ctx context.Context, userID string, date
 		UPDATE daily_summary_records
 		SET draft_text = ?, manual_note = ?, options_json = ?, generation_source = ?,
 			generation_count = ?, context_json = ?, updated_at = ?
-		WHERE user_id = ? AND summary_date = ? AND status = 'draft'
+		WHERE user_id = ? AND summary_date = ? AND client_id = ? AND project_id = ? AND status = 'draft'
 	`, strings.TrimSpace(input.DraftText), strings.TrimSpace(input.ManualNote), string(optionsJSON),
-		generationSource, generationCount, contextJSON, now, userID, date); err != nil {
+		generationSource, generationCount, contextJSON, now, userID, date, clientID, projectID); err != nil {
 		return nil, fmt.Errorf("update daily summary draft: %w", err)
 	}
-	return s.DailySummaryByDate(ctx, userID, date)
+	return s.DailySummaryByScope(ctx, userID, date, clientID, projectID)
 }
 
-func (s *Store) ApproveDailySummary(ctx context.Context, userID string, date string, approvedText string) (*DailySummaryRecord, error) {
-	existing, err := s.DailySummaryByDate(ctx, userID, date)
+func (s *Store) ApproveDailySummary(ctx context.Context, userID string, date string, clientID, projectID, approvedText string) (*DailySummaryRecord, error) {
+	clientID, projectID = NormalizeDailySummaryScope(clientID, projectID)
+	existing, err := s.DailySummaryByScope(ctx, userID, date, clientID, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -150,15 +166,16 @@ func (s *Store) ApproveDailySummary(ctx context.Context, userID string, date str
 	if _, err := s.db.ExecContext(ctx, `
 		UPDATE daily_summary_records
 		SET status = 'approved', approved_text = ?, draft_text = ?, approved_at = ?, updated_at = ?
-		WHERE user_id = ? AND summary_date = ?
-	`, approvedText, approvedText, now, now, userID, date); err != nil {
+		WHERE user_id = ? AND summary_date = ? AND client_id = ? AND project_id = ?
+	`, approvedText, approvedText, now, now, userID, date, clientID, projectID); err != nil {
 		return nil, fmt.Errorf("approve daily summary: %w", err)
 	}
-	return s.DailySummaryByDate(ctx, userID, date)
+	return s.DailySummaryByScope(ctx, userID, date, clientID, projectID)
 }
 
-func (s *Store) ReopenDailySummary(ctx context.Context, userID string, date string) (*DailySummaryRecord, error) {
-	existing, err := s.DailySummaryByDate(ctx, userID, date)
+func (s *Store) ReopenDailySummary(ctx context.Context, userID string, date, clientID, projectID string) (*DailySummaryRecord, error) {
+	clientID, projectID = NormalizeDailySummaryScope(clientID, projectID)
+	existing, err := s.DailySummaryByScope(ctx, userID, date, clientID, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -170,11 +187,11 @@ func (s *Store) ReopenDailySummary(ctx context.Context, userID string, date stri
 	if _, err := s.db.ExecContext(ctx, `
 		UPDATE daily_summary_records
 		SET status = 'draft', draft_text = ?, approved_at = NULL, updated_at = ?
-		WHERE user_id = ? AND summary_date = ?
-	`, existing.ApprovedText, now, userID, date); err != nil {
+		WHERE user_id = ? AND summary_date = ? AND client_id = ? AND project_id = ?
+	`, existing.ApprovedText, now, userID, date, clientID, projectID); err != nil {
 		return nil, fmt.Errorf("reopen daily summary: %w", err)
 	}
-	return s.DailySummaryByDate(ctx, userID, date)
+	return s.DailySummaryByScope(ctx, userID, date, clientID, projectID)
 }
 
 func scanDailySummaryRecord(scanner interface{ Scan(dest ...any) error }) (DailySummaryRecord, error) {
@@ -184,6 +201,8 @@ func scanDailySummaryRecord(scanner interface{ Scan(dest ...any) error }) (Daily
 	if err := scanner.Scan(
 		&record.ID,
 		&record.Date,
+		&record.ClientID,
+		&record.ProjectID,
 		&record.Status,
 		&record.DraftText,
 		&record.ApprovedText,
@@ -201,6 +220,8 @@ func scanDailySummaryRecord(scanner interface{ Scan(dest ...any) error }) (Daily
 	if err := json.Unmarshal([]byte(optionsJSON), &record.Options); err != nil {
 		return DailySummaryRecord{}, fmt.Errorf("decode summary options: %w", err)
 	}
+	record.Options.ClientID = record.ClientID
+	record.Options.ProjectID = record.ProjectID
 	record.ContextJSON = contextJSON
 	return record, nil
 }

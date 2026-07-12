@@ -133,6 +133,8 @@ func (s *Server) parseDailySummaryOptions(w http.ResponseWriter, r *http.Request
 	includeProject := !strings.EqualFold(r.URL.Query().Get("includeProject"), "false")
 	includeClosing := !strings.EqualFold(r.URL.Query().Get("includeClosing"), "false")
 	billableOnly := strings.EqualFold(r.URL.Query().Get("billableOnly"), "true")
+	clientID, projectID := dailySummaryScopeFromQuery(r)
+	manualNote := strings.TrimSpace(r.URL.Query().Get("manualNote"))
 
 	return store.DailySummaryOptions{
 		Date:           date,
@@ -142,6 +144,9 @@ func (s *Server) parseDailySummaryOptions(w http.ResponseWriter, r *http.Request
 		IncludeProject: includeProject,
 		IncludeClosing: includeClosing,
 		BillableOnly:   billableOnly,
+		ClientID:       clientID,
+		ProjectID:      projectID,
+		ManualNote:     manualNote,
 	}, true
 }
 

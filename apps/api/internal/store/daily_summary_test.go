@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -207,5 +208,98 @@ func TestBuildDailySummaryIncludesManualNote(t *testing.T) {
 	}
 	if !strings.HasSuffix(strings.TrimSpace(text), "Hasta mañana team!") {
 		t.Fatalf("expected closing after manual note, got:\n%s", text)
+	}
+}
+
+func TestBuildDailySummaryFiltersByClient(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTaskTestStore(t, ctx)
+
+	clientA, err := st.CreateClient(ctx, user.ID, ClientInput{Name: "Cliente A", DefaultCurrency: "EUR"})
+	if err != nil {
+		t.Fatalf("create client A: %v", err)
+	}
+	clientB, err := st.CreateClient(ctx, user.ID, ClientInput{Name: "Cliente B", DefaultCurrency: "EUR"})
+	if err != nil {
+		t.Fatalf("create client B: %v", err)
+	}
+	projectA, err := st.CreateProject(ctx, user.ID, ProjectInput{ClientID: clientA.ID, Name: "Proyecto A", Color: "#2563eb"})
+	if err != nil {
+		t.Fatalf("create project A: %v", err)
+	}
+	projectB, err := st.CreateProject(ctx, user.ID, ProjectInput{ClientID: clientB.ID, Name: "Proyecto B", Color: "#0f7a5b"})
+	if err != nil {
+		t.Fatalf("create project B: %v", err)
+	}
+
+	_, err = st.CreateTimeEntry(ctx, user.ID, TimeEntryInput{
+		ClientID:    clientA.ID,
+		ProjectID:   projectA.ID,
+		Description: "trabajo cliente A",
+		StartedAt:   "2026-07-12T09:00:00Z",
+		EndedAt:     "2026-07-12T10:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("create entry A: %v", err)
+	}
+	_, err = st.CreateTimeEntry(ctx, user.ID, TimeEntryInput{
+		ClientID:    clientB.ID,
+		ProjectID:   projectB.ID,
+		Description: "trabajo cliente B",
+		StartedAt:   "2026-07-12T11:00:00Z",
+		EndedAt:     "2026-07-12T12:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("create entry B: %v", err)
+	}
+
+	summary, err := st.BuildDailySummary(ctx, user.ID, DailySummaryOptions{
+		Date:           "2026-07-12",
+		Timezone:       "UTC",
+		Locale:         "es",
+		IncludeClient:  true,
+		IncludeProject: true,
+		ClientID:       clientA.ID,
+	})
+	if err != nil {
+		t.Fatalf("build scoped summary: %v", err)
+	}
+
+	if !strings.Contains(summary.Text, "Cliente A") || !strings.Contains(summary.Text, "trabajo cliente A") {
+		t.Fatalf("expected client A activity, got:\n%s", summary.Text)
+	}
+	if strings.Contains(summary.Text, "Cliente B") || strings.Contains(summary.Text, "trabajo cliente B") {
+		t.Fatalf("did not expect client B activity, got:\n%s", summary.Text)
+	}
+	if summary.EntryCount != 1 {
+		t.Fatalf("expected one entry, got %+v", summary)
+	}
+}
+
+func TestDailySummaryOptionsJSONRoundTrip(t *testing.T) {
+	original := DailySummaryOptions{
+		Date:           "2026-03-12",
+		Timezone:       "Europe/Madrid",
+		Locale:         "es",
+		IncludeClient:  true,
+		IncludeProject: true,
+		IncludeClosing: true,
+		BillableOnly:   false,
+		ManualNote:     "Reunion con Huesca",
+		ClientID:       "cli_d8251f3fa8f86df0ec74d16215b29529",
+		ProjectID:      "",
+	}
+
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("marshal options: %v", err)
+	}
+
+	var decoded DailySummaryOptions
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal options: %v", err)
+	}
+	if decoded.ClientID != original.ClientID || decoded.Date != original.Date || decoded.ManualNote != original.ManualNote {
+		t.Fatalf("unexpected decoded options: %+v", decoded)
 	}
 }

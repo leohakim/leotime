@@ -117,14 +117,28 @@ await Agent.prompt(prompt, {
 
 | Step | API | UI |
 | --- | --- | --- |
-| Load saved state | `GET /api/v1/daily-summaries/{date}` | Opens draft or approved text for the date |
-| Generate template | `POST /api/v1/daily-summaries/{date}/generate` | "Generar resumen" |
+| Load saved state | `GET /api/v1/daily-summaries/{date}?clientId=&projectId=` | Opens draft or approved text for the date **and scope** |
+| Generate template | `POST /api/v1/daily-summaries/{date}/generate?clientId=&projectId=` | Only time entries (and enrich repos) for that client/project |
 | Enrich locally | `GET …/enrich-context` + Mac `POST http://127.0.0.1:9333/enrich` + `POST …/enrich` | "Enriquecer con contexto" |
 | Edit + feedback | `PUT /api/v1/daily-summaries/{date}` | Textarea + optional feedback for next regeneration |
 | Approve | `POST /api/v1/daily-summaries/{date}/approve` | Locks record; stores `approved_text` |
 | Reopen | `POST /api/v1/daily-summaries/{date}/reopen` | Returns to draft for further edits |
 
-**Future — Work Protocols (Phase 10+):** approved daily summaries aggregate into `billing.WorkProtocolSnapshot` day rows (`date`, `hours`, narrative `items[]`) when generating invoice PDFs. Template-only drafts never feed billing; only approved records count.
+**Future — Work Protocols (Phase 10+):** approved daily summaries aggregate into `billing.WorkProtocolSnapshot` day rows (`date`, `hours`, narrative `items[]`) when generating invoice PDFs. Template-only drafts never feed billing; only approved records count. Scope is per client/project so each client invoice can pull only their approved standups.
+
+### Freelance scope (Phase 9b)
+
+A freelancer may log time for multiple clients on the same day. Each daily summary record is keyed by `(date, clientId, projectId)`:
+
+| Scope | `clientId` | `projectId` | Includes |
+| --- | --- | --- | --- |
+| Whole day | empty | empty | All clients/projects that day |
+| Client standup | set | empty | Only that client's entries and linked repos |
+| Project standup | set* | set | Only that project's entries and repo |
+
+\*When `projectId` is set, `clientId` is implied from the project but stored for indexing.
+
+The UI exposes client/project filters separate from the "mention client/project name in prose" toggles.
 
 ### Delivery slices
 

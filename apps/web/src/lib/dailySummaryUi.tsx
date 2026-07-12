@@ -10,8 +10,9 @@ import {
   generateDailySummaryRecord,
   reopenDailySummaryRecord,
   saveDailySummaryDraft,
+  type Client,
   type DailySummaryParams,
-  type DailySummaryRecord,
+  type Project,
 } from './api';
 import { SurfaceEmpty, SurfaceError, SurfaceLoading } from './feedbackUi';
 import type { Translator } from './timeEntryUi';
@@ -19,12 +20,14 @@ import { useToast } from './toast';
 
 type DailySummaryFormState = {
   billableOnly: boolean;
+  clientId: string;
   date: string;
   feedback: string;
   includeClient: boolean;
   includeClosing: boolean;
   includeProject: boolean;
   note: string;
+  projectId: string;
 };
 
 function todayInputValue(): string {
@@ -37,6 +40,8 @@ function todayInputValue(): string {
 function defaultDailySummaryForm(): DailySummaryFormState {
   return {
     date: todayInputValue(),
+    clientId: '',
+    projectId: '',
     includeClient: true,
     includeProject: true,
     includeClosing: true,
@@ -49,6 +54,8 @@ function defaultDailySummaryForm(): DailySummaryFormState {
 function formToParams(form: DailySummaryFormState): DailySummaryParams {
   return {
     date: form.date,
+    clientId: form.clientId,
+    projectId: form.projectId,
     includeClient: form.includeClient,
     includeProject: form.includeProject,
     includeClosing: form.includeClosing,
@@ -56,7 +63,32 @@ function formToParams(form: DailySummaryFormState): DailySummaryParams {
   };
 }
 
-export function DailySummaryPanel({ t }: { t: Translator }) {
+function scopeLabel(
+  form: DailySummaryFormState,
+  clients: Client[],
+  projects: Project[],
+  t: Translator,
+): string {
+  if (form.projectId) {
+    const project = projects.find((item) => item.id === form.projectId);
+    return project?.name ?? t('dailySummaryScopeProject');
+  }
+  if (form.clientId) {
+    const client = clients.find((item) => item.id === form.clientId);
+    return client?.name ?? t('dailySummaryScopeClient');
+  }
+  return t('dailySummaryScopeAll');
+}
+
+export function DailySummaryPanel({
+  clients,
+  projects,
+  t,
+}: {
+  clients: Client[];
+  projects: Project[];
+  t: Translator;
+}) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<DailySummaryFormState>(() => defaultDailySummaryForm());
@@ -64,32 +96,52 @@ export function DailySummaryPanel({ t }: { t: Translator }) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   const params = useMemo(() => formToParams(form), [form]);
+  const activeClients = useMemo(() => clients.filter((client) => !client.archivedAt), [clients]);
+  const scopedProjects = useMemo(() => {
+    let list = projects.filter((project) => !project.archivedAt);
+    if (form.clientId) {
+      list = list.filter((project) => project.clientId === form.clientId);
+    }
+    return list;
+  }, [form.clientId, projects]);
 
   const recordQuery = useQuery({
-    queryKey: ['daily-summary-record', form.date],
-    queryFn: () => fetchDailySummaryRecord(form.date),
+    queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId],
+    queryFn: () => fetchDailySummaryRecord(form.date, { clientId: form.clientId, projectId: form.projectId }),
     retry: false,
   });
 
   const record = recordQuery.data ?? null;
   const isApproved = record?.status === 'approved';
+  const currentScope = scopeLabel(form, clients, projects, t);
 
   useEffect(() => {
-    if (!record) {
+    setDraftText('');
+    setCopyState('idle');
+  }, [form.date, form.clientId, form.projectId]);
+
+  useEffect(() => {
+    if (!record || recordQuery.isFetching) {
       return;
     }
     setDraftText(record.status === 'approved' ? record.approvedText : record.draftText);
     setForm((current) => ({
       ...current,
       note: record.manualNote || current.note,
+      clientId: record.clientId || current.clientId,
+      projectId: record.projectId || current.projectId,
+      includeClient: record.options.includeClient ?? current.includeClient,
+      includeProject: record.options.includeProject ?? current.includeProject,
+      includeClosing: record.options.includeClosing ?? current.includeClosing,
+      billableOnly: record.options.billableOnly ?? current.billableOnly,
     }));
-  }, [record]);
+  }, [record, recordQuery.isFetching]);
 
   const generateMutation = useMutation({
     mutationFn: () => generateDailySummaryRecord(form.date, params, form.note),
     onSuccess: (saved) => {
       setDraftText(saved.draftText);
-      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date] });
+      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
       toast.success(t('dailySummaryGenerated'));
     },
     onError: () => toast.error(t('dailySummaryLoadFailed')),
@@ -103,7 +155,7 @@ export function DailySummaryPanel({ t }: { t: Translator }) {
         options: params,
       }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date] });
+      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
       toast.success(t('dailySummarySaved'));
     },
     onError: () => toast.error(t('dailySummarySaveFailed')),
@@ -126,35 +178,59 @@ export function DailySummaryPanel({ t }: { t: Translator }) {
         text: enriched.text,
         manualNote: form.note,
         generationSource: enriched.source,
+        options: params,
       });
     },
     onSuccess: (saved) => {
       setDraftText(saved.draftText);
       setForm((current) => ({ ...current, feedback: '' }));
-      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date] });
+      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
       toast.success(t('dailySummaryEnriched'));
     },
     onError: () => toast.error(t('dailySummaryEnrichFailed')),
   });
 
   const approveMutation = useMutation({
-    mutationFn: () => approveDailySummaryRecord(form.date, draftText),
+    mutationFn: () => approveDailySummaryRecord(form.date, draftText, { clientId: form.clientId, projectId: form.projectId }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date] });
+      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
       toast.success(t('dailySummaryApprovedToast'));
     },
     onError: () => toast.error(t('dailySummaryApproveFailed')),
   });
 
   const reopenMutation = useMutation({
-    mutationFn: () => reopenDailySummaryRecord(form.date),
+    mutationFn: () => reopenDailySummaryRecord(form.date, { clientId: form.clientId, projectId: form.projectId }),
     onSuccess: (saved) => {
       setDraftText(saved.draftText);
-      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date] });
+      void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
       toast.success(t('dailySummaryReopened'));
     },
     onError: () => toast.error(t('dailySummaryReopenFailed')),
   });
+
+  function updateClientId(clientId: string) {
+    setForm((current) => {
+      const nextProjectId =
+        clientId && current.projectId
+          ? projects.some((project) => project.id === current.projectId && project.clientId === clientId)
+            ? current.projectId
+            : ''
+          : current.projectId;
+      return { ...current, clientId, projectId: nextProjectId };
+    });
+  }
+
+  function updateProjectId(projectId: string) {
+    setForm((current) => {
+      const project = projects.find((item) => item.id === projectId);
+      return {
+        ...current,
+        projectId,
+        clientId: project?.clientId ?? current.clientId,
+      };
+    });
+  }
 
   function submitPreview(event: FormEvent) {
     event.preventDefault();
@@ -192,6 +268,9 @@ export function DailySummaryPanel({ t }: { t: Translator }) {
           </span>
           <h2 id="daily-summary-title">{t('dailySummaryTitle')}</h2>
           <p>{t('dailySummarySubtitle')}</p>
+          <p className="daily-summary-scope-label">
+            {t('dailySummaryScopeLabel').replace('{scope}', currentScope)}
+          </p>
           {record ? (
             <p className="daily-summary-status">
               {isApproved ? t('dailySummaryApprovedStatus') : t('dailySummaryDraftStatus')}
@@ -213,6 +292,38 @@ export function DailySummaryPanel({ t }: { t: Translator }) {
                 type="date"
                 value={form.date}
               />
+            </label>
+            <label className="form-field" htmlFor="daily-summary-client">
+              {t('dailySummaryFilterClient')}
+              <select
+                disabled={isApproved}
+                id="daily-summary-client"
+                onChange={(event) => updateClientId(event.target.value)}
+                value={form.clientId}
+              >
+                <option value="">{t('dailySummaryAllClients')}</option>
+                {activeClients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-field" htmlFor="daily-summary-project">
+              {t('dailySummaryFilterProject')}
+              <select
+                disabled={isApproved}
+                id="daily-summary-project"
+                onChange={(event) => updateProjectId(event.target.value)}
+                value={form.projectId}
+              >
+                <option value="">{form.clientId ? t('dailySummaryAllClientProjects') : t('dailySummaryAllProjects')}</option>
+                {scopedProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.clientName ? `${project.clientName} — ${project.name}` : project.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="checkbox-field">
               <input
