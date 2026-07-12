@@ -536,6 +536,26 @@ export async function restoreBackup(input: { objectKey?: string; latest?: boolea
   return apiJSON('/api/v1/backups/restore', 'POST', input);
 }
 
+export type AISettings = {
+  enabled: boolean;
+  gitAuthorEmail: string;
+  cursorApiKeyConfigured: boolean;
+};
+
+export type AISettingsInput = {
+  enabled: boolean;
+  gitAuthorEmail: string;
+  cursorApiKey?: string;
+};
+
+export async function fetchAISettings(): Promise<AISettings> {
+  return apiGet('/api/v1/settings/ai');
+}
+
+export async function updateAISettings(input: AISettingsInput): Promise<AISettings> {
+  return apiJSON('/api/v1/settings/ai', 'PUT', input);
+}
+
 export async function fetchDashboardStats(activityMonth?: string): Promise<DashboardStats> {
   const query = activityMonth ? `?activityMonth=${encodeURIComponent(activityMonth)}` : '';
   return apiGet(`/api/v1/dashboard/stats${query}`);

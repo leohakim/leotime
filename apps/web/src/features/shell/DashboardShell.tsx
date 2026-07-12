@@ -26,6 +26,7 @@ import {
 } from '../../lib/appRoutes';
 import { ProfileSettingsPanel } from '../../lib/profileSettingsUi';
 import { BackupSettingsPanel } from '../../lib/backupSettingsUi';
+import { AISettingsPanel } from '../../lib/aiSettingsUi';
 import { SettingsSectionNav } from '../../lib/settingsSectionNavUi';
 import { QueryErrorBanner } from '../../lib/crudFormUi';
 import {
@@ -444,6 +445,7 @@ export function DashboardShell({
                 user={user}
               />
               <BackupSettingsPanel t={t} />
+              <AISettingsPanel t={t} />
             </div>
           ) : null}
         </div>

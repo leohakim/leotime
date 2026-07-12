@@ -7,6 +7,7 @@ const SETTINGS_SECTIONS = [
   { id: 'settings', labelKey: 'settings' },
   { id: 'profile-section-notifications', labelKey: 'profileEmailNotificationsSection' },
   { id: 'profile-section-password', labelKey: 'profilePasswordSection' },
+  { id: 'ai-summary-settings', labelKey: 'aiSettingsHeading' },
   { id: 'backups', labelKey: 'backupHeading' },
 ] as const satisfies ReadonlyArray<{ id: string; labelKey: MessageKey }>;
 

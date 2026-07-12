@@ -81,6 +81,8 @@ func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.Passwor
 		r.Post("/profile/change-password", server.requireUser(server.changePassword))
 		r.Get("/backups/settings", server.requireUser(server.getBackupSettings))
 		r.Put("/backups/settings", server.requireUser(server.putBackupSettings))
+		r.Get("/settings/ai", server.requireUser(server.getAISettings))
+		r.Put("/settings/ai", server.requireUser(server.putAISettings))
 		r.Post("/backups/test", server.requireUser(server.testBackupConnection))
 		r.Post("/backups/run", server.requireUser(server.runBackup))
 		r.Get("/backups/objects", server.requireUser(server.listBackupObjects))

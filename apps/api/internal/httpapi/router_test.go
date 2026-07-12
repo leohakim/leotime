@@ -1445,6 +1445,53 @@ func newTestRouter(t *testing.T) http.Handler {
 	return router
 }
 
+func newTestRouterWithSecretsKey(t *testing.T, secretsKey string) http.Handler {
+	t.Helper()
+	maintenance.Leave()
+	t.Cleanup(maintenance.Leave)
+
+	ctx := context.Background()
+	database, err := db.Open(ctx, t.TempDir()+"/leotime.db")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() {
+		database.Close()
+	})
+
+	if err := db.Migrate(ctx, database); err != nil {
+		t.Fatalf("migrate db: %v", err)
+	}
+
+	st := store.New(database)
+	if err := st.BootstrapAdmin(ctx, "admin@example.com", "change-me-now"); err != nil {
+		t.Fatalf("bootstrap admin: %v", err)
+	}
+
+	cfg := config.Config{
+		HTTPAddr:          ":0",
+		DBPath:            "unused",
+		BootstrapEmail:    "admin@example.com",
+		BootstrapPassword: "change-me-now",
+		SessionCookieName: "leotime_session",
+		SessionTTL:        time.Hour,
+		PublicBaseURL:     "http://127.0.0.1:8080",
+		PasswordResetTTL:  time.Hour,
+		MailMaxAttempts:   5,
+		DocumentRoot:      filepath.Join(t.TempDir(), "documents"),
+		SecretsKey:        secretsKey,
+	}
+
+	outboxStore := outbox.NewStore(database)
+	passwordReset := notify.NewPasswordResetService(st, outboxStore, cfg)
+	backupService := backup.NewService(cfg, st, database, nil)
+	router, err := NewRouter(cfg, st, passwordReset, backupService)
+	if err != nil {
+		t.Fatalf("new router: %v", err)
+	}
+	return router
+}
+
 func TestNewRouterRejectsMissingDocumentRoot(t *testing.T) {
 	ctx := context.Background()
 	database, err := db.Open(ctx, t.TempDir()+"/leotime.db")
