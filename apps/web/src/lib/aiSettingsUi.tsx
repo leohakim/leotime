@@ -22,6 +22,7 @@ function buildFormFromSettings(settings: AISettings): AISettingsFormState {
     enabled: settings.enabled,
     gitAuthorEmail: settings.gitAuthorEmail,
     cursorApiKey: '',
+    cursorCostPerMillionUsd: settings.cursorCostPerMillionUsd || 2,
   };
 }
 
@@ -42,6 +43,7 @@ export function AISettingsPanel({ t }: { t: Translator }) {
     enabled: false,
     gitAuthorEmail: '',
     cursorApiKey: '',
+    cursorCostPerMillionUsd: 2,
   }));
   const [cursorApiKeyConfigured, setCursorApiKeyConfigured] = useState(false);
   const [formError, setFormError] = useState('');
@@ -77,6 +79,7 @@ export function AISettingsPanel({ t }: { t: Translator }) {
     const payload: AISettingsInput = {
       enabled: form.enabled,
       gitAuthorEmail: form.gitAuthorEmail.trim(),
+      cursorCostPerMillionUsd: Number(form.cursorCostPerMillionUsd) || 2,
     };
     if (form.cursorApiKey.trim()) {
       payload.cursorApiKey = form.cursorApiKey.trim();
@@ -139,6 +142,24 @@ export function AISettingsPanel({ t }: { t: Translator }) {
             value={form.cursorApiKey}
           />
           {cursorApiKeyConfigured ? <small>{t('aiSettingsCursorApiKeyConfiguredHint')}</small> : null}
+        </label>
+
+        <label className={fieldClass()} htmlFor="ai-cursor-cost-per-million">
+          <span>{t('aiSettingsCursorCostPerMillion')}</span>
+          <input
+            id="ai-cursor-cost-per-million"
+            min="0"
+            onChange={(event) =>
+              setForm((current) => ({
+                ...current,
+                cursorCostPerMillionUsd: Number(event.target.value),
+              }))
+            }
+            step="0.01"
+            type="number"
+            value={form.cursorCostPerMillionUsd}
+          />
+          <small>{t('aiSettingsCursorCostPerMillionHint')}</small>
         </label>
 
         <div className="profile-form-actions">

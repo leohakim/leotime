@@ -25,6 +25,8 @@ type EnrichResponse struct {
 	Text    string        `json:"text"`
 	Context ContextBundle `json:"context"`
 	Source  string        `json:"source"`
+	ModelID string        `json:"modelId,omitempty"`
+	Usage   *TokenUsage   `json:"usage,omitempty"`
 }
 
 func NewServer() http.Handler {
@@ -91,9 +93,15 @@ func handleEnrich(w http.ResponseWriter, r *http.Request) {
 
 	text := BuildEnrichedText(bundle)
 	source := "context"
-	if aiText, ok := tryCursorAI(bundle, request.CursorAPIKey, request.AIEnabled); ok {
-		text = aiText
+	var usage *TokenUsage
+	modelID := ""
+	if aiResult, ok := tryCursorAI(bundle, request.CursorAPIKey, request.AIEnabled); ok {
+		text = aiResult.Text
 		source = "cursor"
+		modelID = aiResult.ModelID
+		if !aiResult.Usage.IsZero() {
+			usage = &aiResult.Usage
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -101,6 +109,8 @@ func handleEnrich(w http.ResponseWriter, r *http.Request) {
 		Text:    text,
 		Context: bundle,
 		Source:  source,
+		ModelID: modelID,
+		Usage:   usage,
 	}); err != nil {
 		log.Printf("encode enrich response: %v", err)
 	}

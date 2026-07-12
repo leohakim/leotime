@@ -127,6 +127,7 @@ func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.Passwor
 		r.Get("/reports/time/export", server.requireUser(server.exportTimeReport))
 		r.Get("/reports/daily-summary", server.requireUser(server.getDailySummary))
 		r.Get("/daily-summaries", server.requireUser(server.listDailySummaryRecords))
+		r.Get("/daily-summaries/ai-usage", server.requireUser(server.getDailySummaryAIUsage))
 		r.Get("/daily-summaries/{date}", server.requireUser(server.getDailySummaryRecord))
 		r.Put("/daily-summaries/{date}", server.requireUser(server.putDailySummaryRecord))
 		r.Post("/daily-summaries/{date}/generate", server.requireUser(server.generateDailySummaryTemplate))

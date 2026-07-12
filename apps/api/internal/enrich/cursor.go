@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -59,14 +61,22 @@ type cursorRunResponse struct {
 	Result string `json:"result"`
 }
 
-func (c *CursorClient) PromptOnce(ctx context.Context, apiKey, prompt string) (string, error) {
+type cursorUsageResponse struct {
+	Runs []struct {
+		ID    string     `json:"id"`
+		Usage TokenUsage `json:"usage"`
+	} `json:"runs"`
+	TotalUsage TokenUsage `json:"totalUsage"`
+}
+
+func (c *CursorClient) PromptOnce(ctx context.Context, apiKey, prompt string) (CursorPromptResult, error) {
 	apiKey = strings.TrimSpace(apiKey)
 	prompt = strings.TrimSpace(prompt)
 	if apiKey == "" {
-		return "", errors.New("cursor api key is required")
+		return CursorPromptResult{}, errors.New("cursor api key is required")
 	}
 	if prompt == "" {
-		return "", errors.New("cursor prompt is required")
+		return CursorPromptResult{}, errors.New("cursor prompt is required")
 	}
 
 	client := c.httpClient()
@@ -75,9 +85,21 @@ func (c *CursorClient) PromptOnce(ctx context.Context, apiKey, prompt string) (s
 
 	agentID, runID, err := c.createAgent(deadlineCtx, client, apiKey, prompt)
 	if err != nil {
-		return "", err
+		return CursorPromptResult{}, err
 	}
-	return c.waitForRun(deadlineCtx, client, apiKey, agentID, runID)
+	text, err := c.waitForRun(deadlineCtx, client, apiKey, agentID, runID)
+	if err != nil {
+		return CursorPromptResult{}, err
+	}
+	usage, err := c.fetchRunUsage(deadlineCtx, client, apiKey, agentID, runID)
+	if err != nil {
+		log.Printf("cursor usage fetch failed: %v", err)
+	}
+	return CursorPromptResult{
+		Text:    text,
+		ModelID: c.modelID(),
+		Usage:   usage,
+	}, nil
 }
 
 func (c *CursorClient) createAgent(ctx context.Context, client *http.Client, apiKey, prompt string) (string, string, error) {
@@ -145,8 +167,8 @@ func (c *CursorClient) waitForRun(ctx context.Context, client *http.Client, apiK
 }
 
 func (c *CursorClient) fetchRun(ctx context.Context, client *http.Client, apiKey, agentID, runID string) (string, bool, error) {
-	url := fmt.Sprintf("%s/v1/agents/%s/runs/%s", c.baseURL(), agentID, runID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	endpoint := fmt.Sprintf("%s/v1/agents/%s/runs/%s", c.baseURL(), agentID, runID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return "", false, fmt.Errorf("build cursor run request: %w", err)
 	}
@@ -179,6 +201,70 @@ func (c *CursorClient) fetchRun(ctx context.Context, client *http.Client, apiKey
 	default:
 		return "", false, nil
 	}
+}
+
+func (c *CursorClient) fetchRunUsage(ctx context.Context, client *http.Client, apiKey, agentID, runID string) (TokenUsage, error) {
+	endpoint := fmt.Sprintf("%s/v1/agents/%s/usage", c.baseURL(), agentID)
+	query := url.Values{}
+	query.Set("runId", runID)
+	endpoint += "?" + query.Encode()
+
+	deadline := time.Now().Add(8 * time.Second)
+	for time.Now().Before(deadline) {
+		usage, found, err := c.requestRunUsage(ctx, client, apiKey, endpoint, runID)
+		if err != nil {
+			return TokenUsage{}, err
+		}
+		if found {
+			return usage, nil
+		}
+		select {
+		case <-ctx.Done():
+			return TokenUsage{}, ctx.Err()
+		case <-time.After(400 * time.Millisecond):
+		}
+	}
+	return TokenUsage{}, nil
+}
+
+func (c *CursorClient) requestRunUsage(ctx context.Context, client *http.Client, apiKey, endpoint, runID string) (TokenUsage, bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return TokenUsage{}, false, fmt.Errorf("build cursor usage request: %w", err)
+	}
+	req.SetBasicAuth(apiKey, "")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return TokenUsage{}, false, fmt.Errorf("cursor usage request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return TokenUsage{}, false, fmt.Errorf("read cursor usage response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return TokenUsage{}, false, fmt.Errorf("cursor usage failed: status %d", resp.StatusCode)
+	}
+
+	var payload cursorUsageResponse
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return TokenUsage{}, false, fmt.Errorf("decode cursor usage response: %w", err)
+	}
+	for _, run := range payload.Runs {
+		if run.ID != runID {
+			continue
+		}
+		if run.Usage.IsZero() {
+			return TokenUsage{}, false, nil
+		}
+		return run.Usage, true, nil
+	}
+	if !payload.TotalUsage.IsZero() {
+		return payload.TotalUsage, true, nil
+	}
+	return TokenUsage{}, false, nil
 }
 
 func (c *CursorClient) baseURL() string {

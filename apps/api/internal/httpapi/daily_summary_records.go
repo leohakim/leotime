@@ -21,6 +21,15 @@ type dailySummaryApproveRequest struct {
 	ApprovedText string `json:"approvedText"`
 }
 
+type dailySummaryAIUsagePayload struct {
+	InputTokens      int    `json:"inputTokens"`
+	OutputTokens     int    `json:"outputTokens"`
+	CacheReadTokens  int    `json:"cacheReadTokens"`
+	CacheWriteTokens int    `json:"cacheWriteTokens"`
+	TotalTokens      int    `json:"totalTokens"`
+	ModelID          string `json:"modelId"`
+}
+
 type dailySummaryEnrichContextResponse struct {
 	Date         string                    `json:"date"`
 	TemplateText string                    `json:"templateText"`
@@ -47,6 +56,29 @@ func (s *Server) listDailySummaryRecords(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (s *Server) getDailySummaryAIUsage(w http.ResponseWriter, r *http.Request, user *store.User) {
+	from := strings.TrimSpace(r.URL.Query().Get("from"))
+	to := strings.TrimSpace(r.URL.Query().Get("to"))
+	summary, err := s.store.SummarizeDailySummaryAIUsage(r.Context(), user.ID, from, to)
+	if err != nil {
+		if store.IsValidation(err, store.ErrInvalidTimeEntryInput) {
+			writeValidationStoreError(w, err)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "daily_summary_ai_usage_failed", "load daily summary ai usage failed")
+		return
+	}
+	runs, _, err := s.store.ListDailySummaryAIRuns(r.Context(), user.ID, from, to)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "daily_summary_ai_usage_failed", "load daily summary ai usage failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"summary": summary,
+		"runs":    runs,
+	})
 }
 
 func (s *Server) getDailySummaryRecord(w http.ResponseWriter, r *http.Request, user *store.User) {
@@ -144,11 +176,13 @@ func (s *Server) generateDailySummaryTemplate(w http.ResponseWriter, r *http.Req
 func (s *Server) applyDailySummaryEnrichment(w http.ResponseWriter, r *http.Request, user *store.User) {
 	date := strings.TrimSpace(chi.URLParam(r, "date"))
 	var body struct {
-		Text             string                     `json:"text"`
-		ManualNote       string                     `json:"manualNote"`
-		GenerationSource string                     `json:"generationSource"`
-		ContextJSON      string                     `json:"contextJson"`
-		Options          dailySummaryOptionsPayload `json:"options"`
+		Text             string                      `json:"text"`
+		ManualNote       string                      `json:"manualNote"`
+		GenerationSource string                      `json:"generationSource"`
+		ContextJSON      string                      `json:"contextJson"`
+		ModelID          string                      `json:"modelId"`
+		AIUsage          *dailySummaryAIUsagePayload `json:"aiUsage"`
+		Options          dailySummaryOptionsPayload  `json:"options"`
 	}
 	if !decodeJSONBody(w, r, &body) {
 		return
@@ -185,6 +219,34 @@ func (s *Server) applyDailySummaryEnrichment(w http.ResponseWriter, r *http.Requ
 		}
 		writeError(w, http.StatusInternalServerError, "daily_summary_save_failed", "save daily summary failed")
 		return
+	}
+
+	if source == "cursor" && body.AIUsage != nil {
+		settings, _ := s.store.AISettingsByUserID(r.Context(), user.ID)
+		costPerMillion := 2.0
+		if settings != nil && settings.CursorCostPerMillionUSD > 0 {
+			costPerMillion = settings.CursorCostPerMillionUSD
+		}
+		modelID := strings.TrimSpace(body.ModelID)
+		if modelID == "" {
+			modelID = strings.TrimSpace(body.AIUsage.ModelID)
+		}
+		if _, err := s.store.InsertDailySummaryAIRun(r.Context(), user.ID, store.DailySummaryAIRunInput{
+			SummaryDate:      date,
+			ClientID:         clientID,
+			ProjectID:        projectID,
+			RecordID:         record.ID,
+			ModelID:          modelID,
+			Source:           source,
+			InputTokens:      body.AIUsage.InputTokens,
+			OutputTokens:     body.AIUsage.OutputTokens,
+			CacheReadTokens:  body.AIUsage.CacheReadTokens,
+			CacheWriteTokens: body.AIUsage.CacheWriteTokens,
+			TotalTokens:      body.AIUsage.TotalTokens,
+		}, costPerMillion); err != nil {
+			writeError(w, http.StatusInternalServerError, "daily_summary_ai_usage_save_failed", "save daily summary ai usage failed")
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, record)
 }

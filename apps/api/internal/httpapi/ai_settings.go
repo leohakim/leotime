@@ -10,9 +10,10 @@ import (
 )
 
 type aiSettingsUpdateRequest struct {
-	Enabled        bool   `json:"enabled"`
-	GitAuthorEmail string `json:"gitAuthorEmail"`
-	CursorAPIKey   string `json:"cursorApiKey"`
+	Enabled                 bool    `json:"enabled"`
+	GitAuthorEmail          string  `json:"gitAuthorEmail"`
+	CursorAPIKey            string  `json:"cursorApiKey"`
+	CursorCostPerMillionUSD float64 `json:"cursorCostPerMillionUsd"`
 }
 
 func (s *Server) getAISettings(w http.ResponseWriter, r *http.Request, user *store.User) {
@@ -41,8 +42,9 @@ func (s *Server) putAISettings(w http.ResponseWriter, r *http.Request, user *sto
 	}
 
 	settings, err := s.store.UpsertAISettings(r.Context(), user.ID, store.AISettingsInput{
-		Enabled:        body.Enabled,
-		GitAuthorEmail: body.GitAuthorEmail,
+		Enabled:                 body.Enabled,
+		GitAuthorEmail:          body.GitAuthorEmail,
+		CursorCostPerMillionUSD: body.CursorCostPerMillionUSD,
 	}, cursorKeyEnc)
 	if err != nil {
 		writeAISettingsError(w, err)

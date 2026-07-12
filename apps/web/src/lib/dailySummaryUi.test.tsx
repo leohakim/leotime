@@ -66,6 +66,30 @@ describe('DailySummaryPanel', () => {
           });
         }
 
+        if (url.includes('/api/v1/daily-summaries/ai-usage') && method === 'GET') {
+          return new Response(
+            JSON.stringify({
+              summary: {
+                from: '2026-07-01',
+                to: '2026-07-31',
+                runCount: 0,
+                inputTokens: 0,
+                outputTokens: 0,
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+                totalTokens: 0,
+                estimatedCostUsd: 0,
+                costPerMillionUsd: 2,
+              },
+              runs: [],
+            }),
+            {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            },
+          );
+        }
+
         if (url.includes('/api/v1/daily-summaries/2026-07-12/generate') && method === 'POST') {
           return new Response(JSON.stringify(sampleRecord()), {
             status: 200,

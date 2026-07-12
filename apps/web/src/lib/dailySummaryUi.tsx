@@ -5,6 +5,7 @@ import {
   applyDailySummaryEnrichment,
   approveDailySummaryRecord,
   enrichDailySummaryLocally,
+  fetchDailySummaryAIUsage,
   fetchDailySummaryEnrichContext,
   fetchDailySummaryIndex,
   fetchDailySummaryRecord,
@@ -20,11 +21,17 @@ import {
 import {
   addMonths,
   buildMonthGrid,
+  endOfMonth,
   formatMonthLabel,
   isSameLocalDay,
   isSameMonth,
   weekdayLabels,
 } from './calendarMonth';
+import {
+  buildDailySummaryEnrichConfirmMessage,
+  DailySummaryAIUsageChip,
+  DailySummaryLastRunBadge,
+} from './dailySummaryCostUi';
 import { SurfaceEmpty, SurfaceError, SurfaceLoading } from './feedbackUi';
 import {
   DailySummaryProgressOverlay,
@@ -87,6 +94,11 @@ function formToParams(form: DailySummaryFormState): DailySummaryParams {
 function monthAnchorFromDate(date: string): Date {
   const [year, month] = date.split('-').map(Number);
   return new Date(year, month - 1, 1);
+}
+
+function toDateKey(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 function scopeLabel(
@@ -278,6 +290,9 @@ export function DailySummaryPanel({
   }, [form.clientId, projects]);
 
   const monthStart = useMemo(() => new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1), [monthAnchor]);
+  const billingPeriodFrom = toDateKey(monthStart);
+  const billingPeriodTo = toDateKey(endOfMonth(monthStart));
+  const billingPeriodLabel = formatMonthLabel(monthStart, locale);
   const calendarCells = useMemo(() => buildMonthGrid(monthStart, []), [monthStart]);
   const calendarFrom = calendarCells[0]?.date ?? '';
   const calendarTo = calendarCells[calendarCells.length - 1]?.date ?? '';
@@ -289,6 +304,20 @@ export function DailySummaryPanel({
   });
 
   const indexByDate = useMemo(() => aggregateSummaryIndex(indexQuery.data ?? []), [indexQuery.data]);
+
+  const usageQuery = useQuery({
+    queryKey: ['daily-summary-ai-usage', billingPeriodFrom, billingPeriodTo],
+    queryFn: () => fetchDailySummaryAIUsage(billingPeriodFrom, billingPeriodTo),
+  });
+
+  const scopedRuns = useMemo(
+    () =>
+      (usageQuery.data?.runs ?? []).filter(
+        (run) => run.clientId === form.clientId && run.projectId === form.projectId,
+      ),
+    [form.clientId, form.projectId, usageQuery.data?.runs],
+  );
+  const lastScopedRun = scopedRuns[0] ?? null;
 
   const recordQuery = useQuery({
     queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId],
@@ -349,6 +378,18 @@ export function DailySummaryPanel({
   function invalidateSummaryQueries() {
     void queryClient.invalidateQueries({ queryKey: ['daily-summary-record', form.date, form.clientId, form.projectId] });
     void queryClient.invalidateQueries({ queryKey: ['daily-summary-index'] });
+    void queryClient.invalidateQueries({ queryKey: ['daily-summary-ai-usage'] });
+  }
+
+  function requestEnrichConfirmation(): boolean {
+    return window.confirm(buildDailySummaryEnrichConfirmMessage(usageQuery.data?.summary, t, locale));
+  }
+
+  function triggerEnrich() {
+    if (!requestEnrichConfirmation()) {
+      return;
+    }
+    enrichMutation.mutate();
   }
 
   const generateMutation = useMutation({
@@ -403,6 +444,8 @@ export function DailySummaryPanel({
         text: enriched.text,
         manualNote: form.note,
         generationSource: enriched.source,
+        modelId: enriched.modelId,
+        aiUsage: enriched.usage,
         options: params,
       });
     },
@@ -533,8 +576,8 @@ export function DailySummaryPanel({
 
   return (
     <section className="clients-section report-section daily-summary-section" id="daily-summary" aria-labelledby="daily-summary-title">
-      <div className="clients-heading">
-        <div className="section-title-group">
+      <header className="daily-summary-topbar">
+        <div className="daily-summary-intro">
           <span className="section-kicker">
             <MessageSquareText aria-hidden="true" />
             {t('dailySummary')}
@@ -544,151 +587,170 @@ export function DailySummaryPanel({
           <p className="daily-summary-scope-label">
             {t('dailySummaryScopeLabel').replace('{scope}', currentScope)}
           </p>
-          <DailySummaryStatusBadge detail={statusBadge.detail} label={statusBadge.label} tone={statusBadge.tone} />
         </div>
-      </div>
+        <DailySummaryAIUsageChip
+          isLoading={usageQuery.isLoading}
+          locale={locale}
+          periodLabel={billingPeriodLabel}
+          runs={usageQuery.data?.runs ?? []}
+          summary={usageQuery.data?.summary}
+          t={t}
+        />
+      </header>
 
-      <div className="report-workbench daily-summary-workbench">
-        <aside className="report-filters-panel daily-summary-sidebar">
-          <DailySummaryMonthCalendar
-            indexByDate={indexByDate}
-            locale={locale}
-            monthAnchor={monthAnchor}
-            onNextMonth={() => setMonthAnchor((current) => addMonths(current, 1))}
-            onPreviousMonth={() => setMonthAnchor((current) => addMonths(current, -1))}
-            onSelectDay={(date) => setForm((current) => ({ ...current, date }))}
-            onTodayMonth={() => {
-              const today = todayInputValue();
-              setMonthAnchor(monthAnchorFromDate(today));
-              setForm((current) => ({ ...current, date: today }));
-            }}
-            selectedDate={form.date}
-            t={t}
-          />
-
-          <h3>{t('dailySummaryOptions')}</h3>
-          <form className="report-form" noValidate onSubmit={submitPreview}>
-            <label className="form-field">
-              {t('dailySummaryDate')}
-              <input
-                disabled={busy}
-                onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))}
-                type="date"
-                value={form.date}
-              />
-            </label>
-            <label className="form-field" htmlFor="daily-summary-client">
-              {t('dailySummaryFilterClient')}
-              <select
-                disabled={isApproved}
-                id="daily-summary-client"
-                onChange={(event) => updateClientId(event.target.value)}
-                value={form.clientId}
-              >
-                <option value="">{t('dailySummaryAllClients')}</option>
-                {activeClients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="form-field" htmlFor="daily-summary-project">
-              {t('dailySummaryFilterProject')}
-              <select
-                disabled={isApproved}
-                id="daily-summary-project"
-                onChange={(event) => updateProjectId(event.target.value)}
-                value={form.projectId}
-              >
-                <option value="">{form.clientId ? t('dailySummaryAllClientProjects') : t('dailySummaryAllProjects')}</option>
-                {scopedProjects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.clientName ? `${project.clientName} — ${project.name}` : project.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="checkbox-field">
-              <input
-                checked={form.includeClient}
-                disabled={isApproved}
-                onChange={(event) => setForm((current) => ({ ...current, includeClient: event.target.checked }))}
-                type="checkbox"
-              />
-              <span>{t('dailySummaryIncludeClient')}</span>
-            </label>
-            <label className="checkbox-field">
-              <input
-                checked={form.includeProject}
-                disabled={isApproved}
-                onChange={(event) => setForm((current) => ({ ...current, includeProject: event.target.checked }))}
-                type="checkbox"
-              />
-              <span>{t('dailySummaryIncludeProject')}</span>
-            </label>
-            <label className="checkbox-field">
-              <input
-                checked={form.includeClosing}
-                disabled={isApproved}
-                onChange={(event) => setForm((current) => ({ ...current, includeClosing: event.target.checked }))}
-                type="checkbox"
-              />
-              <span>{t('dailySummaryIncludeClosing')}</span>
-            </label>
-            <label className="checkbox-field">
-              <input
-                checked={form.billableOnly}
-                disabled={isApproved}
-                onChange={(event) => setForm((current) => ({ ...current, billableOnly: event.target.checked }))}
-                type="checkbox"
-              />
-              <span>{t('reportBillableOnly')}</span>
-            </label>
-            <label className="form-field">
-              {t('dailySummaryNote')}
-              <textarea
-                disabled={isApproved}
-                onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
-                placeholder={t('dailySummaryNotePlaceholder')}
-                rows={3}
-                value={form.note}
-              />
-            </label>
-            <label className="form-field">
-              {t('dailySummaryFeedback')}
-              <textarea
-                disabled={isApproved}
-                onChange={(event) => setForm((current) => ({ ...current, feedback: event.target.value }))}
-                placeholder={t('dailySummaryFeedbackPlaceholder')}
-                rows={3}
-                value={form.feedback}
-              />
-            </label>
-            <div className="report-form-actions">
-              <button className="secondary-button" disabled={busy || isApproved} type="submit">
-                <RefreshCw aria-hidden="true" />
-                {t('dailySummaryGenerate')}
-              </button>
-              <button
-                className="secondary-button"
-                disabled={busy || isApproved}
-                onClick={() => enrichMutation.mutate()}
-                type="button"
-              >
-                <Sparkles aria-hidden="true" />
-                {t('dailySummaryEnrich')}
-              </button>
-            </div>
-          </form>
-        </aside>
-
-        <div className="report-results-panel daily-summary-results" aria-live="polite">
-          <div className="report-results-header">
-            <h3>{t('dailySummaryPreview')}</h3>
+      <div className="daily-summary-workbench">
+        <aside className="daily-summary-sidebar">
+          <div className="daily-summary-sidebar-card daily-summary-calendar-card">
+            <DailySummaryMonthCalendar
+              indexByDate={indexByDate}
+              locale={locale}
+              monthAnchor={monthAnchor}
+              onNextMonth={() => setMonthAnchor((current) => addMonths(current, 1))}
+              onPreviousMonth={() => setMonthAnchor((current) => addMonths(current, -1))}
+              onSelectDay={(date) => setForm((current) => ({ ...current, date }))}
+              onTodayMonth={() => {
+                const today = todayInputValue();
+                setMonthAnchor(monthAnchorFromDate(today));
+                setForm((current) => ({ ...current, date: today }));
+              }}
+              selectedDate={form.date}
+              t={t}
+            />
           </div>
 
-          <div className="report-preview daily-summary-preview-shell">
+          <div className="daily-summary-sidebar-card daily-summary-options-card">
+            <h3>{t('dailySummaryOptions')}</h3>
+            <form className="report-form daily-summary-options-form" noValidate onSubmit={submitPreview}>
+              <label className="form-field">
+                {t('dailySummaryDate')}
+                <input
+                  disabled={busy}
+                  onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))}
+                  type="date"
+                  value={form.date}
+                />
+              </label>
+              <div className="daily-summary-options-grid">
+                <label className="form-field" htmlFor="daily-summary-client">
+                  {t('dailySummaryFilterClient')}
+                  <select
+                    disabled={isApproved}
+                    id="daily-summary-client"
+                    onChange={(event) => updateClientId(event.target.value)}
+                    value={form.clientId}
+                  >
+                    <option value="">{t('dailySummaryAllClients')}</option>
+                    {activeClients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="form-field" htmlFor="daily-summary-project">
+                  {t('dailySummaryFilterProject')}
+                  <select
+                    disabled={isApproved}
+                    id="daily-summary-project"
+                    onChange={(event) => updateProjectId(event.target.value)}
+                    value={form.projectId}
+                  >
+                    <option value="">{form.clientId ? t('dailySummaryAllClientProjects') : t('dailySummaryAllProjects')}</option>
+                    {scopedProjects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.clientName ? `${project.clientName} — ${project.name}` : project.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="daily-summary-toggle-grid">
+                <label className="checkbox-field">
+                  <input
+                    checked={form.includeClient}
+                    disabled={isApproved}
+                    onChange={(event) => setForm((current) => ({ ...current, includeClient: event.target.checked }))}
+                    type="checkbox"
+                  />
+                  <span>{t('dailySummaryIncludeClient')}</span>
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    checked={form.includeProject}
+                    disabled={isApproved}
+                    onChange={(event) => setForm((current) => ({ ...current, includeProject: event.target.checked }))}
+                    type="checkbox"
+                  />
+                  <span>{t('dailySummaryIncludeProject')}</span>
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    checked={form.includeClosing}
+                    disabled={isApproved}
+                    onChange={(event) => setForm((current) => ({ ...current, includeClosing: event.target.checked }))}
+                    type="checkbox"
+                  />
+                  <span>{t('dailySummaryIncludeClosing')}</span>
+                </label>
+                <label className="checkbox-field">
+                  <input
+                    checked={form.billableOnly}
+                    disabled={isApproved}
+                    onChange={(event) => setForm((current) => ({ ...current, billableOnly: event.target.checked }))}
+                    type="checkbox"
+                  />
+                  <span>{t('reportBillableOnly')}</span>
+                </label>
+              </div>
+              <label className="form-field">
+                {t('dailySummaryNote')}
+                <textarea
+                  disabled={isApproved}
+                  onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
+                  placeholder={t('dailySummaryNotePlaceholder')}
+                  rows={2}
+                  value={form.note}
+                />
+              </label>
+              <label className="form-field">
+                {t('dailySummaryFeedback')}
+                <textarea
+                  disabled={isApproved}
+                  onChange={(event) => setForm((current) => ({ ...current, feedback: event.target.value }))}
+                  placeholder={t('dailySummaryFeedbackPlaceholder')}
+                  rows={2}
+                  value={form.feedback}
+                />
+              </label>
+              <div className="report-form-actions daily-summary-action-row">
+                <button className="secondary-button" disabled={busy || isApproved} type="submit">
+                  <RefreshCw aria-hidden="true" />
+                  {t('dailySummaryGenerate')}
+                </button>
+                <button
+                  className="secondary-button daily-summary-enrich-button"
+                  disabled={busy || isApproved}
+                  onClick={triggerEnrich}
+                  type="button"
+                >
+                  <Sparkles aria-hidden="true" />
+                  {t('dailySummaryEnrich')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </aside>
+
+        <main className="daily-summary-editor-panel" aria-live="polite">
+          <div className="daily-summary-editor-header">
+            <div className="daily-summary-editor-heading">
+              <h3>{t('dailySummaryPreview')}</h3>
+              <DailySummaryStatusBadge detail={statusBadge.detail} label={statusBadge.label} tone={statusBadge.tone} />
+              <DailySummaryLastRunBadge locale={locale} run={lastScopedRun} t={t} />
+            </div>
+          </div>
+
+          <div className="daily-summary-preview-shell">
             {progressOverlay}
             {recordQuery.isLoading ? <SurfaceLoading label={t('loading')} /> : null}
             {recordQuery.isError ? (
@@ -702,19 +764,19 @@ export function DailySummaryPanel({
             {draftText ? (
               <>
                 <label className="form-field daily-summary-editor" htmlFor="daily-summary-text">
-                  <span>{t('dailySummarySlackText')}</span>
                   <textarea
+                    aria-label={t('dailySummarySlackText')}
                     id="daily-summary-text"
                     onChange={(event) => {
                       setDraftText(event.target.value);
                       setCopyState('idle');
                     }}
                     readOnly={isApproved}
-                    rows={14}
+                    rows={18}
                     value={draftText}
                   />
                 </label>
-                <div className="report-form-actions">
+                <div className="report-form-actions daily-summary-editor-actions">
                   <button disabled={!draftText.trim() || busy} onClick={() => void handleCopy()} type="button">
                     <ClipboardCopy aria-hidden="true" />
                     {copyState === 'copied' ? t('dailySummaryCopied') : t('dailySummaryCopySlack')}
@@ -743,7 +805,7 @@ export function DailySummaryPanel({
               </>
             ) : null}
           </div>
-        </div>
+        </main>
       </div>
     </section>
   );

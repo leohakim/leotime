@@ -9,30 +9,40 @@ import (
 
 var cursorPromptClient = DefaultCursorClient()
 
-func tryCursorAI(bundle ContextBundle, apiKey string, enabled bool) (string, bool) {
+type CursorAIResult struct {
+	Text    string
+	ModelID string
+	Usage   TokenUsage
+}
+
+func tryCursorAI(bundle ContextBundle, apiKey string, enabled bool) (CursorAIResult, bool) {
 	apiKey = strings.TrimSpace(apiKey)
 	if apiKey == "" {
 		apiKey = strings.TrimSpace(os.Getenv("CURSOR_API_KEY"))
 	}
 	if apiKey == "" {
-		return "", false
+		return CursorAIResult{}, false
 	}
 	if !enabled && strings.TrimSpace(os.Getenv("CURSOR_API_KEY")) == "" {
-		return "", false
+		return CursorAIResult{}, false
 	}
 
 	prompt := BuildCursorPrompt(bundle)
 	ctx, cancel := context.WithTimeout(context.Background(), cursorPromptClient.timeout())
 	defer cancel()
 
-	text, err := cursorPromptClient.PromptOnce(ctx, apiKey, prompt)
+	result, err := cursorPromptClient.PromptOnce(ctx, apiKey, prompt)
 	if err != nil {
 		log.Printf("cursor enrich failed: %v", err)
-		return "", false
+		return CursorAIResult{}, false
 	}
-	text = strings.TrimSpace(text)
+	text := strings.TrimSpace(result.Text)
 	if text == "" {
-		return "", false
+		return CursorAIResult{}, false
 	}
-	return text, true
+	return CursorAIResult{
+		Text:    text,
+		ModelID: result.ModelID,
+		Usage:   result.Usage,
+	}, true
 }

@@ -540,12 +540,14 @@ export type AISettings = {
   enabled: boolean;
   gitAuthorEmail: string;
   cursorApiKeyConfigured: boolean;
+  cursorCostPerMillionUsd: number;
 };
 
 export type AISettingsInput = {
   enabled: boolean;
   gitAuthorEmail: string;
   cursorApiKey?: string;
+  cursorCostPerMillionUsd?: number;
 };
 
 export async function fetchAISettings(): Promise<AISettings> {
@@ -967,6 +969,52 @@ export async function fetchDailySummaryIndex(
   return payload.items;
 }
 
+export type DailySummaryTokenUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  totalTokens: number;
+};
+
+export type DailySummaryAIRun = {
+  id: string;
+  summaryDate: string;
+  clientId: string;
+  projectId: string;
+  recordId?: string;
+  modelId: string;
+  source: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+  createdAt: string;
+};
+
+export type DailySummaryAIUsageSummary = {
+  from: string;
+  to: string;
+  runCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+  costPerMillionUsd: number;
+};
+
+export async function fetchDailySummaryAIUsage(
+  from: string,
+  to: string,
+): Promise<{ summary: DailySummaryAIUsageSummary; runs: DailySummaryAIRun[] }> {
+  const search = new URLSearchParams({ from, to });
+  return apiGet(`/api/v1/daily-summaries/ai-usage?${search.toString()}`);
+}
+
 export type DailySummaryEnrichContext = {
   date: string;
   templateText: string;
@@ -1006,7 +1054,12 @@ export async function enrichDailySummaryLocally(input: {
   locale: string;
   authorEmail: string;
   projects: DailySummaryEnrichContext['projects'];
-}): Promise<{ text: string; source: string }> {
+}): Promise<{
+  text: string;
+  source: string;
+  modelId?: string;
+  usage?: DailySummaryTokenUsage;
+}> {
   return apiJSON('/api/v1/enricher/enrich', 'POST', input);
 }
 
@@ -1042,6 +1095,8 @@ export async function applyDailySummaryEnrichment(
     manualNote?: string;
     generationSource?: string;
     contextJson?: string;
+    modelId?: string;
+    aiUsage?: DailySummaryTokenUsage & { modelId?: string };
     options: DailySummaryParams;
   },
 ): Promise<DailySummaryRecord> {

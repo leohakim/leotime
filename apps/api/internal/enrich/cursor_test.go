@@ -50,6 +50,17 @@ func TestCursorClientPromptOnce(t *testing.T) {
 				"status": "FINISHED",
 				"result": "12/7:\nResumen de hoy:\nHoy cerré el enricher.\nHasta mañana team!",
 			})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/agents/bc-test/usage":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"runs": []map[string]any{{
+					"id": "run-test",
+					"usage": map[string]int{
+						"inputTokens": 1200, "outputTokens": 340, "cacheReadTokens": 0,
+						"cacheWriteTokens": 0, "totalTokens": 1540,
+					},
+				}},
+			})
 		default:
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -63,12 +74,15 @@ func TestCursorClientPromptOnce(t *testing.T) {
 		Timeout:    time.Second,
 	}
 
-	text, err := client.PromptOnce(context.Background(), "cursor-test-key", "write standup")
+	result, err := client.PromptOnce(context.Background(), "cursor-test-key", "write standup")
 	if err != nil {
 		t.Fatalf("PromptOnce failed: %v", err)
 	}
-	if !strings.Contains(text, "Hasta mañana team!") {
-		t.Fatalf("unexpected result: %s", text)
+	if !strings.Contains(result.Text, "Hasta mañana team!") {
+		t.Fatalf("unexpected result: %s", result.Text)
+	}
+	if result.Usage.TotalTokens != 1540 {
+		t.Fatalf("unexpected usage: %+v", result.Usage)
 	}
 	if !strings.Contains(createBody.Prompt.Text, "write standup") {
 		t.Fatalf("unexpected prompt body: %+v", createBody)
@@ -87,6 +101,15 @@ func TestTryCursorAIUsesInjectedKey(t *testing.T) {
 			})
 			return
 		}
+		if strings.Contains(r.URL.Path, "/usage") {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"runs": []map[string]any{{
+					"id":    "run-test",
+					"usage": map[string]int{"inputTokens": 100, "outputTokens": 50, "totalTokens": 150},
+				}},
+			})
+			return
+		}
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"status": "FINISHED",
 			"result": "12/7:\nResumen de hoy:\nTexto IA.\nHasta mañana team!",
@@ -101,7 +124,7 @@ func TestTryCursorAIUsesInjectedKey(t *testing.T) {
 		Timeout:    time.Second,
 	}
 
-	text, ok := tryCursorAI(ContextBundle{
+	result, ok := tryCursorAI(ContextBundle{
 		Date:         "2026-07-12",
 		TemplateText: "borrador",
 		Locale:       "es",
@@ -109,7 +132,7 @@ func TestTryCursorAIUsesInjectedKey(t *testing.T) {
 	if !ok {
 		t.Fatal("expected cursor enrichment")
 	}
-	if !strings.Contains(text, "Texto IA") {
-		t.Fatalf("unexpected text: %s", text)
+	if !strings.Contains(result.Text, "Texto IA") {
+		t.Fatalf("unexpected text: %s", result.Text)
 	}
 }
