@@ -17,6 +17,8 @@ type EnrichRequest struct {
 	Locale       string             `json:"locale"`
 	AuthorEmail  string             `json:"authorEmail"`
 	Projects     []ProjectWorkspace `json:"projects"`
+	CursorAPIKey string             `json:"cursorApiKey,omitempty"`
+	AIEnabled    bool               `json:"aiEnabled"`
 }
 
 type EnrichResponse struct {
@@ -89,7 +91,7 @@ func handleEnrich(w http.ResponseWriter, r *http.Request) {
 
 	text := BuildEnrichedText(bundle)
 	source := "context"
-	if aiText, ok := tryCursorAI(bundle); ok {
+	if aiText, ok := tryCursorAI(bundle, request.CursorAPIKey, request.AIEnabled); ok {
 		text = aiText
 		source = "cursor"
 	}
@@ -131,9 +133,4 @@ func allowedOrigin(origin string) bool {
 		}
 	}
 	return strings.HasPrefix(origin, "http://127.0.0.1:") || strings.HasPrefix(origin, "http://localhost:")
-}
-
-func tryCursorAI(bundle ContextBundle) (string, bool) {
-	_ = bundle
-	return "", false
 }

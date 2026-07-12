@@ -164,7 +164,7 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | Done | Visual regression checks | `make audit-ui-regression` + committed PNG baselines |
 | Done | Contributor tutorial | [First-issue walkthrough for Django/Python readers](40-contributor-tutorial.md) |
 | Done | Daily Slack summary | Narrative `GET /api/v1/reports/daily-summary` + `#daily-summary` UI with copy |
-| In progress | AI-enriched daily summary | Draft/approve workflow, scoped summaries, local enricher, AI settings UI — Cursor SDK call still stub — [spec](superpowers/specs/2026-07-12-ai-daily-summary-enrichment-design.md) |
+| In progress | AI-enriched daily summary | Draft/approve workflow, scoped summaries, local enricher, AI settings UI, Cursor Cloud API call from enricher — [spec](superpowers/specs/2026-07-12-ai-daily-summary-enrichment-design.md) |
 
 ## Documentation Backlog
 

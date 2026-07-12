@@ -62,6 +62,24 @@ func (s *Server) encryptSecret(plaintext string) (string, error) {
 	return crypto.Encrypt([]byte(plaintext), key)
 }
 
+func (s *Server) decryptSecret(encoded string) (string, error) {
+	if strings.TrimSpace(encoded) == "" {
+		return "", nil
+	}
+	if strings.TrimSpace(s.cfg.SecretsKey) == "" {
+		return "", store.ErrAISecretsKeyMissing
+	}
+	key, err := crypto.ParseKey(s.cfg.SecretsKey)
+	if err != nil {
+		return "", err
+	}
+	plain, err := crypto.Decrypt(encoded, key)
+	if err != nil {
+		return "", err
+	}
+	return string(plain), nil
+}
+
 func writeAISettingsError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, store.ErrAISecretsKeyMissing):
