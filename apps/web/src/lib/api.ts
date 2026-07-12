@@ -155,6 +155,9 @@ export type Project = {
   name: string;
   color: string;
   defaultHourlyRateMinor: number | null;
+  localRepoPath: string;
+  gitRemoteUrl: string;
+  cursorWorkspaceSlug: string;
   archivedAt: string;
   createdAt: string;
   updatedAt: string;
@@ -165,6 +168,9 @@ export type ProjectInput = {
   name: string;
   color: string;
   defaultHourlyRateMinor: number | null;
+  localRepoPath?: string;
+  gitRemoteUrl?: string;
+  cursorWorkspaceSlug?: string;
 };
 
 export type ProjectsResponse = {
@@ -302,6 +308,23 @@ export type TimeReport = {
   entryCount: number;
   groups?: TimeReportGroup[];
   entries?: TimeEntry[];
+};
+
+export type DailySummaryParams = {
+  billableOnly?: boolean;
+  date: string;
+  includeClient?: boolean;
+  includeClosing?: boolean;
+  includeProject?: boolean;
+};
+
+export type DailySummary = {
+  date: string;
+  locale: string;
+  timezone: string;
+  entryCount: number;
+  totalSeconds: number;
+  text: string;
 };
 
 export type DashboardRecentEntry = {
@@ -842,6 +865,123 @@ function buildTimeReportSearch(params: TimeReportParams & { format?: 'csv' | 'js
 
 export async function fetchTimeReport(params: TimeReportParams): Promise<TimeReport> {
   return apiGet(`/api/v1/reports/time?${buildTimeReportSearch(params)}`);
+}
+
+function buildDailySummarySearch(params: DailySummaryParams) {
+  const search = new URLSearchParams({ date: params.date });
+  if (params.includeClient === false) {
+    search.set('includeClient', 'false');
+  }
+  if (params.includeProject === false) {
+    search.set('includeProject', 'false');
+  }
+  if (params.includeClosing === false) {
+    search.set('includeClosing', 'false');
+  }
+  if (params.billableOnly) {
+    search.set('billableOnly', 'true');
+  }
+  return search.toString();
+}
+
+export async function fetchDailySummary(params: DailySummaryParams): Promise<DailySummary> {
+  return apiGet(`/api/v1/reports/daily-summary?${buildDailySummarySearch(params)}`);
+}
+
+export type DailySummaryRecordStatus = 'draft' | 'approved';
+
+export type DailySummaryRecord = {
+  id: string;
+  date: string;
+  status: DailySummaryRecordStatus;
+  draftText: string;
+  approvedText: string;
+  manualNote: string;
+  options: DailySummaryParams;
+  generationSource: string;
+  generationCount: number;
+  contextJson?: string;
+  approvedAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DailySummaryEnrichContext = {
+  date: string;
+  templateText: string;
+  manualNote: string;
+  locale: string;
+  authorEmail: string;
+  projects: Array<{
+    projectId: string;
+    projectName: string;
+    localRepoPath: string;
+    cursorWorkspaceSlug: string;
+  }>;
+  record?: DailySummaryRecord;
+};
+
+export async function fetchDailySummaryRecord(date: string): Promise<DailySummaryRecord | null> {
+  try {
+    return await apiGet(`/api/v1/daily-summaries/${date}`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function enrichDailySummaryLocally(input: {
+  date: string;
+  templateText: string;
+  manualNote: string;
+  feedback: string;
+  currentDraft: string;
+  locale: string;
+  authorEmail: string;
+  projects: DailySummaryEnrichContext['projects'];
+}): Promise<{ text: string; source: string }> {
+  return apiJSON('/api/v1/enricher/enrich', 'POST', input);
+}
+
+export async function generateDailySummaryRecord(
+  date: string,
+  params: DailySummaryParams,
+  manualNote = '',
+): Promise<DailySummaryRecord> {
+  const search = buildDailySummarySearch({ ...params, date });
+  return apiJSON(`/api/v1/daily-summaries/${date}/generate?${search}`, 'POST', { manualNote });
+}
+
+export async function saveDailySummaryDraft(
+  date: string,
+  input: { draftText: string; manualNote: string; options: DailySummaryParams },
+): Promise<DailySummaryRecord> {
+  return apiJSON(`/api/v1/daily-summaries/${date}`, 'PUT', input);
+}
+
+export async function fetchDailySummaryEnrichContext(
+  date: string,
+  params: DailySummaryParams,
+): Promise<DailySummaryEnrichContext> {
+  const search = buildDailySummarySearch({ ...params, date });
+  return apiGet(`/api/v1/daily-summaries/${date}/enrich-context?${search}`);
+}
+
+export async function applyDailySummaryEnrichment(
+  date: string,
+  input: { text: string; manualNote?: string; generationSource?: string; contextJson?: string },
+): Promise<DailySummaryRecord> {
+  return apiJSON(`/api/v1/daily-summaries/${date}/enrich`, 'POST', input);
+}
+
+export async function approveDailySummaryRecord(date: string, approvedText: string): Promise<DailySummaryRecord> {
+  return apiJSON(`/api/v1/daily-summaries/${date}/approve`, 'POST', { approvedText });
+}
+
+export async function reopenDailySummaryRecord(date: string): Promise<DailySummaryRecord> {
+  return apiJSON(`/api/v1/daily-summaries/${date}/reopen`, 'POST', {});
 }
 
 export async function downloadTimeReportExport(params: TimeReportParams, format: 'csv' | 'json'): Promise<Blob> {

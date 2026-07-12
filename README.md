@@ -48,12 +48,18 @@ The initial product target is:
 
 ## Local Development
 
-API:
+API (recommended — loads `.env.local` and maps Docker `/data` paths to `data/`):
+
+```bash
+make dev-api
+```
+
+Or manually:
 
 ```bash
 cd apps/api
 go test ./...
-go run ./cmd/leotime
+LEOTIME_DB_PATH=data/leotime.db LEOTIME_DOCUMENT_ROOT=data/documents go run ./cmd/leotime
 ```
 
 Web:

@@ -22,6 +22,8 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | **5** | UI/UX experience themes (10-sprint design spec) | **Done** |
 | **6** | Tooling (visual regression, contributor tutorial) | **Done** |
 | **7** | Curated hardening (billing, data, import, restore, production, UX) | **Done** |
+| **8** | Daily workflow (Slack standup summary from time entries) | **Done** |
+| **9** | AI-enriched daily summary (edit → approve workflow + local enricher) | **In progress** — [design spec](superpowers/specs/2026-07-12-ai-daily-summary-enrichment-design.md) |
 
 See the [curated hardening backlog](35-curated-hardening-backlog.md) for the current H-* queue. The IDs in [Known gaps and audit](34-known-gaps-and-audit.md) are historical findings and fix records.
 
@@ -161,6 +163,8 @@ See [ADR index](adr/README.md) for implementation status of all records.
 | Done | Curated hardening | H-INV-01 through H-UX-08 in [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md) |
 | Done | Visual regression checks | `make audit-ui-regression` + committed PNG baselines |
 | Done | Contributor tutorial | [First-issue walkthrough for Django/Python readers](40-contributor-tutorial.md) |
+| Done | Daily Slack summary | Narrative `GET /api/v1/reports/daily-summary` + `#daily-summary` UI with copy |
+| In progress | AI-enriched daily summary | Draft/approve workflow, local enricher (`make enricher-dev`), project workspace fields — Cursor SDK call still stub — [spec](superpowers/specs/2026-07-12-ai-daily-summary-enrichment-design.md) |
 
 ## Documentation Backlog
 

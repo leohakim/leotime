@@ -30,6 +30,9 @@ const emptyProjectForm: ProjectFormState = {
   color: '#2563eb',
   hourlyRate: '',
   active: true,
+  localRepoPath: '',
+  gitRemoteUrl: '',
+  cursorWorkspaceSlug: '',
 };
 
 export function ProjectPanel({
@@ -174,6 +177,9 @@ export function ProjectPanel({
           ? ''
           : formatRateInput(project.defaultHourlyRateMinor),
       active: !project.archivedAt,
+      localRepoPath: project.localRepoPath || '',
+      gitRemoteUrl: project.gitRemoteUrl || '',
+      cursorWorkspaceSlug: project.cursorWorkspaceSlug || '',
     });
   }
 
@@ -408,6 +414,36 @@ export function ProjectPanel({
                 <span>{t('projectActive')}</span>
               </label>
             ) : null}
+
+            <label className="form-field" htmlFor="project-local-repo">
+              <span>{t('projectLocalRepoPath')}</span>
+              <input
+                id="project-local-repo"
+                onChange={(event) => updateField('localRepoPath', event.target.value)}
+                placeholder="/Users/you/dev/my-project"
+                value={form.localRepoPath}
+              />
+            </label>
+
+            <label className="form-field" htmlFor="project-git-remote">
+              <span>{t('projectGitRemoteUrl')}</span>
+              <input
+                id="project-git-remote"
+                onChange={(event) => updateField('gitRemoteUrl', event.target.value)}
+                placeholder="git@github.com:you/my-project.git"
+                value={form.gitRemoteUrl}
+              />
+            </label>
+
+            <label className="form-field" htmlFor="project-cursor-slug">
+              <span>{t('projectCursorWorkspaceSlug')}</span>
+              <input
+                id="project-cursor-slug"
+                onChange={(event) => updateField('cursorWorkspaceSlug', event.target.value)}
+                placeholder="Users-you-dev-my-project"
+                value={form.cursorWorkspaceSlug}
+              />
+            </label>
           </div>
 
           <div className="client-form-actions">
@@ -455,5 +491,8 @@ function projectFormToInput(form: ProjectFormState): ProjectInput {
     name: form.name.trim(),
     color: form.color.trim() || '#2563eb',
     defaultHourlyRateMinor: form.hourlyRate.trim() ? rateToMinor(form.hourlyRate) : null,
+    localRepoPath: (form.localRepoPath ?? '').trim(),
+    gitRemoteUrl: (form.gitRemoteUrl ?? '').trim(),
+    cursorWorkspaceSlug: (form.cursorWorkspaceSlug ?? '').trim(),
   };
 }

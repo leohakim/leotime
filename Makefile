@@ -10,7 +10,18 @@ SAMPLE_SECONDS ?= 60
 SAMPLE_INTERVAL ?= 5
 WITH_LOAD ?= 0
 
-.PHONY: help setup setup-hooks pre-commit fmt-check test-api-vet dev dev-api dev-web up down logs migrate seed test test-api test-web test-e2e build-web smoke bench stress metrics resources docker-build deploy-check import-solidtime import-solidtime-dry
+.PHONY: help setup setup-hooks pre-commit fmt-check test-api-vet dev dev-api dev-web dev-enricher enricher-dev up down logs migrate seed test test-api test-web test-e2e build-web smoke bench stress metrics resources docker-build deploy-check import-solidtime import-solidtime-dry load-dev-env
+
+define load_dev_env
+	set -a; \
+	if [ -f .env.local ]; then . ./.env.local; fi; \
+	export LEOTIME_DB_PATH="$${LEOTIME_DB_PATH:-data/leotime.db}"; \
+	export LEOTIME_DOCUMENT_ROOT="$${LEOTIME_DOCUMENT_ROOT:-data/documents}"; \
+	case "$$LEOTIME_DB_PATH" in /data/*) export LEOTIME_DB_PATH="data/leotime.db" ;; esac; \
+	case "$$LEOTIME_DOCUMENT_ROOT" in /data/*) export LEOTIME_DOCUMENT_ROOT="data/documents" ;; esac; \
+	case "$$LEOTIME_STATIC_DIR" in /app/*) export LEOTIME_STATIC_DIR="" ;; esac; \
+	set +a
+endef
 
 help: ## 🧭 Show available commands
 	@printf "\n🕒 leotime developer commands\n\n"
@@ -47,18 +58,23 @@ test-api-vet: ## 🔍 Run go vet on the API module
 
 dev: ## 🚀 Run API and web dev servers in parallel
 	@printf "🚀 Starting API and web dev servers...\n"
-	@trap 'kill 0' INT TERM EXIT; \
+	@$(load_dev_env); \
+	trap 'kill 0' INT TERM EXIT; \
 	(cd apps/api && go run ./cmd/leotime) & \
 	(cd apps/web && npm run dev) & \
 	wait
 
 dev-api: ## 🧪 Run only the Go API
 	@printf "🧪 Starting Go API...\n"
-	cd apps/api && go run ./cmd/leotime
+	@$(load_dev_env); cd apps/api && go run ./cmd/leotime
 
 dev-web: ## 🎨 Run only the web app
 	@printf "🎨 Starting Vite...\n"
 	cd apps/web && npm run dev
+
+enricher-dev: ## ✨ Run local daily-summary enricher on :9333
+	@printf "✨ Starting local enricher on http://127.0.0.1:9333 ...\n"
+	cd apps/api && go run ./cmd/leotime enricher
 
 up: ## 🐳 Start the Docker stack
 	@printf "🐳 Starting Docker stack...\n"

@@ -11,6 +11,7 @@ describe('shellNav', () => {
   test('treats overview and detailed as reporting routes', () => {
     expect(isReportingRoute('overview')).toBe(true);
     expect(isReportingRoute('detailed')).toBe(true);
+    expect(isReportingRoute('daily-summary')).toBe(true);
     expect(isReportingRoute('timesheet')).toBe(false);
   });
 

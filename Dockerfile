@@ -24,6 +24,7 @@ RUN mkdir -p /data && chown -R leotime:leotime /data /app
 USER leotime
 ENV LEOTIME_HTTP_ADDR=:8080
 ENV LEOTIME_DB_PATH=/data/leotime.db
+ENV LEOTIME_DOCUMENT_ROOT=/data/documents
 ENV LEOTIME_STATIC_DIR=/app/public
 EXPOSE 8080
 VOLUME ["/data"]

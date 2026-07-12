@@ -42,6 +42,7 @@ import { ImportExportPanel } from '../../lib/importExportUi';
 import { InvoicePanel } from '../../lib/invoiceUi';
 import { addMonths, endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from '../../lib/calendarMonth';
 import { TimeReportPanel } from '../../lib/reportUi';
+import { DailySummaryPanel } from '../../lib/dailySummaryUi';
 import { ManualTimeEntryPanel, TimeEntriesList } from '../../lib/timeEntryUi';
 import { TimerCommandRow } from '../../lib/timerUi';
 import {
@@ -351,6 +352,7 @@ export function DashboardShell({
 
           {route === 'overview' ? <TimeReportPanel locale={locale} t={t} /> : null}
           {route === 'detailed' ? <TimeReportPanel detailed locale={locale} t={t} /> : null}
+          {route === 'daily-summary' ? <DailySummaryPanel t={t} /> : null}
           {route === 'shared' ? <PlaceholderPage titleKey="shared" t={t} /> : null}
 
           {route === 'invoices' ? <InvoicePanel clients={clientsQuery.data?.clients ?? []} locale={locale} t={t} userName={userName} /> : null}

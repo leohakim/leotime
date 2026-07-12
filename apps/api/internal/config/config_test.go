@@ -110,7 +110,7 @@ func TestFromLookupMailAndSchedulerDefaults(t *testing.T) {
 	if cfg.PublicBaseURL != defaultPublicBaseURL {
 		t.Fatalf("unexpected public base url %q", cfg.PublicBaseURL)
 	}
-	if cfg.DocumentRoot != "/data/documents" {
+	if cfg.DocumentRoot != "data/documents" {
 		t.Fatalf("expected default document root, got %q", cfg.DocumentRoot)
 	}
 	if cfg.TrustForwardedHeaders {

@@ -193,7 +193,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		SecretsKey:              stringEnv(lookup, "LEOTIME_SECRETS_KEY", ""),
 		BackupSchedulerEnabled:  backupSchedulerEnabled,
 		BackupSchedulerInterval: backupSchedulerInterval,
-		DocumentRoot:            stringEnv(lookup, "LEOTIME_DOCUMENT_ROOT", "/data/documents"),
+		DocumentRoot:            stringEnv(lookup, "LEOTIME_DOCUMENT_ROOT", "data/documents"),
 		TrustForwardedHeaders:   trustForwardedHeaders,
 
 		bootstrapPasswordSet: bootstrapPasswordSet,

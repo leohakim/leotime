@@ -9,6 +9,7 @@ import {
   Import,
   LayoutDashboard,
   ListTodo,
+  MessageSquareText,
   Settings,
   Tags,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ export const SHELL_PRIMARY_NAV: ShellNavItem[] = [
 export const SHELL_REPORTING_NAV: ShellNavItem[] = [
   { route: 'overview', labelKey: 'reporting', icon: BarChart3, group: 'reporting' },
   { route: 'detailed', labelKey: 'detailed', icon: BarChart3, group: 'reporting' },
+  { route: 'daily-summary', labelKey: 'dailySummary', icon: MessageSquareText, group: 'reporting' },
 ];
 
 export const SHELL_MANAGE_NAV: ShellNavItem[] = [
@@ -51,13 +53,13 @@ export const SHELL_ADMIN_NAV: ShellNavItem[] = [
 export const SHELL_BOTTOM_NAV_ROUTES: AppRoute[] = ['dashboard', 'timesheet', 'calendar', 'overview'];
 
 export const SHELL_MORE_NAV: ShellNavItem[] = [
-  ...SHELL_REPORTING_NAV.filter((item) => item.route === 'detailed'),
+  ...SHELL_REPORTING_NAV.filter((item) => item.route === 'detailed' || item.route === 'daily-summary'),
   ...SHELL_MANAGE_NAV,
   ...SHELL_ADMIN_NAV,
 ];
 
 export function isReportingRoute(route: AppRoute): boolean {
-  return route === 'overview' || route === 'detailed';
+  return route === 'overview' || route === 'detailed' || route === 'daily-summary';
 }
 
 export function isShellMoreRoute(route: AppRoute): boolean {

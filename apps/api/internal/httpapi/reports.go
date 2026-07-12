@@ -63,6 +63,24 @@ func (s *Server) exportTimeReport(w http.ResponseWriter, r *http.Request, user *
 	}
 }
 
+func (s *Server) getDailySummary(w http.ResponseWriter, r *http.Request, user *store.User) {
+	options, ok := s.parseDailySummaryOptions(w, r, user)
+	if !ok {
+		return
+	}
+
+	summary, err := s.store.BuildDailySummary(r.Context(), user.ID, options)
+	if err != nil {
+		if store.IsValidation(err, store.ErrInvalidProfileInput) || store.IsValidation(err, store.ErrInvalidTimeEntryInput) {
+			writeValidationStoreError(w, err)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "daily_summary_failed", "build daily summary failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, summary)
+}
+
 func parseTimeReportOptions(w http.ResponseWriter, r *http.Request) (store.TimeReportOptions, bool) {
 	from := strings.TrimSpace(r.URL.Query().Get("from"))
 	to := strings.TrimSpace(r.URL.Query().Get("to"))
@@ -95,6 +113,35 @@ func parseTimeReportOptions(w http.ResponseWriter, r *http.Request) (store.TimeR
 		GroupBy:           r.URL.Query().Get("groupBy"),
 		IncludeTimestamps: includeTimestamps,
 		BillableOnly:      billableOnly,
+	}, true
+}
+
+func (s *Server) parseDailySummaryOptions(w http.ResponseWriter, r *http.Request, user *store.User) (store.DailySummaryOptions, bool) {
+	date := strings.TrimSpace(r.URL.Query().Get("date"))
+	if date == "" {
+		writeAPIError(w, http.StatusBadRequest, apierr.Validation("date", "required", "date is required"))
+		return store.DailySummaryOptions{}, false
+	}
+
+	profile, err := s.store.ProfileByUserID(r.Context(), user.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "profile_load_failed", "load profile failed")
+		return store.DailySummaryOptions{}, false
+	}
+
+	includeClient := !strings.EqualFold(r.URL.Query().Get("includeClient"), "false")
+	includeProject := !strings.EqualFold(r.URL.Query().Get("includeProject"), "false")
+	includeClosing := !strings.EqualFold(r.URL.Query().Get("includeClosing"), "false")
+	billableOnly := strings.EqualFold(r.URL.Query().Get("billableOnly"), "true")
+
+	return store.DailySummaryOptions{
+		Date:           date,
+		Timezone:       profile.Settings.Timezone,
+		Locale:         profile.Locale,
+		IncludeClient:  includeClient,
+		IncludeProject: includeProject,
+		IncludeClosing: includeClosing,
+		BillableOnly:   billableOnly,
 	}, true
 }
 

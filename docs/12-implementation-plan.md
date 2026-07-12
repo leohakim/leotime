@@ -92,11 +92,9 @@ Implementation plans: `docs/superpowers/plans/`.
 
 ## Current Next Task
 
-The UI/UX experience-themes ten-sprint roadmap is complete and all `UXA-*`
-findings from the visual audit are addressed. Phase 6 tooling (visual regression
-and contributor tutorial) is documented in [39-visual-regression.md](39-visual-regression.md)
-and [40-contributor-tutorial.md](40-contributor-tutorial.md). Pick the next slice
-from [13-backlog.md](13-backlog.md) or [35-curated-hardening-backlog.md](35-curated-hardening-backlog.md).
+Phase 8 delivered the daily Slack standup summary (`GET /api/v1/reports/daily-summary`,
+`#daily-summary` in the web app). Pick the next slice from [13-backlog.md](13-backlog.md)
+**Later** items or define a new product epic (richer narrative, Slack webhook, task goals).
 
 ## Quality Gates By Slice
 

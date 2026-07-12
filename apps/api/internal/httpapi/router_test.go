@@ -931,6 +931,50 @@ func TestTimeReportExport(t *testing.T) {
 	}
 }
 
+func TestDailySummaryReturnsProse(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	createResponse := httptest.NewRecorder()
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/time-entries", bytes.NewBufferString(`{
+		"description": "Report work",
+		"startedAt": "2026-07-01T08:00:00Z",
+		"endedAt": "2026-07-01T09:00:00Z",
+		"billable": true
+	}`))
+	for _, cookie := range cookies {
+		createRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(createResponse, createRequest)
+	if createResponse.Code != http.StatusCreated {
+		t.Fatalf("expected create 201, got %d: %s", createResponse.Code, createResponse.Body.String())
+	}
+
+	summaryResponse := httptest.NewRecorder()
+	summaryRequest := httptest.NewRequest(http.MethodGet, "/api/v1/reports/daily-summary?date=2026-07-01&includeClosing=true", nil)
+	for _, cookie := range cookies {
+		summaryRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(summaryResponse, summaryRequest)
+	if summaryResponse.Code != http.StatusOK {
+		t.Fatalf("expected summary 200, got %d: %s", summaryResponse.Code, summaryResponse.Body.String())
+	}
+
+	var payload struct {
+		Text       string `json:"text"`
+		EntryCount int    `json:"entryCount"`
+	}
+	if err := json.Unmarshal(summaryResponse.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode daily summary: %v", err)
+	}
+	if payload.EntryCount != 1 {
+		t.Fatalf("unexpected entry count: %+v", payload)
+	}
+	if !strings.Contains(payload.Text, "Resumen de hoy:") || !strings.Contains(strings.ToLower(payload.Text), "report work") {
+		t.Fatalf("unexpected summary text: %s", payload.Text)
+	}
+}
+
 func TestTimeReportDateValidation(t *testing.T) {
 	router := newTestRouter(t)
 	cookies := loginCookies(t, router)

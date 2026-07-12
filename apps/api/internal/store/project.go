@@ -18,6 +18,9 @@ type Project struct {
 	Name                   string `json:"name"`
 	Color                  string `json:"color"`
 	DefaultHourlyRateMinor *int64 `json:"defaultHourlyRateMinor"`
+	LocalRepoPath          string `json:"localRepoPath"`
+	GitRemoteURL           string `json:"gitRemoteUrl"`
+	CursorWorkspaceSlug    string `json:"cursorWorkspaceSlug"`
 	ArchivedAt             string `json:"archivedAt"`
 	CreatedAt              string `json:"createdAt"`
 	UpdatedAt              string `json:"updatedAt"`
@@ -28,11 +31,15 @@ type ProjectInput struct {
 	Name                   string `json:"name"`
 	Color                  string `json:"color"`
 	DefaultHourlyRateMinor *int64 `json:"defaultHourlyRateMinor"`
+	LocalRepoPath          string `json:"localRepoPath"`
+	GitRemoteURL           string `json:"gitRemoteUrl"`
+	CursorWorkspaceSlug    string `json:"cursorWorkspaceSlug"`
 }
 
 func (s *Store) ListProjects(ctx context.Context, userID string, includeArchived bool, clientID string) ([]Project, error) {
 	query := `
 		SELECT p.id, p.client_id, COALESCE(c.name, ''), p.name, p.color, p.default_hourly_rate_minor,
+			p.local_repo_path, p.git_remote_url, p.cursor_workspace_slug,
 			p.archived_at, p.created_at, p.updated_at
 		FROM projects p
 		LEFT JOIN clients c ON c.id = p.client_id AND c.user_id = p.user_id
@@ -71,6 +78,7 @@ func (s *Store) ListProjects(ctx context.Context, userID string, includeArchived
 func (s *Store) ProjectByID(ctx context.Context, userID string, projectID string) (*Project, error) {
 	project, err := queryProject(ctx, s.db, `
 		SELECT p.id, p.client_id, COALESCE(c.name, ''), p.name, p.color, p.default_hourly_rate_minor,
+			p.local_repo_path, p.git_remote_url, p.cursor_workspace_slug,
 			p.archived_at, p.created_at, p.updated_at
 		FROM projects p
 		LEFT JOIN clients c ON c.id = p.client_id AND c.user_id = p.user_id
@@ -96,11 +104,15 @@ func (s *Store) CreateProject(ctx context.Context, userID string, input ProjectI
 
 	if _, err := s.db.ExecContext(ctx, `
 		INSERT INTO projects (
-			id, user_id, client_id, name, color, default_hourly_rate_minor, created_at, updated_at
+			id, user_id, client_id, name, color, default_hourly_rate_minor,
+			local_repo_path, git_remote_url, cursor_workspace_slug,
+			created_at, updated_at
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, projectID, userID, nullValue(normalized.ClientID), normalized.Name, normalized.Color,
-		nullableInt64(normalized.DefaultHourlyRateMinor), now, now); err != nil {
+		nullableInt64(normalized.DefaultHourlyRateMinor),
+		normalized.LocalRepoPath, normalized.GitRemoteURL, normalized.CursorWorkspaceSlug,
+		now, now); err != nil {
 		return nil, fmt.Errorf("insert project: %w", err)
 	}
 
@@ -115,10 +127,14 @@ func (s *Store) UpdateProject(ctx context.Context, userID string, projectID stri
 
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE projects
-		SET client_id = ?, name = ?, color = ?, default_hourly_rate_minor = ?, updated_at = ?
+		SET client_id = ?, name = ?, color = ?, default_hourly_rate_minor = ?,
+			local_repo_path = ?, git_remote_url = ?, cursor_workspace_slug = ?,
+			updated_at = ?
 		WHERE user_id = ? AND id = ?
 	`, nullValue(normalized.ClientID), normalized.Name, normalized.Color,
-		nullableInt64(normalized.DefaultHourlyRateMinor), nowString(), userID, projectID)
+		nullableInt64(normalized.DefaultHourlyRateMinor),
+		normalized.LocalRepoPath, normalized.GitRemoteURL, normalized.CursorWorkspaceSlug,
+		nowString(), userID, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("update project: %w", err)
 	}
@@ -200,6 +216,9 @@ func scanProject(scanner projectScanner) (Project, error) {
 		&project.Name,
 		&project.Color,
 		&defaultHourlyRateMinor,
+		&project.LocalRepoPath,
+		&project.GitRemoteURL,
+		&project.CursorWorkspaceSlug,
 		&archivedAt,
 		&project.CreatedAt,
 		&project.UpdatedAt,
@@ -219,6 +238,9 @@ func (s *Store) normalizeProjectInput(ctx context.Context, userID string, input 
 	input.ClientID = strings.TrimSpace(input.ClientID)
 	input.Name = strings.TrimSpace(input.Name)
 	input.Color = strings.TrimSpace(input.Color)
+	input.LocalRepoPath = strings.TrimSpace(input.LocalRepoPath)
+	input.GitRemoteURL = strings.TrimSpace(input.GitRemoteURL)
+	input.CursorWorkspaceSlug = strings.TrimSpace(input.CursorWorkspaceSlug)
 	if input.Color == "" {
 		input.Color = "#2563eb"
 	}

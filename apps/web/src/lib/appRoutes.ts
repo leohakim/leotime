@@ -6,6 +6,7 @@ export type AppRoute =
   | 'calendar'
   | 'overview'
   | 'detailed'
+  | 'daily-summary'
   | 'shared'
   | 'projects'
   | 'tasks'
@@ -26,6 +27,7 @@ const ROUTE_ALIASES: Record<string, AppRoute> = {
   reports: 'overview',
   overview: 'overview',
   detailed: 'detailed',
+  'daily-summary': 'daily-summary',
   shared: 'shared',
   projects: 'projects',
   tasks: 'tasks',
