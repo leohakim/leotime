@@ -111,7 +111,7 @@ export function DailySummaryPanel({ t }: { t: Translator }) {
 
   const enrichMutation = useMutation({
     mutationFn: async () => {
-      const context = await fetchDailySummaryEnrichContext(form.date, params);
+      const context = await fetchDailySummaryEnrichContext(form.date, params, form.note);
       const enriched = await enrichDailySummaryLocally({
         date: form.date,
         templateText: context.templateText,

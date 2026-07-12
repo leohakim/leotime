@@ -867,7 +867,7 @@ export async function fetchTimeReport(params: TimeReportParams): Promise<TimeRep
   return apiGet(`/api/v1/reports/time?${buildTimeReportSearch(params)}`);
 }
 
-function buildDailySummarySearch(params: DailySummaryParams) {
+function buildDailySummarySearch(params: DailySummaryParams & { manualNote?: string }) {
   const search = new URLSearchParams({ date: params.date });
   if (params.includeClient === false) {
     search.set('includeClient', 'false');
@@ -880,6 +880,9 @@ function buildDailySummarySearch(params: DailySummaryParams) {
   }
   if (params.billableOnly) {
     search.set('billableOnly', 'true');
+  }
+  if (params.manualNote?.trim()) {
+    search.set('manualNote', params.manualNote.trim());
   }
   return search.toString();
 }
@@ -964,8 +967,9 @@ export async function saveDailySummaryDraft(
 export async function fetchDailySummaryEnrichContext(
   date: string,
   params: DailySummaryParams,
+  manualNote = '',
 ): Promise<DailySummaryEnrichContext> {
-  const search = buildDailySummarySearch({ ...params, date });
+  const search = buildDailySummarySearch({ ...params, date, manualNote });
   return apiGet(`/api/v1/daily-summaries/${date}/enrich-context?${search}`);
 }
 

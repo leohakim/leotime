@@ -92,6 +92,7 @@ func (s *Server) generateDailySummaryTemplate(w http.ResponseWriter, r *http.Req
 		ManualNote string `json:"manualNote"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
+	options.ManualNote = strings.TrimSpace(body.ManualNote)
 
 	summary, err := s.store.BuildDailySummary(r.Context(), user.ID, options)
 	if err != nil {
@@ -211,6 +212,17 @@ func (s *Server) getDailySummaryEnrichContext(w http.ResponseWriter, r *http.Req
 	}
 	options.Date = date
 
+	var record *store.DailySummaryRecord
+	if existing, err := s.store.DailySummaryByDate(r.Context(), user.ID, date); err == nil {
+		record = existing
+	}
+
+	manualNote := strings.TrimSpace(r.URL.Query().Get("manualNote"))
+	if manualNote == "" && record != nil {
+		manualNote = strings.TrimSpace(record.ManualNote)
+	}
+	options.ManualNote = manualNote
+
 	summary, err := s.store.BuildDailySummary(r.Context(), user.ID, options)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "daily_summary_failed", "build daily summary failed")
@@ -242,15 +254,10 @@ func (s *Server) getDailySummaryEnrichContext(w http.ResponseWriter, r *http.Req
 		authorEmail = aiSettings.GitAuthorEmail
 	}
 
-	var record *store.DailySummaryRecord
-	if existing, err := s.store.DailySummaryByDate(r.Context(), user.ID, date); err == nil {
-		record = existing
-	}
-
 	writeJSON(w, http.StatusOK, dailySummaryEnrichContextResponse{
 		Date:         date,
 		TemplateText: summary.Text,
-		ManualNote:   r.URL.Query().Get("manualNote"),
+		ManualNote:   manualNote,
 		Locale:       profile.Locale,
 		AuthorEmail:  authorEmail,
 		Projects:     workspaces,

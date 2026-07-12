@@ -19,6 +19,16 @@ func TestBuildEnrichedTextMergesCommits(t *testing.T) {
 	}
 }
 
+func TestBuildEnrichedTextIncludesManualNote(t *testing.T) {
+	text := BuildEnrichedText(ContextBundle{
+		TemplateText: "12/7:\nResumen de hoy:\nPor la mañana avancé con RTVE.\nHasta mañana team!",
+		ManualNote:   "Quedó pendiente el deploy en staging.",
+	})
+	if !containsAll(text, "Quedó pendiente el deploy en staging.", "Hasta mañana team!") {
+		t.Fatalf("unexpected text: %s", text)
+	}
+}
+
 func containsAll(text string, parts ...string) bool {
 	for _, part := range parts {
 		if !contains(text, part) {

@@ -17,6 +17,7 @@ type DailySummaryOptions struct {
 	IncludeProject bool
 	IncludeClosing bool
 	BillableOnly   bool
+	ManualNote     string
 }
 
 type DailySummary struct {
@@ -111,8 +112,29 @@ func (s *Store) BuildDailySummary(ctx context.Context, userID string, options Da
 	if options.IncludeClosing {
 		parts = append(parts, messages.closing)
 	}
-	summary.Text = strings.Join(parts, "\n")
+	summary.Text = weaveManualNoteIntoSummary(strings.Join(parts, "\n"), options.ManualNote)
 	return summary, nil
+}
+
+func weaveManualNoteIntoSummary(text, note string) string {
+	note = strings.TrimSpace(note)
+	if note == "" || strings.Contains(text, note) {
+		return text
+	}
+
+	lines := strings.Split(text, "\n")
+	if len(lines) == 0 {
+		return note
+	}
+
+	last := strings.TrimSpace(lines[len(lines)-1])
+	lowerLast := strings.ToLower(last)
+	if strings.HasPrefix(lowerLast, "hasta ") || strings.HasPrefix(lowerLast, "see you") {
+		lines = append(lines[:len(lines)-1], note, lines[len(lines)-1])
+		return strings.Join(lines, "\n")
+	}
+
+	return text + "\n" + note
 }
 
 func normalizeDailySummaryLocale(locale string) string {

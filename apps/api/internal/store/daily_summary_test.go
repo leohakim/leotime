@@ -185,3 +185,27 @@ func TestBuildDailySummaryEmptyDay(t *testing.T) {
 		t.Fatalf("did not expect closing line, got:\n%s", summary.Text)
 	}
 }
+
+func TestBuildDailySummaryIncludesManualNote(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTaskTestStore(t, ctx)
+
+	summary, err := st.BuildDailySummary(ctx, user.ID, DailySummaryOptions{
+		Date:           "2026-07-12",
+		Timezone:       "UTC",
+		Locale:         "es",
+		IncludeClosing: true,
+		ManualNote:     "Reunión con RTVE sobre el deploy pendiente.",
+	})
+	if err != nil {
+		t.Fatalf("build daily summary: %v", err)
+	}
+
+	text := summary.Text
+	if !strings.Contains(text, "Reunión con RTVE sobre el deploy pendiente.") {
+		t.Fatalf("expected manual note in summary, got:\n%s", text)
+	}
+	if !strings.HasSuffix(strings.TrimSpace(text), "Hasta mañana team!") {
+		t.Fatalf("expected closing after manual note, got:\n%s", text)
+	}
+}

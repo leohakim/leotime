@@ -7,7 +7,7 @@ import (
 
 func BuildEnrichedText(bundle ContextBundle) string {
 	if strings.TrimSpace(bundle.CurrentDraft) != "" && strings.TrimSpace(bundle.Feedback) != "" {
-		return mergeFeedback(bundle)
+		return weaveManualNote(mergeFeedback(bundle), bundle.ManualNote)
 	}
 
 	lines := []string{}
@@ -18,6 +18,12 @@ func BuildEnrichedText(bundle ContextBundle) string {
 	}
 
 	extra := make([]string, 0)
+	if note := strings.TrimSpace(bundle.ManualNote); note != "" {
+		base := strings.Join(lines, "\n")
+		if base == "" || !strings.Contains(base, note) {
+			extra = append(extra, note)
+		}
+	}
 	for _, commit := range bundle.Commits {
 		extra = append(extra, fmt.Sprintf("En %s trabajé el commit %s (%s).", commit.ProjectName, commit.Hash, commit.Subject))
 	}
@@ -61,6 +67,27 @@ func mergeFeedback(bundle ContextBundle) string {
 		return strings.Join(lines, "\n")
 	}
 	return draft + "\n" + feedback
+}
+
+func weaveManualNote(text, note string) string {
+	note = strings.TrimSpace(note)
+	if note == "" || strings.Contains(text, note) {
+		return text
+	}
+
+	lines := strings.Split(text, "\n")
+	if len(lines) == 0 {
+		return note
+	}
+
+	last := strings.TrimSpace(lines[len(lines)-1])
+	lowerLast := strings.ToLower(last)
+	if strings.HasPrefix(lowerLast, "hasta ") || strings.HasPrefix(lowerLast, "see you") {
+		lines = append(lines[:len(lines)-1], note, lines[len(lines)-1])
+		return strings.Join(lines, "\n")
+	}
+
+	return text + "\n" + note
 }
 
 func minInt(a, b int) int {
