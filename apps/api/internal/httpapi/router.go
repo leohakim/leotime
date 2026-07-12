@@ -105,6 +105,7 @@ func NewRouter(cfg config.Config, st *store.Store, passwordReset *notify.Passwor
 		r.Delete("/tasks/{taskID}", server.requireUser(server.archiveTask))
 		r.Post("/tasks/{taskID}/restore", server.requireUser(server.restoreTask))
 		r.Get("/tags", server.requireUser(server.listTags))
+		r.Get("/tags/summary", server.requireUser(server.tagSummary))
 		r.Post("/tags", server.requireUser(server.createTag))
 		r.Get("/tags/{tagID}", server.requireUser(server.getTag))
 		r.Patch("/tags/{tagID}", server.requireUser(server.updateTag))

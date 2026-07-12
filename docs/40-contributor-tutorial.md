@@ -362,9 +362,11 @@ Este es el **“first issue”** recomendado del tutorial: añadir un endpoint d
 
 **Producto:** `GET /api/v1/tags/summary` → `{ "active": 3, "archived": 1 }`
 
+> **Estado del repo:** este endpoint ya está implementado en `main`. Sigue el tutorial igualmente para entender las capas; luego compara tu solución con `tag.go`, `tags.go` y `TagPanel.tsx`, o pide otro issue pequeño con la misma estructura.
+
 **Por qué este ejercicio:** no toca migraciones, practica store + handler + router + tests, y es fácil de revisar en un PR.
 
-> Si ya existe en el repo cuando leas esto, el mantenedor te asignará otro issue pequeño con la misma estructura de capas.
+> Si ya completaste este ejercicio, el mantenedor te asignará otro issue pequeño con la misma estructura de capas.
 
 ### 5.1 Crear rama
 

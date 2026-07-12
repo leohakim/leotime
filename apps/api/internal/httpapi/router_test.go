@@ -117,6 +117,107 @@ func TestTagsRequireAuthentication(t *testing.T) {
 	}
 }
 
+func TestTagSummaryRequiresAuthentication(t *testing.T) {
+	router := newTestRouter(t)
+
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/tags/summary", nil)
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", response.Code)
+	}
+}
+
+func TestTagSummaryReturnsCounts(t *testing.T) {
+	router := newTestRouter(t)
+	cookies := loginCookies(t, router)
+
+	emptyResponse := httptest.NewRecorder()
+	emptyRequest := httptest.NewRequest(http.MethodGet, "/api/v1/tags/summary", nil)
+	for _, cookie := range cookies {
+		emptyRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(emptyResponse, emptyRequest)
+	if emptyResponse.Code != http.StatusOK {
+		t.Fatalf("expected empty summary 200, got %d: %s", emptyResponse.Code, emptyResponse.Body.String())
+	}
+	var emptySummary struct {
+		Active   int `json:"active"`
+		Archived int `json:"archived"`
+	}
+	if err := json.Unmarshal(emptyResponse.Body.Bytes(), &emptySummary); err != nil {
+		t.Fatalf("decode empty summary: %v", err)
+	}
+	if emptySummary.Active != 0 || emptySummary.Archived != 0 {
+		t.Fatalf("unexpected empty summary: %+v", emptySummary)
+	}
+
+	createResponse := httptest.NewRecorder()
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/v1/tags", bytes.NewBufferString(`{
+		"name": "Deep Work",
+		"color": "#2563eb"
+	}`))
+	for _, cookie := range cookies {
+		createRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(createResponse, createRequest)
+	if createResponse.Code != http.StatusCreated {
+		t.Fatalf("expected create 201, got %d: %s", createResponse.Code, createResponse.Body.String())
+	}
+
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createResponse.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created tag: %v", err)
+	}
+
+	deleteResponse := httptest.NewRecorder()
+	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/tags/"+created.ID, nil)
+	for _, cookie := range cookies {
+		deleteRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(deleteResponse, deleteRequest)
+	if deleteResponse.Code != http.StatusNoContent {
+		t.Fatalf("expected archive 204, got %d: %s", deleteResponse.Code, deleteResponse.Body.String())
+	}
+
+	secondCreateResponse := httptest.NewRecorder()
+	secondCreateRequest := httptest.NewRequest(http.MethodPost, "/api/v1/tags", bytes.NewBufferString(`{
+		"name": "Focus",
+		"color": "#0f7a5b"
+	}`))
+	for _, cookie := range cookies {
+		secondCreateRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(secondCreateResponse, secondCreateRequest)
+	if secondCreateResponse.Code != http.StatusCreated {
+		t.Fatalf("expected second create 201, got %d: %s", secondCreateResponse.Code, secondCreateResponse.Body.String())
+	}
+
+	summaryResponse := httptest.NewRecorder()
+	summaryRequest := httptest.NewRequest(http.MethodGet, "/api/v1/tags/summary", nil)
+	for _, cookie := range cookies {
+		summaryRequest.AddCookie(cookie)
+	}
+	router.ServeHTTP(summaryResponse, summaryRequest)
+	if summaryResponse.Code != http.StatusOK {
+		t.Fatalf("expected summary 200, got %d: %s", summaryResponse.Code, summaryResponse.Body.String())
+	}
+
+	var summary struct {
+		Active   int `json:"active"`
+		Archived int `json:"archived"`
+	}
+	if err := json.Unmarshal(summaryResponse.Body.Bytes(), &summary); err != nil {
+		t.Fatalf("decode summary: %v", err)
+	}
+	if summary.Active != 1 || summary.Archived != 1 {
+		t.Fatalf("unexpected summary: %+v", summary)
+	}
+}
+
 func TestProfileHTTPLifecycle(t *testing.T) {
 	router := newTestRouter(t)
 	cookies := loginCookies(t, router)

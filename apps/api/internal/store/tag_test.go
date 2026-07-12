@@ -103,6 +103,43 @@ func TestTagNameMustBeUnique(t *testing.T) {
 	}
 }
 
+func TestTagSummaryCountsActiveAndArchived(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTagTestStore(t, ctx)
+
+	tag, err := st.CreateTag(ctx, user.ID, TagInput{Name: "Deep Work", Color: "#2563eb"})
+	if err != nil {
+		t.Fatalf("create tag: %v", err)
+	}
+	if err := st.ArchiveTag(ctx, user.ID, tag.ID); err != nil {
+		t.Fatalf("archive tag: %v", err)
+	}
+	if _, err := st.CreateTag(ctx, user.ID, TagInput{Name: "Focus", Color: "#0f7a5b"}); err != nil {
+		t.Fatalf("create second tag: %v", err)
+	}
+
+	summary, err := st.TagSummary(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("tag summary: %v", err)
+	}
+	if summary.Active != 1 || summary.Archived != 1 {
+		t.Fatalf("unexpected summary: %+v", summary)
+	}
+}
+
+func TestTagSummaryReturnsZeroForEmptyUser(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTagTestStore(t, ctx)
+
+	summary, err := st.TagSummary(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("tag summary: %v", err)
+	}
+	if summary.Active != 0 || summary.Archived != 0 {
+		t.Fatalf("unexpected summary: %+v", summary)
+	}
+}
+
 func newTagTestStore(t *testing.T, ctx context.Context) (*Store, *User) {
 	t.Helper()
 

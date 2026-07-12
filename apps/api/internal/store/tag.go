@@ -26,6 +26,26 @@ type TagInput struct {
 	Color string `json:"color"`
 }
 
+type TagSummary struct {
+	Active   int `json:"active"`
+	Archived int `json:"archived"`
+}
+
+func (s *Store) TagSummary(ctx context.Context, userID string) (*TagSummary, error) {
+	const query = `
+		SELECT
+			COALESCE(SUM(CASE WHEN archived_at IS NULL THEN 1 ELSE 0 END), 0) AS active_count,
+			COALESCE(SUM(CASE WHEN archived_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS archived_count
+		FROM tags
+		WHERE user_id = ?
+	`
+	var active, archived int
+	if err := s.db.QueryRowContext(ctx, query, userID).Scan(&active, &archived); err != nil {
+		return nil, fmt.Errorf("tag summary: %w", err)
+	}
+	return &TagSummary{Active: active, Archived: archived}, nil
+}
+
 func (s *Store) ListTags(ctx context.Context, userID string, includeArchived bool) ([]Tag, error) {
 	query := `
 		SELECT id, name, color, archived_at, created_at, updated_at

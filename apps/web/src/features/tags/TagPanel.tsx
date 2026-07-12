@@ -1,8 +1,9 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CircleAlert, CircleCheck, Pencil, Plus, RotateCcw, Save, Tag, Tags, Trash2, X } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import {
   archiveTag,
+  fetchTagSummary,
   restoreTag,
   updateTag,
   type Tag as TagRecord,
@@ -34,6 +35,10 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
   const queryClient = useQueryClient();
   const toast = useToast();
   const { refreshPendingCount } = useOfflineStatus();
+  const tagSummaryQuery = useQuery({
+    queryKey: ['tag-summary'],
+    queryFn: fetchTagSummary,
+  });
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [form, setForm] = useState<TagFormState>(emptyTagForm);
   const [errors, setErrors] = useState<TagFormErrors>({});
@@ -48,6 +53,7 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
       void refreshOverviewIfOnline(queryClient);
       if (!isLocalId(tag.id)) {
         queryClient.invalidateQueries({ queryKey: ['tags'] });
+        queryClient.invalidateQueries({ queryKey: ['tag-summary'] });
       }
       toastMutationSuccess(toast, t, 'tagCreated', tag.id);
     },
@@ -82,6 +88,7 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
       setForm(emptyTagForm);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['tag-summary'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('tagUpdated'));
     },
@@ -95,6 +102,7 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
     mutationFn: archiveTag,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['tag-summary'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('tagArchived'));
     },
@@ -111,6 +119,7 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
       setForm(emptyTagForm);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['tags'] });
+      queryClient.invalidateQueries({ queryKey: ['tag-summary'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('tagRestored'));
     },
@@ -167,9 +176,13 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
   }
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
-  const activeTagCount = tags.filter((tag) => !tag.archivedAt).length;
   const activeTags = tags.filter((tag) => !tag.archivedAt);
   const inactiveTags = tags.filter((tag) => tag.archivedAt);
+  const summaryInventory = tagSummaryQuery.data
+    ? t('tagSummaryInventory')
+        .replace('{active}', String(tagSummaryQuery.data.active))
+        .replace('{archived}', String(tagSummaryQuery.data.archived))
+    : null;
 
   function renderTagRow(tag: TagRecord, isActive: boolean) {
     return (
@@ -241,6 +254,7 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
           </span>
           <h2 id="tags-title">{t('tagDirectory')}</h2>
           <p>{t('tagPanelSubtitle')}</p>
+          {summaryInventory ? <p className="tag-summary-inventory">{summaryInventory}</p> : null}
         </div>
         <button className="secondary-button" type="button" onClick={cancelEditing}>
           <Plus aria-hidden="true" />
@@ -253,7 +267,11 @@ export function TagPanel({ isLoading, tags, t }: { isLoading: boolean; tags: Tag
           <div className="directory-toolbar">
             <div>
               <span>{t('activeTags')}</span>
-              <strong>{activeTagCount}</strong>
+              <strong>{tagSummaryQuery.data?.active ?? activeTags.length}</strong>
+            </div>
+            <div>
+              <span>{t('archivedTags')}</span>
+              <strong>{tagSummaryQuery.data?.archived ?? inactiveTags.length}</strong>
             </div>
             {isLoading ? (
               <span className="sync-pill">{t('loading')}</span>

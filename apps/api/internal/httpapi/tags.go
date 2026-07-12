@@ -22,6 +22,15 @@ func (s *Server) listTags(w http.ResponseWriter, r *http.Request, user *store.Us
 	writeJSON(w, http.StatusOK, tagsResponse{Tags: tags})
 }
 
+func (s *Server) tagSummary(w http.ResponseWriter, r *http.Request, user *store.User) {
+	summary, err := s.store.TagSummary(r.Context(), user.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "tags_summary_failed", "load tag summary failed")
+		return
+	}
+	writeJSON(w, http.StatusOK, summary)
+}
+
 func (s *Server) createTag(w http.ResponseWriter, r *http.Request, user *store.User) {
 	input, ok := decodeTagInput(w, r)
 	if !ok {

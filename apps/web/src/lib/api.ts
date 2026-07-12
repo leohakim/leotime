@@ -211,6 +211,11 @@ export type TagsResponse = {
   tags: Tag[];
 };
 
+export type TagSummary = {
+  active: number;
+  archived: number;
+};
+
 export type TimeEntryTag = {
   id: string;
   name: string;
@@ -532,6 +537,10 @@ export async function fetchTasks(options?: { includeArchived?: boolean }): Promi
 export async function fetchTags(options?: { includeArchived?: boolean }): Promise<TagsResponse> {
   const query = options?.includeArchived ? '?includeArchived=true' : '';
   return apiGet(`/api/v1/tags${query}`);
+}
+
+export async function fetchTagSummary(): Promise<TagSummary> {
+  return apiGet('/api/v1/tags/summary');
 }
 
 export type TimeEntryListParams = {
