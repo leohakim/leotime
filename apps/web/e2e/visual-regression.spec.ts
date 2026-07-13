@@ -1,8 +1,16 @@
 import { expect, test } from '@playwright/test';
-import { emptyStorageState, openAuthenticatedRoute, visualRegressionNow } from './audit-auth';
+import {
+  emptyStorageState,
+  openAuthenticatedRoute,
+  prepareVisualRegressionPage,
+  visualRegressionNow,
+  waitForDashboardSurface,
+  waitForTimesheetSurface,
+} from './audit-auth';
 
 test.beforeEach(async ({ page }) => {
   await page.clock.install({ time: new Date(visualRegressionNow) });
+  await prepareVisualRegressionPage(page);
 });
 
 test.describe('login screen', () => {
@@ -18,16 +26,16 @@ test.describe('login screen', () => {
 test.describe('authenticated surfaces', () => {
   test('timesheet workbench', async ({ page }) => {
     await openAuthenticatedRoute(page, 'timesheet');
-    await page.waitForLoadState('networkidle');
-    await expect(page.locator('.page-content')).toHaveScreenshot('timesheet.png', {
-      mask: [page.locator('.offline-status-pill')],
+    await waitForTimesheetSurface(page);
+    await expect(page.locator('#timesheet')).toHaveScreenshot('timesheet.png', {
+      mask: [page.locator('.offline-status-pill'), page.locator('.sync-pill')],
     });
   });
 
   test('dashboard overview', async ({ page }) => {
     await openAuthenticatedRoute(page, 'dashboard');
-    await page.waitForLoadState('networkidle');
-    await expect(page.locator('.page-content')).toHaveScreenshot('dashboard.png', {
+    await waitForDashboardSurface(page);
+    await expect(page.locator('#dashboard')).toHaveScreenshot('dashboard.png', {
       mask: [page.locator('.offline-status-pill'), page.locator('.sync-pill')],
     });
   });

@@ -7,6 +7,11 @@ services:
     env_file:
       - path: .env.local
         required: false
+    environment:
+      # Container paths must win over dev defaults from .env.local (e.g. CI copies .env.example).
+      LEOTIME_DB_PATH: /data/leotime.db
+      LEOTIME_DOCUMENT_ROOT: /data/documents
+      LEOTIME_STATIC_DIR: /app/public
     volumes:
       - leotime-data:/data
     restart: unless-stopped
