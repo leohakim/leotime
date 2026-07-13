@@ -3,6 +3,7 @@ import {
   emptyStorageState,
   openAuthenticatedRoute,
   prepareVisualRegressionPage,
+  stabilizeVisualRegressionRendering,
   visualRegressionNow,
   waitForDashboardSurface,
   waitForTimesheetSurface,
@@ -20,6 +21,7 @@ test.describe('login screen', () => {
     await page.goto('/');
     await expect(page.locator('.login-hero')).toBeVisible();
     await page.waitForLoadState('networkidle');
+    await stabilizeVisualRegressionRendering(page);
     await expect(page.locator('.login-screen')).toHaveScreenshot('login.png');
   });
 });

@@ -10,7 +10,7 @@ SAMPLE_SECONDS ?= 60
 SAMPLE_INTERVAL ?= 5
 WITH_LOAD ?= 0
 
-.PHONY: help setup setup-hooks pre-commit fmt-check test-api-vet dev dev-api dev-web dev-enricher enricher-dev up down logs migrate seed test test-api test-web test-e2e build-web smoke bench stress metrics resources docker-build deploy-check import-solidtime import-solidtime-dry load-dev-env
+.PHONY: help setup setup-hooks pre-commit fmt-check test-api-vet dev dev-api dev-web dev-enricher enricher-dev up down logs migrate seed test test-api test-web test-e2e build-web smoke bench stress metrics resources docker-build deploy-check import-solidtime import-solidtime-dry load-dev-env audit-ui-regression-update-linux
 
 define load_dev_env
 	set -a; \
@@ -126,6 +126,11 @@ audit-ui-regression: ## 🖼️ Compare UI against committed Playwright snapshot
 audit-ui-regression-update: ## 🖼️ Refresh committed UI visual regression snapshots
 	@printf "🖼️ Updating UI visual regression snapshots...\n"
 	npm --workspace @leotime/web run test:e2e:visual-regression:update
+
+audit-ui-regression-update-linux: ## 🖼️ Refresh UI snapshots on Linux amd64 (matches GitHub CI)
+	@printf "🖼️ Updating UI visual regression snapshots on Linux amd64...\n"
+	@chmod +x scripts/update-visual-regression-snapshots-linux.sh
+	@./scripts/update-visual-regression-snapshots-linux.sh
 
 build-web: ## 📦 Build frontend assets
 	@printf "📦 Building web app...\n"
