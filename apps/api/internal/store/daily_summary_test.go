@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestBuildDailySummarySpanishProse(t *testing.T) {
+func TestBuildDailySummarySpanishBulletFormat(t *testing.T) {
 	ctx := context.Background()
 	st, user := newTaskTestStore(t, ctx)
 
@@ -82,17 +82,91 @@ func TestBuildDailySummarySpanishProse(t *testing.T) {
 	if !strings.Contains(text, "Resumen de hoy:") {
 		t.Fatalf("expected header, got:\n%s", text)
 	}
-	if !strings.Contains(text, "Por la mañana avancé con RTVE — Participa:") {
-		t.Fatalf("expected morning RTVE sentence, got:\n%s", text)
+	if !strings.Contains(text, "- RTVE:\n    - corrección de rutas API para el despliegue nuevo") {
+		t.Fatalf("expected RTVE bullet group, got:\n%s", text)
 	}
-	if !strings.Contains(text, "corrección de rutas API") {
-		t.Fatalf("expected morning activity, got:\n%s", text)
+	if !strings.Contains(text, "- Colegio de Farmaceuticos:\n    - endpoints de membresía y mensaje de difusión") {
+		t.Fatalf("expected CFG bullet group, got:\n%s", text)
 	}
-	if !strings.Contains(text, "Por la tarde avancé con Colegio de Farmaceuticos:") {
-		t.Fatalf("expected afternoon CFG sentence, got:\n%s", text)
+	if strings.Contains(text, "Por la mañana") {
+		t.Fatalf("did not expect period prose, got:\n%s", text)
 	}
 	if !strings.HasSuffix(strings.TrimSpace(text), "Hasta mañana team!") {
 		t.Fatalf("expected closing line, got:\n%s", text)
+	}
+}
+
+func TestBuildDailySummaryPlacesMeetingsByScope(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTaskTestStore(t, ctx)
+
+	client, err := st.CreateClient(ctx, user.ID, ClientInput{Name: "RTVE", DefaultCurrency: "EUR"})
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+	project, err := st.CreateProject(ctx, user.ID, ProjectInput{ClientID: client.ID, Name: "Participa", Color: "#2563eb"})
+	if err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+	meetProject, err := st.CreateProject(ctx, user.ID, ProjectInput{Name: "Meet Tech", Color: "#111111"})
+	if err != nil {
+		t.Fatalf("create meet project: %v", err)
+	}
+
+	_, err = st.CreateTimeEntry(ctx, user.ID, TimeEntryInput{
+		ClientID:    client.ID,
+		ProjectID:   project.ID,
+		Description: "cerramos la rama de recommendations y la metimos en master",
+		StartedAt:   "2026-07-12T09:00:00Z",
+		EndedAt:     "2026-07-12T10:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("create work entry: %v", err)
+	}
+	_, err = st.CreateTimeEntry(ctx, user.ID, TimeEntryInput{
+		ClientID:    client.ID,
+		ProjectID:   project.ID,
+		Description: "reunión con Miguel Angel para revisar incidencias de webhooks",
+		StartedAt:   "2026-07-12T11:00:00Z",
+		EndedAt:     "2026-07-12T12:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("create project meeting entry: %v", err)
+	}
+	_, err = st.CreateTimeEntry(ctx, user.ID, TimeEntryInput{
+		ProjectID:   meetProject.ID,
+		Description: "weekly de tech",
+		StartedAt:   "2026-07-12T17:00:00Z",
+		EndedAt:     "2026-07-12T18:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("create weekly entry: %v", err)
+	}
+
+	summary, err := st.BuildDailySummary(ctx, user.ID, DailySummaryOptions{
+		Date:           "2026-07-12",
+		Timezone:       "UTC",
+		Locale:         "es",
+		IncludeClient:  true,
+		IncludeProject: true,
+		IncludeClosing: true,
+	})
+	if err != nil {
+		t.Fatalf("build daily summary: %v", err)
+	}
+
+	text := summary.Text
+	if !strings.Contains(text, "- RTVE:\n    - cerramos la rama de recommendations y la metimos en master") {
+		t.Fatalf("expected RTVE work bullet, got:\n%s", text)
+	}
+	if !strings.Contains(text, "    - reunión con Miguel Angel para revisar incidencias de webhooks") {
+		t.Fatalf("expected project meeting under RTVE, got:\n%s", text)
+	}
+	if !strings.Contains(text, "- Meet Tech") {
+		t.Fatalf("expected standalone weekly meeting at end, got:\n%s", text)
+	}
+	if strings.Index(text, "- Meet Tech") < strings.Index(text, "reunión con Miguel Angel") {
+		t.Fatalf("expected standalone meeting after project bullets, got:\n%s", text)
 	}
 }
 
@@ -138,8 +212,8 @@ func TestBuildDailySummaryRespectsClientAndProjectToggles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("client-only summary: %v", err)
 	}
-	if !strings.Contains(clientOnly.Text, "avancé con OUT:") {
-		t.Fatalf("expected client-only context, got:\n%s", clientOnly.Text)
+	if !strings.Contains(clientOnly.Text, "- OUT:\n    - pixel de conversión") {
+		t.Fatalf("expected client-only bullet group, got:\n%s", clientOnly.Text)
 	}
 	if strings.Contains(clientOnly.Text, "Generador de landings") {
 		t.Fatalf("did not expect project in client-only summary:\n%s", clientOnly.Text)
@@ -155,8 +229,8 @@ func TestBuildDailySummaryRespectsClientAndProjectToggles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("project-only summary: %v", err)
 	}
-	if !strings.Contains(projectOnly.Text, "avancé con Generador de landings:") {
-		t.Fatalf("expected project-only context, got:\n%s", projectOnly.Text)
+	if !strings.Contains(projectOnly.Text, "- Generador de landings:\n    - pixel de conversión") {
+		t.Fatalf("expected project-only bullet group, got:\n%s", projectOnly.Text)
 	}
 	if strings.Contains(projectOnly.Text, "OUT") {
 		t.Fatalf("did not expect client in project-only summary:\n%s", projectOnly.Text)

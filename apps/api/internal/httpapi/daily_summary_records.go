@@ -37,6 +37,7 @@ type dailySummaryEnrichContextResponse struct {
 	Locale       string                    `json:"locale"`
 	AuthorEmail  string                    `json:"authorEmail"`
 	Projects     []enrich.ProjectWorkspace `json:"projects"`
+	EntryFacts   []enrich.TimeEntryFact    `json:"entryFacts"`
 	Record       *store.DailySummaryRecord `json:"record,omitempty"`
 }
 
@@ -359,8 +360,23 @@ func (s *Server) getDailySummaryEnrichContext(w http.ResponseWriter, r *http.Req
 		Locale:       profile.Locale,
 		AuthorEmail:  authorEmail,
 		Projects:     workspaces,
+		EntryFacts:   mapDailySummaryEntryFacts(summary.EntryFacts),
 		Record:       record,
 	})
+}
+
+func mapDailySummaryEntryFacts(facts []store.DailySummaryEntryFact) []enrich.TimeEntryFact {
+	mapped := make([]enrich.TimeEntryFact, 0, len(facts))
+	for _, fact := range facts {
+		mapped = append(mapped, enrich.TimeEntryFact{
+			ClientName:  fact.ClientName,
+			ProjectName: fact.ProjectName,
+			TaskName:    fact.TaskName,
+			Topics:      append([]string(nil), fact.Topics...),
+			Description: fact.Description,
+		})
+	}
+	return mapped
 }
 
 func (s *Server) parseDailySummaryOptionsFromQuery(w http.ResponseWriter, r *http.Request, profile *store.Profile) (store.DailySummaryOptions, bool) {

@@ -17,6 +17,7 @@ type EnrichRequest struct {
 	Locale       string             `json:"locale"`
 	AuthorEmail  string             `json:"authorEmail"`
 	Projects     []ProjectWorkspace `json:"projects"`
+	EntryFacts   []TimeEntryFact    `json:"entryFacts,omitempty"`
 	CursorAPIKey string             `json:"cursorApiKey,omitempty"`
 	AIEnabled    bool               `json:"aiEnabled"`
 }
@@ -86,6 +87,7 @@ func handleEnrich(w http.ResponseWriter, r *http.Request) {
 		ManualNote:     request.ManualNote,
 		Feedback:       request.Feedback,
 		CurrentDraft:   request.CurrentDraft,
+		EntryFacts:     request.EntryFacts,
 		Commits:        commits,
 		CursorActivity: cursorActivity,
 		Locale:         request.Locale,

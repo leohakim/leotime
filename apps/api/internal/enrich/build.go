@@ -25,16 +25,25 @@ func BuildEnrichedText(bundle ContextBundle) string {
 		}
 	}
 	for _, commit := range bundle.Commits {
-		extra = append(extra, fmt.Sprintf("En %s trabajé el commit %s (%s).", commit.ProjectName, commit.Hash, commit.Subject))
+		heading := strings.TrimSpace(commit.ProjectName)
+		if heading == "" {
+			heading = "Commits"
+		}
+		extra = append(extra, fmt.Sprintf("- %s:", heading))
+		extra = append(extra, fmt.Sprintf("    - %s (%s)", commit.Subject, commit.Hash))
 	}
 	for _, activity := range bundle.CursorActivity {
 		if len(activity.UserQueries) > 0 {
 			limit := minInt(3, len(activity.UserQueries))
-			extra = append(extra, "En Cursor consulté: "+strings.Join(activity.UserQueries[:limit], "; ")+".")
+			extra = append(extra, fmt.Sprintf("- %s:", activity.WorkspaceSlug))
+			extra = append(extra, "    - En Cursor consulté: "+strings.Join(activity.UserQueries[:limit], "; ")+".")
 		}
 		if len(activity.FilesTouched) > 0 {
 			limit := minInt(6, len(activity.FilesTouched))
-			extra = append(extra, "Archivos tocados: "+strings.Join(activity.FilesTouched[:limit], ", ")+".")
+			if len(activity.UserQueries) == 0 {
+				extra = append(extra, fmt.Sprintf("- %s:", activity.WorkspaceSlug))
+			}
+			extra = append(extra, "    - Archivos tocados: "+strings.Join(activity.FilesTouched[:limit], ", ")+".")
 		}
 	}
 	if len(extra) == 0 {
@@ -44,12 +53,24 @@ func BuildEnrichedText(bundle ContextBundle) string {
 		return strings.Join(extra, "\n")
 	}
 
-	body := lines[0]
-	parts := strings.SplitN(body, "\n", 3)
-	if len(parts) >= 3 {
-		return parts[0] + "\n" + parts[1] + "\n" + strings.Join(append([]string{parts[2]}, extra...), "\n")
+	return insertDailySummaryExtras(lines[0], extra)
+}
+
+func insertDailySummaryExtras(body string, extra []string) string {
+	lines := strings.Split(body, "\n")
+	insertAt := len(lines)
+	for i := len(lines) - 1; i >= 0; i-- {
+		lower := strings.ToLower(strings.TrimSpace(lines[i]))
+		if strings.HasPrefix(lower, "hasta ") || strings.HasPrefix(lower, "see you") {
+			insertAt = i
+			continue
+		}
+		break
 	}
-	return body + "\n" + strings.Join(extra, "\n")
+	prefix := append([]string{}, lines[:insertAt]...)
+	suffix := append([]string{}, lines[insertAt:]...)
+	prefix = append(prefix, extra...)
+	return strings.Join(append(prefix, suffix...), "\n")
 }
 
 func mergeFeedback(bundle ContextBundle) string {

@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode"
 )
 
 type DailySummaryOptions struct {
@@ -23,31 +22,30 @@ type DailySummaryOptions struct {
 }
 
 type DailySummary struct {
-	Date         string `json:"date"`
-	Locale       string `json:"locale"`
-	Timezone     string `json:"timezone"`
-	EntryCount   int    `json:"entryCount"`
-	TotalSeconds int    `json:"totalSeconds"`
-	Text         string `json:"text"`
+	Date         string                  `json:"date"`
+	Locale       string                  `json:"locale"`
+	Timezone     string                  `json:"timezone"`
+	EntryCount   int                     `json:"entryCount"`
+	TotalSeconds int                     `json:"totalSeconds"`
+	Text         string                  `json:"text"`
+	EntryFacts   []DailySummaryEntryFact `json:"entryFacts,omitempty"`
 }
 
-type dailySummaryPeriod int
-
-const (
-	dailySummaryMorning dailySummaryPeriod = iota
-	dailySummaryAfternoon
-	dailySummaryEvening
-)
-
 type dailySummaryMessages struct {
-	header         string
-	emptyBody      string
-	closing        string
-	periodOpeners  [3]string
-	periodFollow   []string
-	contextWorked  string
-	contextOn      string
-	activityJoiner string
+	header    string
+	emptyBody string
+	closing   string
+}
+
+type dailySummaryGroup struct {
+	bullets []string
+	firstAt string
+	heading string
+}
+
+type dailySummaryStandaloneMeeting struct {
+	at    string
+	label string
 }
 
 func (s *Store) BuildDailySummary(ctx context.Context, userID string, options DailySummaryOptions) (*DailySummary, error) {
@@ -105,13 +103,14 @@ func (s *Store) BuildDailySummary(ctx context.Context, userID string, options Da
 		Timezone:     loc.String(),
 		EntryCount:   len(filtered),
 		TotalSeconds: totalSeconds,
+		EntryFacts:   BuildDailySummaryEntryFacts(filtered),
 	}
 
 	var bodyLines []string
 	if len(filtered) == 0 {
 		bodyLines = []string{messages.emptyBody}
 	} else {
-		bodyLines = buildDailySummaryBody(filtered, options, loc, messages)
+		bodyLines = buildDailySummaryBody(filtered, options)
 	}
 
 	parts := []string{
@@ -157,25 +156,15 @@ func normalizeDailySummaryLocale(locale string) string {
 func dailySummaryMessagesFor(locale string) dailySummaryMessages {
 	if locale == "en" {
 		return dailySummaryMessages{
-			header:         "Summary for today:",
-			emptyBody:      "No time entries recorded for this day.",
-			closing:        "See you tomorrow team!",
-			periodOpeners:  [3]string{"This morning", "This afternoon", "This evening"},
-			periodFollow:   []string{"Also", "Then", "After that"},
-			contextWorked:  "worked on",
-			contextOn:      "focused on",
-			activityJoiner: " and ",
+			header:    "Summary for today:",
+			emptyBody: "No time entries recorded for this day.",
+			closing:   "See you tomorrow team!",
 		}
 	}
 	return dailySummaryMessages{
-		header:         "Resumen de hoy:",
-		emptyBody:      "Sin entradas registradas hoy.",
-		closing:        "Hasta mañana team!",
-		periodOpeners:  [3]string{"Por la mañana", "Por la tarde", "Por la noche"},
-		periodFollow:   []string{"También", "Luego", "Después"},
-		contextWorked:  "avancé con",
-		contextOn:      "estuve en",
-		activityJoiner: " y ",
+		header:    "Resumen de hoy:",
+		emptyBody: "Sin entradas registradas hoy.",
+		closing:   "Hasta mañana team!",
 	}
 }
 
@@ -186,108 +175,153 @@ func formatDailySummaryDateHeader(day time.Time, locale string) string {
 	return fmt.Sprintf("%d/%d:", day.Day(), int(day.Month()))
 }
 
-func buildDailySummaryBody(entries []TimeEntry, options DailySummaryOptions, loc *time.Location, messages dailySummaryMessages) []string {
-	type groupKey struct {
-		period  dailySummaryPeriod
-		context string
-	}
-
-	groups := make([]struct {
-		key        groupKey
-		activities []string
-	}, 0)
-	indexByKey := map[groupKey]int{}
+func buildDailySummaryBody(entries []TimeEntry, options DailySummaryOptions) []string {
+	groups := make([]dailySummaryGroup, 0)
+	groupIndex := map[string]int{}
+	standaloneMeetings := make([]dailySummaryStandaloneMeeting, 0)
+	orphanBullets := make([]string, 0)
 
 	for _, entry := range entries {
-		period := dailySummaryPeriodFor(entry.StartedAt, loc)
-		contextLabel := dailySummaryContextLabel(entry, options)
-		key := groupKey{period: period, context: contextLabel}
-		activity := dailySummaryActivityText(entry)
-		if idx, ok := indexByKey[key]; ok {
-			groups[idx].activities = appendUniquePhrase(groups[idx].activities, activity)
+		if dailySummaryIsMeeting(entry) && dailySummaryIsStandaloneMeeting(entry, options) {
+			standaloneMeetings = append(standaloneMeetings, dailySummaryStandaloneMeeting{
+				at:    entry.StartedAt,
+				label: dailySummaryMeetingLine(entry),
+			})
 			continue
 		}
-		indexByKey[key] = len(groups)
-		activities := []string{}
-		if activity != "" {
-			activities = append(activities, activity)
+
+		bullets := dailySummaryEntryBullets(entry)
+		if len(bullets) == 0 {
+			continue
 		}
-		groups = append(groups, struct {
-			key        groupKey
-			activities []string
-		}{key: key, activities: activities})
+
+		heading := dailySummaryGroupHeading(entry, options)
+		if heading == "" {
+			orphanBullets = appendUniquePhrases(orphanBullets, bullets)
+			continue
+		}
+
+		if idx, ok := groupIndex[heading]; ok {
+			groups[idx].bullets = appendUniquePhrases(groups[idx].bullets, bullets)
+			continue
+		}
+
+		groupIndex[heading] = len(groups)
+		groups = append(groups, dailySummaryGroup{
+			bullets: append([]string(nil), bullets...),
+			firstAt: entry.StartedAt,
+			heading: heading,
+		})
 	}
 
-	lines := make([]string, 0, len(groups))
-	periodUsed := map[dailySummaryPeriod]bool{}
-	followIndex := 0
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].firstAt < groups[j].firstAt
+	})
+	sort.Slice(standaloneMeetings, func(i, j int) bool {
+		return standaloneMeetings[i].at < standaloneMeetings[j].at
+	})
 
+	lines := make([]string, 0, len(groups)+len(standaloneMeetings)+len(orphanBullets))
+	for _, bullet := range orphanBullets {
+		lines = append(lines, "- "+bullet)
+	}
 	for _, group := range groups {
-		connector := messages.periodOpeners[group.key.period]
-		if periodUsed[group.key.period] {
-			if followIndex < len(messages.periodFollow) {
-				connector = messages.periodFollow[followIndex]
-				followIndex++
-			} else {
-				connector = messages.periodFollow[len(messages.periodFollow)-1]
-			}
-		} else {
-			periodUsed[group.key.period] = true
+		lines = append(lines, "- "+group.heading+":")
+		for _, bullet := range group.bullets {
+			lines = append(lines, "    - "+bullet)
 		}
-
-		activities := joinDailySummaryActivities(group.activities, messages.activityJoiner)
-		line := dailySummarySentence(connector, group.key.context, activities, messages)
-		if line != "" {
-			lines = append(lines, line)
-		}
+	}
+	for _, meeting := range standaloneMeetings {
+		lines = append(lines, "- "+meeting.label)
 	}
 	return lines
 }
 
-func dailySummaryPeriodFor(startedAt string, loc *time.Location) dailySummaryPeriod {
-	parsed, err := time.Parse(time.RFC3339, startedAt)
-	if err != nil {
-		return dailySummaryMorning
+func dailySummaryGroupHeading(entry TimeEntry, options DailySummaryOptions) string {
+	client := strings.TrimSpace(entry.ClientName)
+	project := strings.TrimSpace(entry.ProjectName)
+	if options.IncludeClient && client != "" {
+		return client
 	}
-	hour := parsed.In(loc).Hour()
-	switch {
-	case hour < 14:
-		return dailySummaryMorning
-	case hour < 20:
-		return dailySummaryAfternoon
-	default:
-		return dailySummaryEvening
+	if options.IncludeProject && project != "" {
+		return project
 	}
+	if client != "" {
+		return client
+	}
+	if project != "" {
+		return project
+	}
+	return ""
 }
 
-func dailySummaryContextLabel(entry TimeEntry, options DailySummaryOptions) string {
-	parts := make([]string, 0, 2)
-	if options.IncludeClient {
-		if name := strings.TrimSpace(entry.ClientName); name != "" {
-			parts = append(parts, name)
-		}
-	}
-	if options.IncludeProject {
-		if name := strings.TrimSpace(entry.ProjectName); name != "" {
-			parts = append(parts, name)
-		}
-	}
-	return strings.Join(parts, " — ")
-}
-
-func dailySummaryActivityText(entry TimeEntry) string {
-	description := strings.TrimSpace(entry.Description)
+func dailySummaryIsMeeting(entry TimeEntry) bool {
 	taskName := strings.TrimSpace(entry.TaskName)
-	switch {
-	case description != "" && taskName != "" && !strings.EqualFold(description, taskName):
-		return taskName + ": " + description
-	case description != "":
-		return description
-	case taskName != "":
-		return taskName
-	default:
-		return ""
+	if len(splitDailySummaryTopics(taskName)) > 1 {
+		return false
 	}
+	haystack := strings.ToLower(strings.Join([]string{
+		entry.TaskName,
+		entry.Description,
+		entry.ProjectName,
+	}, " "))
+	keywords := []string{
+		"reunión", "reunion", "meeting", "meet ", " weekly", "weekly ", "standup", "stand-up",
+		"sync ", "sync.", "llamada", "videollamada", "call with", "team meet", "all hands",
+	}
+	for _, keyword := range keywords {
+		if strings.Contains(haystack, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+func dailySummaryIsStandaloneMeeting(entry TimeEntry, options DailySummaryOptions) bool {
+	if !dailySummaryIsMeeting(entry) {
+		return false
+	}
+	if dailySummaryLooksLikeGeneralMeetingLabel(dailySummaryMeetingLine(entry)) {
+		return true
+	}
+	if strings.TrimSpace(entry.ProjectID) == "" && strings.TrimSpace(entry.ClientID) == "" {
+		return true
+	}
+	return dailySummaryGroupHeading(entry, options) == ""
+}
+
+func dailySummaryLooksLikeGeneralMeetingLabel(label string) bool {
+	lower := strings.ToLower(strings.TrimSpace(label))
+	if lower == "" {
+		return false
+	}
+	generalPatterns := []string{
+		"meet tech", "tech meet", "weekly", "reunión de tech", "reunion de tech",
+		"team meet", "all hands", "reunión general", "reunion general",
+	}
+	for _, pattern := range generalPatterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	return strings.HasPrefix(lower, "meet ")
+}
+
+func dailySummaryMeetingLine(entry TimeEntry) string {
+	project := strings.TrimSpace(entry.ProjectName)
+	if dailySummaryLooksLikeGeneralMeetingLabel(project) {
+		return project
+	}
+	if bullets := dailySummaryEntryBullets(entry); len(bullets) > 0 {
+		return bullets[0]
+	}
+	if project != "" {
+		return project
+	}
+	if client := strings.TrimSpace(entry.ClientName); client != "" {
+		return client
+	}
+	return "Reunión"
 }
 
 func appendUniquePhrase(items []string, phrase string) []string {
@@ -301,50 +335,4 @@ func appendUniquePhrase(items []string, phrase string) []string {
 		}
 	}
 	return append(items, phrase)
-}
-
-func joinDailySummaryActivities(items []string, joiner string) string {
-	clean := make([]string, 0, len(items))
-	for _, item := range items {
-		item = strings.TrimSpace(item)
-		if item != "" {
-			clean = append(clean, item)
-		}
-	}
-	if len(clean) == 0 {
-		return ""
-	}
-	if len(clean) == 1 {
-		return clean[0]
-	}
-	if strings.Contains(joiner, " y ") {
-		return strings.Join(clean[:len(clean)-1], ", ") + joiner + clean[len(clean)-1]
-	}
-	return strings.Join(clean[:len(clean)-1], ", ") + joiner + clean[len(clean)-1]
-}
-
-func dailySummarySentence(connector, contextLabel, activities string, messages dailySummaryMessages) string {
-	connector = strings.TrimSpace(connector)
-	contextLabel = strings.TrimSpace(contextLabel)
-	activities = strings.TrimSpace(activities)
-
-	switch {
-	case contextLabel != "" && activities != "":
-		return fmt.Sprintf("%s %s %s: %s.", connector, messages.contextWorked, contextLabel, activities)
-	case contextLabel != "":
-		return fmt.Sprintf("%s %s %s.", connector, messages.contextOn, contextLabel)
-	case activities != "":
-		return fmt.Sprintf("%s %s.", connector, lowercaseFirst(activities))
-	default:
-		return ""
-	}
-}
-
-func lowercaseFirst(value string) string {
-	if value == "" {
-		return value
-	}
-	runes := []rune(value)
-	runes[0] = unicode.ToLower(runes[0])
-	return string(runes)
 }

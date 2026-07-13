@@ -437,6 +437,7 @@ export function DailySummaryPanel({
         currentDraft: draftText,
         locale: context.locale,
         authorEmail: context.authorEmail,
+        entryFacts: context.entryFacts ?? [],
         projects: context.projects,
       });
       setWorkflowProgress({ kind: 'enrich', step: 'save' });

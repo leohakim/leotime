@@ -14,15 +14,22 @@ func TestBuildCursorPromptIncludesFacts(t *testing.T) {
 	prompt := BuildCursorPrompt(ContextBundle{
 		Date:         "2026-07-12",
 		Locale:       "es",
-		TemplateText: "12/7:\nResumen de hoy:\nPor la mañana avancé con RTVE.",
+		TemplateText: "12/7:\nResumen de hoy:\n- RTVE:\n    - corrección de rutas API.",
 		ManualNote:   "Quedó pendiente el deploy.",
+		EntryFacts: []TimeEntryFact{{
+			ClientName:  "RTVE",
+			ProjectName: "Participa",
+			TaskName:    "Cropper Imagenes + Reunion Nico",
+			Topics:      []string{"Cropper Imagenes", "Reunion Nico"},
+			Description: "ADR cropper y sync con Nico",
+		}},
 		Commits: []CommitLine{{
 			ProjectName: "leotime",
 			Hash:        "abc1234",
 			Subject:     "add daily summary workflow",
 		}},
 	})
-	if !containsAll(prompt, "Resumen de entradas de tiempo", "abc1234", "Quedó pendiente el deploy.", "Hasta mañana team!") {
+	if !containsAll(prompt, "Documento a enriquecer", "abc1234", "Quedó pendiente el deploy.", "Hasta mañana team!", "primera persona", "Detalle de entradas de tiempo") {
 		t.Fatalf("unexpected prompt: %s", prompt)
 	}
 }

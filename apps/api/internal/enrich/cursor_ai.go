@@ -40,6 +40,9 @@ func tryCursorAI(bundle ContextBundle, apiKey string, enabled bool) (CursorAIRes
 	if text == "" {
 		return CursorAIResult{}, false
 	}
+	if base := dailySummaryBaseText(bundle); base != "" {
+		text = enforceDailySummaryStructure(base, text)
+	}
 	return CursorAIResult{
 		Text:    text,
 		ModelID: result.ModelID,

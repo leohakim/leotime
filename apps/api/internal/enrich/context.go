@@ -31,12 +31,21 @@ type CursorActivity struct {
 	FilesTouched  []string `json:"filesTouched"`
 }
 
+type TimeEntryFact struct {
+	ClientName  string   `json:"clientName"`
+	ProjectName string   `json:"projectName"`
+	TaskName    string   `json:"taskName"`
+	Topics      []string `json:"topics"`
+	Description string   `json:"description"`
+}
+
 type ContextBundle struct {
 	Date           string           `json:"date"`
 	TemplateText   string           `json:"templateText"`
 	ManualNote     string           `json:"manualNote"`
 	Feedback       string           `json:"feedback"`
 	CurrentDraft   string           `json:"currentDraft"`
+	EntryFacts     []TimeEntryFact  `json:"entryFacts,omitempty"`
 	Commits        []CommitLine     `json:"commits"`
 	CursorActivity []CursorActivity `json:"cursorActivity"`
 	Locale         string           `json:"locale"`

@@ -1021,6 +1021,13 @@ export type DailySummaryEnrichContext = {
   manualNote: string;
   locale: string;
   authorEmail: string;
+  entryFacts: Array<{
+    clientName: string;
+    projectName: string;
+    taskName: string;
+    topics: string[];
+    description: string;
+  }>;
   projects: Array<{
     projectId: string;
     projectName: string;
@@ -1053,6 +1060,7 @@ export async function enrichDailySummaryLocally(input: {
   currentDraft: string;
   locale: string;
   authorEmail: string;
+  entryFacts: DailySummaryEnrichContext['entryFacts'];
   projects: DailySummaryEnrichContext['projects'];
 }): Promise<{
   text: string;
