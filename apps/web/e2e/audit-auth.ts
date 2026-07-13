@@ -33,12 +33,24 @@ export async function prepareVisualRegressionPage(page: Page) {
 
 export async function waitForTimesheetSurface(page: Page) {
   await expect(page.locator('#timesheet')).toBeVisible();
+  await page
+    .waitForResponse((response) => response.url().includes('/api/v1/time-entries') && response.ok(), {
+      timeout: 15_000,
+    })
+    .catch(() => undefined);
   await expect(page.locator('#timesheet .time-entry-row').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('#timesheet .sync-pill')).toHaveCount(0, { timeout: 15_000 });
 }
 
 export async function waitForDashboardSurface(page: Page) {
   await expect(page.locator('#dashboard')).toBeVisible();
+  await page
+    .waitForResponse((response) => response.url().includes('/api/v1/dashboard/stats') && response.ok(), {
+      timeout: 15_000,
+    })
+    .catch(() => undefined);
   await expect(page.locator('#dashboard .dashboard-stat-card').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('#dashboard .surface-feedback-loading')).toHaveCount(0, { timeout: 15_000 });
 }
 
 export async function signIn(page: Page) {

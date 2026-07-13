@@ -19,6 +19,7 @@ test.describe('login screen', () => {
   test('login layout', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.login-hero')).toBeVisible();
+    await page.waitForLoadState('networkidle');
     await expect(page.locator('.login-screen')).toHaveScreenshot('login.png');
   });
 });

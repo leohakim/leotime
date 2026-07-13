@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/leotime/leotime/apps/api/internal/clock"
 )
 
 const dashboardRecentLimit = 5
@@ -87,7 +89,7 @@ func (s *Store) BuildDashboardStats(ctx context.Context, userID string, activity
 		return nil, err
 	}
 
-	now := time.Now().UTC()
+	now := clock.Now()
 	today := dateOnlyUTC(now)
 	weekStart := startOfWeekUTC(today, time.Monday)
 	weekEnd := weekStart.AddDate(0, 0, 6)
@@ -279,7 +281,7 @@ func buildActivityMonthGrid(monthStart time.Time, dayTotals map[string]int) []Da
 func parseActivityMonth(value string) (time.Time, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		now := time.Now().UTC()
+		now := clock.Now()
 		return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC), nil
 	}
 	parsed, err := time.Parse("2006-01", value)

@@ -16,6 +16,7 @@ import (
 	_ "time/tzdata"
 
 	"github.com/leotime/leotime/apps/api/internal/backup"
+	"github.com/leotime/leotime/apps/api/internal/clock"
 	"github.com/leotime/leotime/apps/api/internal/config"
 	"github.com/leotime/leotime/apps/api/internal/db"
 	"github.com/leotime/leotime/apps/api/internal/httpapi"
@@ -63,6 +64,9 @@ func main() {
 	}
 	if err := cfg.Validate(); err != nil {
 		log.Fatalf("invalid config: %v", err)
+	}
+	if err := clock.InitFromEnv(); err != nil {
+		log.Fatalf("clock: %v", err)
 	}
 	ctx := context.Background()
 

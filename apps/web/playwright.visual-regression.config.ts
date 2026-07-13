@@ -25,13 +25,15 @@ export default defineConfig({
   expect: {
     toHaveScreenshot: {
       animations: 'disabled',
-      maxDiffPixelRatio: 0.02,
+      // Allow minor cross-platform font rasterization drift in CI (Ubuntu vs macOS).
+      maxDiffPixelRatio: 0.04,
     },
   },
   use: {
     baseURL: 'http://127.0.0.1:5175',
     colorScheme: 'light',
     locale: 'es-ES',
+    timezoneId: 'UTC',
     trace: 'retain-on-failure',
   },
   webServer: [
