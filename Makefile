@@ -129,7 +129,7 @@ audit-ui-regression-update: ## 🖼️ Refresh committed UI visual regression sn
 
 audit-ui-regression-update-linux: ## 🖼️ Refresh UI snapshots on Linux amd64 (matches GitHub CI)
 	@printf "🖼️ Updating UI visual regression snapshots on Linux amd64...\n"
-	@chmod +x scripts/update-visual-regression-snapshots-linux.sh
+	@chmod +x scripts/update-visual-regression-snapshots-linux.sh scripts/visual-regression-linux-inner.sh
 	@./scripts/update-visual-regression-snapshots-linux.sh
 
 build-web: ## 📦 Build frontend assets

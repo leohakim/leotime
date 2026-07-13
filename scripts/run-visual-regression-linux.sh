@@ -2,7 +2,6 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PROJECT="${1:-}"
 
 docker run --platform linux/amd64 --rm \
   -v "$ROOT:/work" \
@@ -11,4 +10,4 @@ docker run --platform linux/amd64 --rm \
   -w /work \
   -e CI=true \
   mcr.microsoft.com/playwright:v1.61.1-noble \
-  bash /work/scripts/visual-regression-linux-inner.sh update "$PROJECT"
+  bash /work/scripts/visual-regression-linux-inner.sh run
