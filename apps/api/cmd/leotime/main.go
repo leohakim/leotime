@@ -48,6 +48,12 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "reset-data" {
+		if err := runResetDataCommand(context.Background(), os.Args[2:]); err != nil {
+			log.Fatalf("reset-data failed: %v", err)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "enricher" {
 		if err := runEnricherCommand(os.Args[2:]); err != nil {
 			log.Fatalf("enricher failed: %v", err)

@@ -54,7 +54,7 @@ make smoke BASE_URL=https://leotime.example.com
 
 ## Demo seed data
 
-Load sample clients, projects, tasks, tags, two weeks of weekday time entries, and one open timer for UI development:
+Load sample clients, projects, tasks, tags, six months of weekday time entries, invoice drafts, and one open timer for UI development:
 
 ```bash
 make seed
@@ -66,24 +66,41 @@ Custom owner email:
 make seed USER_EMAIL=admin@example.com
 ```
 
-CLI equivalent:
+Reset product data without touching the user account, profile settings, or backup credentials:
+
+```bash
+make reset-data
+make reset-data USER_EMAIL=admin@example.com
+```
+
+Wipe and reseed in one step:
+
+```bash
+make reseed
+```
+
+CLI equivalents:
 
 ```bash
 cd apps/api && go run ./cmd/leotime seed
 cd apps/api && go run ./cmd/leotime seed --user-email admin@example.com
+cd apps/api && go run ./cmd/leotime reset-data --user-email admin@example.com
+cd apps/api && go run ./cmd/leotime seed --force --user-email admin@example.com
 ```
 
 Behavior:
 
 - **Skipped** when the database already has clients (safe to run repeatedly).
-- **Seeded** on an empty database: 2 clients, 3 projects, 4 tasks, 3 tags, ~30 time entries, 1 open timer.
-- `--force` returns an error if data already exists; use a fresh database or delete existing rows first.
+- **Seeded** on an empty database: 4 clients (1 archived), 6 projects, 7 tasks, 6 tags (1 archived), ~6 months of weekday time entries, 2 invoice drafts, 1 open timer.
+- `reset-data` deletes clients, projects, tasks, tags, time entries, invoices, billing document metadata, import mappings, import runs, and daily summaries for the selected user. It keeps the login account, app settings, and backup configuration.
+- `--force` on `seed` wipes product data first and then reseeds.
 - Optional `LEOTIME_SEED_NOW` (RFC3339) pins the demo timeline for reproducible UI screenshots and visual regression.
 
 Docker:
 
 ```bash
 docker compose exec leotime /app/leotime seed
+docker compose exec leotime /app/leotime reset-data --user-email admin@example.com
 ```
 
 ## Metrics

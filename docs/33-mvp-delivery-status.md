@@ -39,6 +39,7 @@ The first deployable version of leotime is feature-complete for a single owner: 
 | --- | --- |
 | `leotime` (default) | Start HTTP server |
 | `leotime seed` | Load demo data |
+| `leotime reset-data` | Delete product data for one user (keeps account and settings) |
 | `leotime import solidtime` | Import Solidtime ZIP |
 | `leotime backup run \| list \| restore` | Backup operations |
 

@@ -13,7 +13,7 @@ import (
 
 func runSeedCommand(ctx context.Context, args []string) error {
 	flags := flag.NewFlagSet("leotime seed", flag.ContinueOnError)
-	force := flags.Bool("force", false, "fail if data already exists instead of skipping")
+	force := flags.Bool("force", false, "wipe existing product data for the user and reseed")
 	userEmail := flags.String("user-email", "", "owner email (defaults to LEOTIME_BOOTSTRAP_EMAIL)")
 	if err := flags.Parse(args); err != nil {
 		return err

@@ -2,7 +2,6 @@ package seed
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -14,10 +13,8 @@ func TestSeedCreatesDemoData(t *testing.T) {
 	ctx := context.Background()
 	st, user := newSeedTestStore(t, ctx)
 
-	service := New(st)
-	service.now = func() time.Time {
-		return time.Date(2026, 7, 8, 15, 0, 0, 0, time.UTC)
-	}
+	fixedNow := time.Date(2026, 7, 16, 15, 0, 0, 0, time.UTC)
+	service := NewWithNow(st, func() time.Time { return fixedNow })
 
 	summary, err := service.Run(ctx, Options{UserID: user.ID})
 	if err != nil {
@@ -26,11 +23,25 @@ func TestSeedCreatesDemoData(t *testing.T) {
 	if summary.Status != "seeded" {
 		t.Fatalf("expected seeded status, got %+v", summary)
 	}
-	if summary.Clients < 2 || summary.Projects < 3 || summary.Tasks < 4 || summary.Tags < 3 {
-		t.Fatalf("unexpected seeded counts: %+v", summary)
+	if summary.Clients < 3 || summary.Projects < 5 || summary.Tasks < 6 || summary.Tags < 5 {
+		t.Fatalf("unexpected seeded catalog counts: %+v", summary)
 	}
-	if summary.TimeEntries == 0 || summary.OpenTimers != 1 {
-		t.Fatalf("expected time entries and one open timer, got %+v", summary)
+	if summary.TimeEntries < 300 || summary.OpenTimers != 1 {
+		t.Fatalf("expected six months of entries and one open timer, got %+v", summary)
+	}
+	if summary.Invoices < 2 {
+		t.Fatalf("expected invoice drafts, got %+v", summary)
+	}
+
+	entries, err := st.ListTimeEntries(ctx, user.ID, store.TimeEntryListOptions{
+		From: fixedNow.AddDate(0, -seedHistoryMonths, 0).Format(time.RFC3339),
+		To:   fixedNow.Format(time.RFC3339),
+	})
+	if err != nil {
+		t.Fatalf("list seeded entries: %v", err)
+	}
+	if len(entries) == 0 {
+		t.Fatal("expected seeded time entries in the requested range")
 	}
 }
 
@@ -65,7 +76,7 @@ func TestSeedSkipsWhenDataExists(t *testing.T) {
 	}
 }
 
-func TestSeedForceRejectsExistingData(t *testing.T) {
+func TestSeedForceWipesAndReseeds(t *testing.T) {
 	ctx := context.Background()
 	st, user := newSeedTestStore(t, ctx)
 
@@ -73,9 +84,15 @@ func TestSeedForceRejectsExistingData(t *testing.T) {
 		t.Fatalf("create client: %v", err)
 	}
 
-	_, err := New(st).Run(ctx, Options{UserID: user.ID, Force: true})
-	if !errors.Is(err, ErrAlreadySeeded) {
-		t.Fatalf("expected ErrAlreadySeeded, got %v", err)
+	summary, err := New(st).Run(ctx, Options{UserID: user.ID, Force: true})
+	if err != nil {
+		t.Fatalf("seed with force: %v", err)
+	}
+	if summary.Status != "seeded" {
+		t.Fatalf("expected seeded status after force, got %+v", summary)
+	}
+	if summary.Clients < 3 {
+		t.Fatalf("expected reseeded catalog, got %+v", summary)
 	}
 }
 

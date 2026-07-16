@@ -10,7 +10,7 @@ SAMPLE_SECONDS ?= 60
 SAMPLE_INTERVAL ?= 5
 WITH_LOAD ?= 0
 
-.PHONY: help setup setup-hooks pre-commit fmt-check test-api-vet dev dev-api dev-web dev-enricher enricher-dev up down logs migrate seed test test-api test-web test-e2e build-web smoke bench stress metrics resources docker-build deploy-check import-solidtime import-solidtime-dry load-dev-env audit-ui-regression-update-linux
+.PHONY: help setup setup-hooks pre-commit fmt-check test-api-vet dev dev-api dev-web dev-enricher enricher-dev up down logs migrate seed reset-data reseed test test-api test-web test-e2e build-web smoke bench stress metrics resources docker-build deploy-check import-solidtime import-solidtime-dry load-dev-env audit-ui-regression-update-linux
 
 define load_dev_env
 	set -a; \
@@ -93,9 +93,15 @@ migrate: ## 🗄️ Apply migrations by starting the API once
 	@printf "🗄️ Applying migrations through application startup...\n"
 	cd apps/api && go run ./cmd/leotime -migrate-only
 
-seed: ## 🌱 Load demo clients, projects, tasks, tags, and time entries
+seed: ## 🌱 Load demo clients, projects, tasks, tags, six months of time entries, and invoice drafts
 	@printf "🌱 Seeding demo data for $(USER_EMAIL)...\n"
 	cd apps/api && go run ./cmd/leotime seed --user-email "$(USER_EMAIL)"
+
+reset-data: ## 🧹 Delete all product data for USER_EMAIL (keeps account, settings, and backups config)
+	@printf "🧹 Resetting product data for $(USER_EMAIL)...\n"
+	cd apps/api && go run ./cmd/leotime reset-data --user-email "$(USER_EMAIL)"
+
+reseed: reset-data seed ## ♻️ Wipe product data and load fresh demo data
 
 test: test-api test-web ## ✅ Run backend and frontend tests
 
