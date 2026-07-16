@@ -117,6 +117,32 @@ func TestCreateInvoiceDraftSkipsAlreadyInvoicedEntries(t *testing.T) {
 	}
 }
 
+func TestCreateInvoiceDraftRejectsInvertedDateRange(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTaskTestStore(t, ctx)
+
+	client, err := st.CreateClient(ctx, user.ID, ClientInput{
+		Name:                   "Range Client",
+		DefaultCurrency:        "EUR",
+		DefaultHourlyRateMinor: 5000,
+	})
+	if err != nil {
+		t.Fatalf("create client: %v", err)
+	}
+
+	_, err = st.CreateInvoiceDraftFromTime(ctx, user.ID, InvoiceDraftFromTimeInput{
+		ClientID: client.ID,
+		From:     "2026-07-31T00:00:00Z",
+		To:       "2026-07-01T23:59:59Z",
+	})
+	if err == nil {
+		t.Fatal("expected error for inverted date range")
+	}
+	if !IsValidation(err, ErrInvalidInvoiceInput) {
+		t.Fatalf("expected validation error, got %v", err)
+	}
+}
+
 func TestUpdateInvoiceStatusRejectsDraftIssuance(t *testing.T) {
 	ctx := context.Background()
 	st, user := newTaskTestStore(t, ctx)

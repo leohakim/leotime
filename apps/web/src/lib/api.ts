@@ -23,6 +23,7 @@ export type AppSettings = {
   backupEmailOnFailure: boolean;
   restoreEmailOnSuccess: boolean;
   restoreEmailOnFailure: boolean;
+  invoiceWithholdingLabel: string;
 };
 
 export type Profile = {
@@ -51,6 +52,7 @@ export type ProfileUpdateInput = {
   backupEmailOnFailure: boolean;
   restoreEmailOnSuccess: boolean;
   restoreEmailOnFailure: boolean;
+  invoiceWithholdingLabel: string;
 };
 
 export type ChangePasswordInput = {
@@ -385,6 +387,8 @@ export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'cancelled';
 
 export type WorkProtocolDetail = 'summary' | 'standard' | 'detailed';
 
+export type InvoiceLineDetail = 'summary' | 'by_project' | 'granular';
+
 export type BillingDocumentKind = 'invoice_pdf' | 'work_protocol_pdf';
 
 export type BillingDocument = {
@@ -446,11 +450,14 @@ export type Invoice = {
   taxMinor: number;
   withholdingMinor: number;
   totalMinor: number;
+  totalQuantityMinutes?: number;
+  withholdingLabel?: string;
   notes: string;
   seriesId?: string;
   periodFrom?: string;
   periodTo?: string;
   workProtocolDetail?: WorkProtocolDetail;
+  invoiceLineDetail?: InvoiceLineDetail;
   documents?: BillingDocument[];
   lines: InvoiceLine[];
   createdAt: string;
@@ -470,12 +477,14 @@ export type InvoiceDraftFromTimeInput = {
   sellerAddress?: string;
   taxRateBasisPoints?: number;
   withholdingMinor?: number;
+  withholdingLabel?: string;
   notes?: string;
   dueAt?: string;
   seriesId?: string;
   periodFrom?: string;
   periodTo?: string;
   workProtocolDetail?: WorkProtocolDetail;
+  invoiceLineDetail?: InvoiceLineDetail;
 };
 
 export type InvoiceUpdateInput = {
@@ -488,12 +497,14 @@ export type InvoiceUpdateInput = {
   clientTaxId?: string;
   clientAddress?: string;
   withholdingMinor?: number;
+  withholdingLabel?: string;
   notes?: string;
   taxRateBasisPoints?: number;
   seriesId?: string;
   periodFrom?: string;
   periodTo?: string;
   workProtocolDetail?: WorkProtocolDetail;
+  invoiceLineDetail?: InvoiceLineDetail;
 };
 
 export async function fetchSession(): Promise<SessionResponse> {

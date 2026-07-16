@@ -290,23 +290,41 @@ func (s *Store) MarkInvoiceIssuedTx(ctx context.Context, tx *sql.Tx, userID, inv
 }
 
 func (s *Store) TimeEntriesForInvoice(ctx context.Context, userID string, invoice *Invoice) ([]TimeEntry, error) {
-	ids := make([]string, 0, len(invoice.Lines))
-	for _, line := range invoice.Lines {
-		if strings.TrimSpace(line.TimeEntryID) != "" {
-			ids = append(ids, line.TimeEntryID)
-		}
-	}
-	if len(ids) == 0 {
+	if invoice == nil || strings.TrimSpace(invoice.ID) == "" {
 		return nil, nil
 	}
 
-	entries := make([]TimeEntry, 0, len(ids))
-	for _, id := range ids {
-		entry, err := s.TimeEntryByID(ctx, userID, id)
+	query := timeEntrySelectSQL + `
+		WHERE te.user_id = ?
+			AND te.id IN (
+				SELECT time_entry_id
+				FROM invoice_lines
+				WHERE invoice_id = ? AND time_entry_id IS NOT NULL
+			)
+		ORDER BY te.started_at ASC, te.id ASC
+	`
+	rows, err := s.db.QueryContext(ctx, query, userID, invoice.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list invoice time entries: %w", err)
+	}
+	defer rows.Close()
+
+	entries := make([]TimeEntry, 0)
+	for rows.Next() {
+		entry, err := scanTimeEntry(rows)
 		if err != nil {
 			return nil, err
 		}
-		entries = append(entries, *entry)
+		entries = append(entries, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate invoice time entries: %w", err)
+	}
+	if len(entries) == 0 {
+		return nil, nil
+	}
+	if err := s.attachTimeEntryTags(ctx, entries); err != nil {
+		return nil, err
 	}
 	return entries, nil
 }

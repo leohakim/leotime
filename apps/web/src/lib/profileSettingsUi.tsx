@@ -74,6 +74,7 @@ function buildFormFromProfile(profile: Profile): ProfileFormState {
     backupEmailOnFailure: profile.settings.backupEmailOnFailure,
     restoreEmailOnSuccess: profile.settings.restoreEmailOnSuccess,
     restoreEmailOnFailure: profile.settings.restoreEmailOnFailure,
+    invoiceWithholdingLabel: profile.settings.invoiceWithholdingLabel,
   };
 }
 
@@ -93,6 +94,7 @@ function buildFormFromUser(user: User, themeMode: ThemeMode): ProfileFormState {
     backupEmailOnFailure: true,
     restoreEmailOnSuccess: false,
     restoreEmailOnFailure: true,
+    invoiceWithholdingLabel: '',
   };
 }
 
@@ -452,6 +454,17 @@ export function ProfileSettingsPanel({
                 ))}
               </select>
               <FieldError id="profile-currency-error" message={errors.defaultCurrency} />
+            </label>
+
+            <label className="form-field" htmlFor="profile-invoice-withholding-label">
+              <span>{t('profileInvoiceWithholdingLabel')}</span>
+              <input
+                id="profile-invoice-withholding-label"
+                onChange={(event) => updateField('invoiceWithholdingLabel', event.target.value)}
+                placeholder={t('invoiceWithholding')}
+                value={form.invoiceWithholdingLabel}
+              />
+              <span className="field-hint">{t('invoiceWithholdingLabelHint')}</span>
             </label>
 
             <label className="form-field" htmlFor="profile-timezone">

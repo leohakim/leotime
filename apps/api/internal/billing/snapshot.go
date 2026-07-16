@@ -25,6 +25,7 @@ type SnapshotOptions struct {
 	IssueAt             time.Time
 	SeriesCode          string
 	PaymentInstructions string
+	Locale              string
 }
 
 type DocumentSnapshot struct {
@@ -34,27 +35,30 @@ type DocumentSnapshot struct {
 }
 
 type InvoiceSnapshot struct {
-	Number              string                `json:"number"`
-	Status              string                `json:"status"`
-	Currency            string                `json:"currency"`
-	IssuedAt            string                `json:"issuedAt"`
-	DueAt               string                `json:"dueAt"`
-	SellerName          string                `json:"sellerName"`
-	SellerTaxID         string                `json:"sellerTaxId"`
-	SellerAddress       string                `json:"sellerAddress"`
-	ClientName          string                `json:"clientName"`
-	ClientTaxID         string                `json:"clientTaxId"`
-	ClientAddress       string                `json:"clientAddress"`
-	PeriodFrom          string                `json:"periodFrom"`
-	PeriodTo            string                `json:"periodTo"`
-	PaymentInstructions string                `json:"paymentInstructions"`
-	Notes               string                `json:"notes"`
-	SubtotalMinor       int64                 `json:"subtotalMinor"`
-	TaxMinor            int64                 `json:"taxMinor"`
-	WithholdingMinor    int64                 `json:"withholdingMinor"`
-	TotalMinor          int64                 `json:"totalMinor"`
-	Lines               []InvoiceLineSnapshot `json:"lines"`
-	Preview             bool                  `json:"preview"`
+	Number               string                `json:"number"`
+	Status               string                `json:"status"`
+	Currency             string                `json:"currency"`
+	IssuedAt             string                `json:"issuedAt"`
+	DueAt                string                `json:"dueAt"`
+	SellerName           string                `json:"sellerName"`
+	SellerTaxID          string                `json:"sellerTaxId"`
+	SellerAddress        string                `json:"sellerAddress"`
+	ClientName           string                `json:"clientName"`
+	ClientTaxID          string                `json:"clientTaxId"`
+	ClientAddress        string                `json:"clientAddress"`
+	PeriodFrom           string                `json:"periodFrom"`
+	PeriodTo             string                `json:"periodTo"`
+	PaymentInstructions  string                `json:"paymentInstructions"`
+	Notes                string                `json:"notes"`
+	SubtotalMinor        int64                 `json:"subtotalMinor"`
+	TaxMinor             int64                 `json:"taxMinor"`
+	WithholdingMinor     int64                 `json:"withholdingMinor"`
+	TotalMinor           int64                 `json:"totalMinor"`
+	TotalQuantityMinutes int                   `json:"totalQuantityMinutes"`
+	TaxLabel             string                `json:"taxLabel"`
+	WithholdingLabel     string                `json:"withholdingLabel"`
+	Lines                []InvoiceLineSnapshot `json:"lines"`
+	Preview              bool                  `json:"preview"`
 }
 
 type InvoiceLineSnapshot struct {
@@ -87,8 +91,10 @@ func BuildDocumentSnapshot(invoice *store.Invoice, entries []store.TimeEntry, op
 		number = previewInvoiceNumber(invoice, options)
 	}
 
-	lineSnapshots := make([]InvoiceLineSnapshot, 0, len(invoice.Lines))
-	for _, line := range invoice.Lines {
+	displayInvoice := store.PrepareInvoiceForDisplay(invoice, entries, options.Locale)
+
+	lineSnapshots := make([]InvoiceLineSnapshot, 0, len(displayInvoice.Lines))
+	for _, line := range displayInvoice.Lines {
 		lineSnapshots = append(lineSnapshots, InvoiceLineSnapshot{
 			Description:     line.Description,
 			QuantityMinutes: line.QuantityMinutes,
@@ -104,7 +110,7 @@ func BuildDocumentSnapshot(invoice *store.Invoice, entries []store.TimeEntry, op
 		detail = WorkProtocolStandard
 	}
 
-	rows, err := buildWorkProtocolRows(entries, detail)
+	rows, err := buildWorkProtocolRows(entries, detail, options.Locale)
 	if err != nil {
 		return DocumentSnapshot{}, err
 	}
@@ -117,27 +123,30 @@ func BuildDocumentSnapshot(invoice *store.Invoice, entries []store.TimeEntry, op
 	return DocumentSnapshot{
 		Version: SnapshotVersion,
 		Invoice: InvoiceSnapshot{
-			Number:              number,
-			Status:              invoice.Status,
-			Currency:            invoice.Currency,
-			IssuedAt:            issuedAt,
-			DueAt:               invoice.DueAt,
-			SellerName:          invoice.SellerName,
-			SellerTaxID:         invoice.SellerTaxID,
-			SellerAddress:       invoice.SellerAddress,
-			ClientName:          invoice.ClientName,
-			ClientTaxID:         invoice.ClientTaxID,
-			ClientAddress:       invoice.ClientAddress,
-			PeriodFrom:          invoice.PeriodFrom,
-			PeriodTo:            invoice.PeriodTo,
-			PaymentInstructions: strings.TrimSpace(options.PaymentInstructions),
-			Notes:               invoice.Notes,
-			SubtotalMinor:       invoice.SubtotalMinor,
-			TaxMinor:            invoice.TaxMinor,
-			WithholdingMinor:    invoice.WithholdingMinor,
-			TotalMinor:          invoice.TotalMinor,
-			Lines:               lineSnapshots,
-			Preview:             options.Preview,
+			Number:               number,
+			Status:               invoice.Status,
+			Currency:             invoice.Currency,
+			IssuedAt:             issuedAt,
+			DueAt:                invoice.DueAt,
+			SellerName:           invoice.SellerName,
+			SellerTaxID:          invoice.SellerTaxID,
+			SellerAddress:        invoice.SellerAddress,
+			ClientName:           invoice.ClientName,
+			ClientTaxID:          invoice.ClientTaxID,
+			ClientAddress:        invoice.ClientAddress,
+			PeriodFrom:           invoice.PeriodFrom,
+			PeriodTo:             invoice.PeriodTo,
+			PaymentInstructions:  strings.TrimSpace(options.PaymentInstructions),
+			Notes:                invoice.Notes,
+			SubtotalMinor:        displayInvoice.SubtotalMinor,
+			TaxMinor:             displayInvoice.TaxMinor,
+			WithholdingMinor:     displayInvoice.WithholdingMinor,
+			TotalMinor:           displayInvoice.TotalMinor,
+			TotalQuantityMinutes: store.TotalInvoiceQuantityMinutes(displayInvoice.Lines),
+			TaxLabel:             store.DefaultTaxLabel(options.Locale),
+			WithholdingLabel:     store.ResolveWithholdingLabel(invoice.WithholdingLabel, options.Locale),
+			Lines:                lineSnapshots,
+			Preview:              options.Preview,
 		},
 		WorkProtocol: WorkProtocolSnapshot{
 			Number: number,
@@ -167,7 +176,7 @@ func previewInvoiceNumber(invoice *store.Invoice, options SnapshotOptions) strin
 	return fmt.Sprintf("PREVIEW-%d-%s-0001", year, code)
 }
 
-func buildWorkProtocolRows(entries []store.TimeEntry, detail WorkProtocolDetail) ([]WorkProtocolDayRow, error) {
+func buildWorkProtocolRows(entries []store.TimeEntry, detail WorkProtocolDetail, locale string) ([]WorkProtocolDayRow, error) {
 	grouped := map[string][]store.TimeEntry{}
 	for _, entry := range entries {
 		day, err := entryDay(entry.StartedAt)
@@ -202,7 +211,11 @@ func buildWorkProtocolRows(entries []store.TimeEntry, detail WorkProtocolDetail)
 
 		switch detail {
 		case WorkProtocolSummary:
-			row.ProjectNames = joinSortedKeys(projectNames)
+			label := joinSortedKeys(projectNames)
+			if label == "" {
+				label = summaryWorkProtocolLabel(locale)
+			}
+			row.Items = []string{label}
 		case WorkProtocolStandard:
 			row.Items = standardWorkItems(dayEntries)
 		case WorkProtocolDetailed:
@@ -214,13 +227,13 @@ func buildWorkProtocolRows(entries []store.TimeEntry, detail WorkProtocolDetail)
 }
 
 func standardWorkItems(entries []store.TimeEntry) []string {
-	grouped := map[string][]store.TimeEntry{}
+	grouped := map[string]int{}
 	for _, entry := range entries {
-		key := strings.TrimSpace(strings.Join([]string{entry.ProjectName, entry.TaskName}, " / "))
+		key := strings.TrimSpace(entry.ProjectName)
 		if key == "" {
 			key = "Billable time"
 		}
-		grouped[key] = append(grouped[key], entry)
+		grouped[key] += entry.DurationSeconds
 	}
 
 	keys := make([]string, 0, len(grouped))
@@ -231,11 +244,7 @@ func standardWorkItems(entries []store.TimeEntry) []string {
 
 	items := make([]string, 0, len(keys))
 	for _, key := range keys {
-		seconds := 0
-		for _, entry := range grouped[key] {
-			seconds += entry.DurationSeconds
-		}
-		items = append(items, fmt.Sprintf("%s — %s", key, formatHours(seconds)))
+		items = append(items, fmt.Sprintf("%s — %s h", key, formatProtocolHours(grouped[key])))
 	}
 	return items
 }
@@ -248,7 +257,10 @@ func detailedWorkItems(entries []store.TimeEntry) []string {
 
 	items := make([]string, 0, len(sorted))
 	for _, entry := range sorted {
-		parts := make([]string, 0, 4)
+		parts := make([]string, 0, 5)
+		if start, end, ok := entryTimeRange(entry); ok {
+			parts = append(parts, fmt.Sprintf("%s–%s", start, end))
+		}
 		if entry.ProjectName != "" {
 			parts = append(parts, entry.ProjectName)
 		}
@@ -266,13 +278,55 @@ func detailedWorkItems(entries []store.TimeEntry) []string {
 			sort.Strings(tagNames)
 			parts = append(parts, strings.Join(tagNames, ", "))
 		}
-		label := strings.Join(parts, " — ")
+		label := strings.Join(parts, " · ")
 		if label == "" {
 			label = "Billable time"
 		}
-		items = append(items, fmt.Sprintf("%s (%s)", label, formatHours(entry.DurationSeconds)))
+		items = append(items, fmt.Sprintf("%s (%s h)", label, formatProtocolHours(entry.DurationSeconds)))
 	}
 	return items
+}
+
+func entryTimeRange(entry store.TimeEntry) (string, string, bool) {
+	started, err := parseEntryTimestamp(entry.StartedAt)
+	if err != nil {
+		return "", "", false
+	}
+	if strings.TrimSpace(entry.EndedAt) == "" {
+		return started.Format("15:04"), "", true
+	}
+	ended, err := parseEntryTimestamp(entry.EndedAt)
+	if err != nil {
+		return started.Format("15:04"), "", true
+	}
+	return started.Format("15:04"), ended.Format("15:04"), true
+}
+
+func parseEntryTimestamp(value string) (time.Time, error) {
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return time.Parse(time.RFC3339, value)
+	}
+	return parsed, nil
+}
+
+func formatProtocolHours(totalSeconds int) string {
+	if totalSeconds <= 0 {
+		return "0.00"
+	}
+	hours := float64(totalSeconds) / 3600
+	return fmt.Sprintf("%.2f", hours)
+}
+
+func formatHours(totalSeconds int) string {
+	return formatProtocolHours(totalSeconds)
+}
+
+func summaryWorkProtocolLabel(locale string) string {
+	if strings.EqualFold(strings.TrimSpace(locale), "en") {
+		return "Billable professional services"
+	}
+	return "Servicios profesionales facturables"
 }
 
 func entryDay(value string) (string, error) {
@@ -284,14 +338,6 @@ func entryDay(value string) (string, error) {
 		}
 	}
 	return parsed.UTC().Format("2006-01-02"), nil
-}
-
-func formatHours(totalSeconds int) string {
-	if totalSeconds <= 0 {
-		return "0.00"
-	}
-	hours := float64(totalSeconds) / 3600
-	return fmt.Sprintf("%.2f", hours)
 }
 
 func joinSortedKeys(values map[string]struct{}) string {

@@ -28,6 +28,7 @@ type AppSettings struct {
 	BackupEmailOnFailure     bool   `json:"backupEmailOnFailure"`
 	RestoreEmailOnSuccess    bool   `json:"restoreEmailOnSuccess"`
 	RestoreEmailOnFailure    bool   `json:"restoreEmailOnFailure"`
+	InvoiceWithholdingLabel  string `json:"invoiceWithholdingLabel"`
 }
 
 type Profile struct {
@@ -56,6 +57,7 @@ type ProfileUpdateInput struct {
 	BackupEmailOnFailure     bool   `json:"backupEmailOnFailure"`
 	RestoreEmailOnSuccess    bool   `json:"restoreEmailOnSuccess"`
 	RestoreEmailOnFailure    bool   `json:"restoreEmailOnFailure"`
+	InvoiceWithholdingLabel  string `json:"invoiceWithholdingLabel"`
 }
 
 type ChangePasswordInput struct {
@@ -82,7 +84,8 @@ func (s *Store) ProfileByUserID(ctx context.Context, userID string) (*Profile, e
 			COALESCE(a.backup_email_on_success, 0),
 			COALESCE(a.backup_email_on_failure, 1),
 			COALESCE(a.restore_email_on_success, 0),
-			COALESCE(a.restore_email_on_failure, 1)
+			COALESCE(a.restore_email_on_failure, 1),
+			COALESCE(a.invoice_withholding_label, '')
 		FROM users u
 		LEFT JOIN app_settings a ON a.user_id = u.id
 		WHERE u.id = ?
@@ -104,6 +107,7 @@ func (s *Store) ProfileByUserID(ctx context.Context, userID string) (*Profile, e
 		&backupEmailOnFailure,
 		&restoreEmailOnSuccess,
 		&restoreEmailOnFailure,
+		&profile.Settings.InvoiceWithholdingLabel,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrProfileNotFound
@@ -178,6 +182,7 @@ func (s *Store) UpdateProfile(ctx context.Context, userID string, input ProfileU
 			backup_email_on_failure = ?,
 			restore_email_on_success = ?,
 			restore_email_on_failure = ?,
+			invoice_withholding_label = ?,
 			default_locale = ?,
 			default_layout_mode = ?,
 			updated_at = ?
@@ -186,6 +191,7 @@ func (s *Store) UpdateProfile(ctx context.Context, userID string, input ProfileU
 		boolToInt(normalized.TimerStillRunningEnabled), normalized.TimerStillRunningHours,
 		boolToInt(normalized.BackupEmailOnSuccess), boolToInt(normalized.BackupEmailOnFailure),
 		boolToInt(normalized.RestoreEmailOnSuccess), boolToInt(normalized.RestoreEmailOnFailure),
+		strings.TrimSpace(normalized.InvoiceWithholdingLabel),
 		normalized.Locale, normalized.LayoutMode, now, userID)
 	if err != nil {
 		return nil, fmt.Errorf("update app settings: %w", err)
@@ -202,12 +208,14 @@ func (s *Store) UpdateProfile(ctx context.Context, userID string, input ProfileU
 				timer_still_running_enabled, timer_still_running_hours,
 				backup_email_on_success, backup_email_on_failure,
 				restore_email_on_success, restore_email_on_failure,
+				invoice_withholding_label,
 				default_locale, default_layout_mode, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, userID, boolToInt(normalized.TaskProjectRequired), normalized.DefaultCurrency, normalized.Timezone, normalized.ThemeMode,
 			boolToInt(normalized.TimerStillRunningEnabled), normalized.TimerStillRunningHours,
 			boolToInt(normalized.BackupEmailOnSuccess), boolToInt(normalized.BackupEmailOnFailure),
 			boolToInt(normalized.RestoreEmailOnSuccess), boolToInt(normalized.RestoreEmailOnFailure),
+			strings.TrimSpace(normalized.InvoiceWithholdingLabel),
 			normalized.Locale, normalized.LayoutMode, now); err != nil {
 			return nil, fmt.Errorf("insert app settings: %w", err)
 		}
@@ -277,6 +285,7 @@ func normalizeProfileInput(input ProfileUpdateInput) (ProfileUpdateInput, error)
 		BackupEmailOnFailure:     input.BackupEmailOnFailure,
 		RestoreEmailOnSuccess:    input.RestoreEmailOnSuccess,
 		RestoreEmailOnFailure:    input.RestoreEmailOnFailure,
+		InvoiceWithholdingLabel:  strings.TrimSpace(input.InvoiceWithholdingLabel),
 	}
 
 	if normalized.Name == "" {

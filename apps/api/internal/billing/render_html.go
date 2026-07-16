@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"html/template"
 	"strings"
+
+	"github.com/leotime/leotime/apps/api/internal/store"
 )
 
 func (r *HTMLRenderer) RenderPreviewHTML(ctx context.Context, snapshot DocumentSnapshot) ([]byte, error) {
@@ -37,9 +39,7 @@ func snapshotViewModel(snapshot DocumentSnapshot) snapshotView {
 
 var documentTemplate = template.Must(template.New("billing-documents").Funcs(template.FuncMap{
 	"money": formatMoneyMinor,
-	"hours": func(minutes int) string {
-		return fmt.Sprintf("%.2f", float64(minutes)/60)
-	},
+	"hours": store.FormatInvoiceWholeHours,
 }).Parse(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -95,8 +95,10 @@ th{background:#f5f5f5}
   </tbody>
 </table>
 <div class="totals">
+  <div><span>Total hours</span><span>{{hours .Invoice.TotalQuantityMinutes}}</span></div>
   <div><span>Subtotal</span><span>{{money .Invoice.SubtotalMinor .Invoice.Currency}}</span></div>
-  <div><span>Tax</span><span>{{money .Invoice.TaxMinor .Invoice.Currency}}</span></div>
+  {{if .Invoice.TaxMinor}}<div><span>{{.Invoice.TaxLabel}}</span><span>{{money .Invoice.TaxMinor .Invoice.Currency}}</span></div>{{end}}
+  {{if .Invoice.WithholdingMinor}}<div><span>{{.Invoice.WithholdingLabel}}</span><span>-{{money .Invoice.WithholdingMinor .Invoice.Currency}}</span></div>{{end}}
   <div><strong>Total</strong><strong>{{money .Invoice.TotalMinor .Invoice.Currency}}</strong></div>
 </div>
 {{if .Invoice.PaymentInstructions}}<div class="meta"><strong>Payment instructions</strong><br>{{.Invoice.PaymentInstructions}}</div>{{end}}

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jung-kurt/gofpdf"
+	"github.com/leotime/leotime/apps/api/internal/store"
 )
 
 type PDFRenderer struct{}
@@ -71,11 +72,27 @@ func (r *PDFRenderer) renderInvoicePDF(snapshot DocumentSnapshot, targetPath str
 	for _, line := range snapshot.Invoice.Lines {
 		pdf.CellFormat(90, 7, truncate(line.Description, 60), "1", 0, "L", false, 0, "")
 		pdf.CellFormat(30, 7, formatMoneyMinor(line.UnitRateMinor, snapshot.Invoice.Currency), "1", 0, "R", false, 0, "")
-		pdf.CellFormat(30, 7, fmt.Sprintf("%.2f", float64(line.QuantityMinutes)/60), "1", 0, "R", false, 0, "")
+		pdf.CellFormat(30, 7, store.FormatInvoiceWholeHours(line.QuantityMinutes), "1", 0, "R", false, 0, "")
 		pdf.CellFormat(40, 7, formatMoneyMinor(line.SubtotalMinor, snapshot.Invoice.Currency), "1", 1, "R", false, 0, "")
 	}
 
 	pdf.Ln(4)
+	pdf.CellFormat(150, 7, "Subtotal", "0", 0, "R", false, 0, "")
+	pdf.CellFormat(40, 7, formatMoneyMinor(snapshot.Invoice.SubtotalMinor, snapshot.Invoice.Currency), "0", 1, "R", false, 0, "")
+	if snapshot.Invoice.TaxMinor > 0 {
+		pdf.CellFormat(150, 7, snapshot.Invoice.TaxLabel, "0", 0, "R", false, 0, "")
+		pdf.CellFormat(40, 7, formatMoneyMinor(snapshot.Invoice.TaxMinor, snapshot.Invoice.Currency), "0", 1, "R", false, 0, "")
+	}
+	if snapshot.Invoice.WithholdingMinor > 0 {
+		label := snapshot.Invoice.WithholdingLabel
+		if label == "" {
+			label = "Withholding"
+		}
+		pdf.CellFormat(150, 7, label, "0", 0, "R", false, 0, "")
+		pdf.CellFormat(40, 7, "-"+formatMoneyMinor(snapshot.Invoice.WithholdingMinor, snapshot.Invoice.Currency), "0", 1, "R", false, 0, "")
+	}
+	pdf.CellFormat(150, 7, "Total hours", "0", 0, "R", false, 0, "")
+	pdf.CellFormat(40, 7, store.FormatInvoiceWholeHours(snapshot.Invoice.TotalQuantityMinutes), "0", 1, "R", false, 0, "")
 	pdf.CellFormat(150, 7, "Total", "0", 0, "R", false, 0, "")
 	pdf.CellFormat(40, 7, formatMoneyMinor(snapshot.Invoice.TotalMinor, snapshot.Invoice.Currency), "0", 1, "R", false, 0, "")
 

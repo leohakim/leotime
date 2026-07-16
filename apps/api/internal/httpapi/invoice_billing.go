@@ -24,7 +24,7 @@ type billingDocumentResponse struct {
 
 func (s *Server) previewInvoice(w http.ResponseWriter, r *http.Request, user *store.User) {
 	invoiceID := chi.URLParam(r, "invoiceID")
-	invoice, err := s.store.InvoiceByID(r.Context(), user.ID, invoiceID)
+	invoice, err := s.store.LoadInvoiceRecord(r.Context(), user.ID, invoiceID)
 	if err != nil {
 		writeInvoiceError(w, err)
 		return
@@ -43,6 +43,7 @@ func (s *Server) previewInvoice(w http.ResponseWriter, r *http.Request, user *st
 	options, err := s.invoiceSnapshotOptions(r.Context(), user.ID, invoice, billing.SnapshotOptions{
 		Preview: true,
 		IssueAt: time.Now().UTC(),
+		Locale:  user.Locale,
 	})
 	if err != nil {
 		writeInvoiceError(w, err)

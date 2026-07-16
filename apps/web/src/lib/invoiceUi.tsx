@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, FileJson, FileText, Pencil, Trash2 } from 'lucide-react';
+import { CircleAlert, Download, FileJson, FileText, Pencil, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   cancelInvoice,
@@ -10,6 +10,7 @@ import {
   fetchInvoice,
   fetchInvoiceSeries,
   fetchInvoices,
+  isApiError,
   issueInvoice,
   previewInvoice,
   updateInvoice,
@@ -19,8 +20,10 @@ import {
   type InvoiceStatus,
   type Locale,
   type WorkProtocolDetail,
+  type InvoiceLineDetail,
 } from './api';
 import { endOfMonth, startOfMonth, toMonthQueryFrom, toMonthQueryTo } from './calendarMonth';
+import { FieldError, fieldClass, hasErrors } from './crudFormUi';
 import { confirmDestructiveAction } from './destructiveUi';
 import { SurfaceEmpty, SurfaceError, SurfaceLoading } from './feedbackUi';
 import { isLocalId } from './offline/mutations';
@@ -33,18 +36,30 @@ type DraftFormState = {
   taxRatePercent: string;
   to: string;
   withholding: string;
+  withholdingLabel: string;
   notes: string;
   seriesId: string;
   workProtocolDetail: WorkProtocolDetail;
+  invoiceLineDetail: InvoiceLineDetail;
 };
 
 type DraftEditFormState = {
   notes: string;
   taxRatePercent: string;
   withholding: string;
+  withholdingLabel: string;
   seriesId: string;
   workProtocolDetail: WorkProtocolDetail;
+  invoiceLineDetail: InvoiceLineDetail;
 };
+
+type DraftFormErrors = Partial<Record<keyof DraftFormState | 'form', string>>;
+type DraftEditFormErrors = Partial<Record<keyof DraftEditFormState | 'form', string>>;
+
+function resolveWithholdingLabel(label: string | undefined, t: Translator): string {
+  const trimmed = label?.trim();
+  return trimmed ? trimmed : t('invoiceWithholding');
+}
 
 function invoiceToEditForm(invoice: Invoice): DraftEditFormState {
   const taxRateBasisPoints = invoice.lines[0]?.taxRateBasisPoints ?? 2100;
@@ -52,12 +67,14 @@ function invoiceToEditForm(invoice: Invoice): DraftEditFormState {
     notes: invoice.notes,
     taxRatePercent: String(taxRateBasisPoints / 100),
     withholding: invoice.withholdingMinor > 0 ? (invoice.withholdingMinor / 100).toFixed(2) : '',
+    withholdingLabel: invoice.withholdingLabel ?? '',
     seriesId: invoice.seriesId ?? '',
     workProtocolDetail: invoice.workProtocolDetail ?? 'standard',
+    invoiceLineDetail: invoice.invoiceLineDetail ?? 'by_project',
   };
 }
 
-function defaultDraftForm(): DraftFormState {
+function defaultDraftForm(defaultWithholdingLabel = ''): DraftFormState {
   const monthStart = startOfMonth(new Date());
   const monthEnd = endOfMonth(monthStart);
   return {
@@ -66,9 +83,11 @@ function defaultDraftForm(): DraftFormState {
     to: toMonthQueryTo(monthEnd).slice(0, 10),
     taxRatePercent: '21',
     withholding: '',
+    withholdingLabel: defaultWithholdingLabel,
     notes: '',
     seriesId: '',
     workProtocolDetail: 'standard',
+    invoiceLineDetail: 'by_project',
   };
 }
 
@@ -114,23 +133,25 @@ const statusLabelKey: Record<InvoiceStatus, 'invoiceStatusDraft' | 'invoiceStatu
 
 export function InvoicePanel({
   clients,
+  defaultWithholdingLabel = '',
   locale,
   t,
   userName,
 }: {
   clients: Client[];
+  defaultWithholdingLabel?: string;
   locale: Locale;
   t: Translator;
   userName: string;
 }) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [form, setForm] = useState<DraftFormState>(defaultDraftForm);
+  const [form, setForm] = useState<DraftFormState>(() => defaultDraftForm(defaultWithholdingLabel));
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [isEditingDraft, setIsEditingDraft] = useState(false);
   const [editForm, setEditForm] = useState<DraftEditFormState | null>(null);
-  const [editError, setEditError] = useState('');
-  const [formError, setFormError] = useState('');
+  const [editErrors, setEditErrors] = useState<DraftEditFormErrors>({});
+  const [formErrors, setFormErrors] = useState<DraftFormErrors>({});
   const [exportError, setExportError] = useState('');
 
   const invoicesQuery = useQuery({
@@ -161,24 +182,49 @@ export function InvoicePanel({
   const selectedInvoice = invoiceDetailQuery.data ?? invoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null;
 
   useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      withholdingLabel: current.withholdingLabel || defaultWithholdingLabel,
+    }));
+  }, [defaultWithholdingLabel]);
+
+  useEffect(() => {
     setIsEditingDraft(false);
     setEditForm(null);
-    setEditError('');
+    setEditErrors({});
   }, [selectedInvoiceId]);
+
+  function applyDraftCreateError(error: unknown) {
+    const mapped = mapInvoiceDraftApiError(error, t);
+    setFormErrors(mapped);
+    const toastMessage =
+      mapped.form || mapped.clientId || mapped.from || mapped.to || mapped.taxRatePercent || mapped.withholding || t('invoiceDraftFailed');
+    toast.error(toastMessage);
+  }
+
+  function applyDraftEditError(error: unknown) {
+    const mapped = mapInvoiceDraftEditApiError(error, t);
+    setEditErrors(mapped);
+    const toastMessage =
+      mapped.form || mapped.taxRatePercent || mapped.withholding || t('invoiceDraftSaveFailed');
+    toast.error(toastMessage);
+  }
+
+  function updateDraftField<K extends keyof DraftFormState>(key: K, value: DraftFormState[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+    setFormErrors((current) => ({ ...current, [key]: undefined, form: undefined }));
+  }
+
+  function updateEditField<K extends keyof DraftEditFormState>(key: K, value: DraftEditFormState[K]) {
+    setEditForm((current) => (current ? { ...current, [key]: value } : current));
+    setEditErrors((current) => ({ ...current, [key]: undefined, form: undefined }));
+  }
 
   const createMutation = useMutation({
     mutationFn: () => {
       const taxRatePercent = Number.parseFloat(form.taxRatePercent.replace(',', '.'));
-      const withholding = form.withholding.trim() === '' ? 0 : Math.round(Number.parseFloat(form.withholding.replace(',', '.')) * 100);
-      if (!form.clientId) {
-        throw new Error('client_required');
-      }
-      if (!Number.isFinite(taxRatePercent) || taxRatePercent < 0) {
-        throw new Error('tax_invalid');
-      }
-      if (!Number.isFinite(withholding) || withholding < 0) {
-        throw new Error('withholding_invalid');
-      }
+      const withholding =
+        form.withholding.trim() === '' ? 0 : Math.round(Number.parseFloat(form.withholding.replace(',', '.')) * 100);
       return createInvoiceDraftFromTime({
         clientId: form.clientId,
         from: toInvoiceQueryFrom(form.from),
@@ -186,22 +232,21 @@ export function InvoicePanel({
         sellerName: userName,
         taxRateBasisPoints: Math.round(taxRatePercent * 100),
         withholdingMinor: withholding,
+        withholdingLabel: form.withholdingLabel.trim(),
         notes: form.notes.trim(),
         seriesId: form.seriesId || defaultSeriesId || undefined,
         workProtocolDetail: form.workProtocolDetail,
+        invoiceLineDetail: form.invoiceLineDetail,
       });
     },
     onSuccess: (invoice) => {
-      setFormError('');
+      setFormErrors({});
       setSelectedInvoiceId(invoice.id);
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('invoiceDraftCreated'));
     },
-    onError: () => {
-      setFormError(t('invoiceDraftFailed'));
-      toast.error(t('invoiceDraftFailed'));
-    },
+    onError: applyDraftCreateError,
   });
 
   const updateDraftMutation = useMutation({
@@ -209,22 +254,18 @@ export function InvoicePanel({
       const taxRatePercent = Number.parseFloat(input.form.taxRatePercent.replace(',', '.'));
       const withholding =
         input.form.withholding.trim() === '' ? 0 : Math.round(Number.parseFloat(input.form.withholding.replace(',', '.')) * 100);
-      if (!Number.isFinite(taxRatePercent) || taxRatePercent < 0) {
-        throw new Error('tax_invalid');
-      }
-      if (!Number.isFinite(withholding) || withholding < 0) {
-        throw new Error('withholding_invalid');
-      }
       return updateInvoice(input.invoiceId, {
         notes: input.form.notes.trim(),
         taxRateBasisPoints: Math.round(taxRatePercent * 100),
         withholdingMinor: withholding,
+        withholdingLabel: input.form.withholdingLabel.trim(),
         seriesId: input.form.seriesId || undefined,
         workProtocolDetail: input.form.workProtocolDetail,
+        invoiceLineDetail: input.form.invoiceLineDetail,
       });
     },
     onSuccess: (invoice) => {
-      setEditError('');
+      setEditErrors({});
       setIsEditingDraft(false);
       setEditForm(null);
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -232,10 +273,7 @@ export function InvoicePanel({
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       toast.success(t('invoiceDraftSaved'));
     },
-    onError: () => {
-      setEditError(t('invoiceDraftSaveFailed'));
-      toast.error(t('invoiceDraftSaveFailed'));
-    },
+    onError: applyDraftEditError,
   });
 
   const statusMutation = useMutation({
@@ -284,7 +322,16 @@ export function InvoicePanel({
 
   function submitDraft(event: FormEvent) {
     event.preventDefault();
-    setFormError('');
+    const validation = validateDraftForm(form, t);
+    setFormErrors(validation);
+    if (hasErrors(validation)) {
+      const firstMessage =
+        validation.clientId || validation.from || validation.to || validation.taxRatePercent || validation.withholding;
+      if (firstMessage) {
+        toast.error(firstMessage);
+      }
+      return;
+    }
     createMutation.mutate();
   }
 
@@ -293,14 +340,22 @@ export function InvoicePanel({
     if (!selectedInvoice || !editForm) {
       return;
     }
-    setEditError('');
+    const validation = validateDraftEditForm(editForm, t);
+    setEditErrors(validation);
+    if (hasErrors(validation)) {
+      const firstMessage = validation.taxRatePercent || validation.withholding;
+      if (firstMessage) {
+        toast.error(firstMessage);
+      }
+      return;
+    }
     updateDraftMutation.mutate({ invoiceId: selectedInvoice.id, form: editForm });
   }
 
   function startDraftEdit(invoice: Invoice) {
     setIsEditingDraft(true);
     setEditForm(invoiceToEditForm(invoice));
-    setEditError('');
+    setEditErrors({});
   }
 
   async function handleExport(invoice: Invoice, format: 'html' | 'csv' | 'json') {
@@ -369,11 +424,19 @@ export function InvoicePanel({
         <aside className="invoice-draft-panel">
           <h3>{t('invoiceNewDraft')}</h3>
           <form className="invoice-form" noValidate onSubmit={submitDraft}>
-            <label className="form-field">
+            {formErrors.form ? (
+              <div className="form-alert" role="alert">
+                <CircleAlert aria-hidden="true" />
+                {formErrors.form}
+              </div>
+            ) : null}
+            <label className={fieldClass(formErrors.clientId)} htmlFor="invoice-draft-client">
               {t('invoiceClient')}
               <select
-                onChange={(event) => setForm((current) => ({ ...current, clientId: event.target.value }))}
-                required
+                aria-describedby={formErrors.clientId ? 'invoice-draft-client-error' : undefined}
+                aria-invalid={Boolean(formErrors.clientId)}
+                id="invoice-draft-client"
+                onChange={(event) => updateDraftField('clientId', event.target.value)}
                 value={form.clientId}
               >
                 <option value="">{t('invoiceClientPlaceholder')}</option>
@@ -383,11 +446,13 @@ export function InvoicePanel({
                   </option>
                 ))}
               </select>
+              <FieldError id="invoice-draft-client-error" message={formErrors.clientId} />
             </label>
-            <label className="form-field">
+            <label className="form-field" htmlFor="invoice-draft-series">
               {t('invoiceSeries')}
               <select
-                onChange={(event) => setForm((current) => ({ ...current, seriesId: event.target.value }))}
+                id="invoice-draft-series"
+                onChange={(event) => updateDraftField('seriesId', event.target.value)}
                 value={form.seriesId || defaultSeriesId}
               >
                 {invoiceSeries.map((series) => (
@@ -397,12 +462,23 @@ export function InvoicePanel({
                 ))}
               </select>
             </label>
-            <label className="form-field">
+            <label className="form-field" htmlFor="invoice-draft-line-detail">
+              {t('invoiceLineDetail')}
+              <select
+                id="invoice-draft-line-detail"
+                onChange={(event) => updateDraftField('invoiceLineDetail', event.target.value as InvoiceLineDetail)}
+                value={form.invoiceLineDetail}
+              >
+                <option value="summary">{t('invoiceLineSummary')}</option>
+                <option value="by_project">{t('invoiceLineByProject')}</option>
+                <option value="granular">{t('invoiceLineGranular')}</option>
+              </select>
+            </label>
+            <label className="form-field" htmlFor="invoice-draft-work-protocol">
               {t('invoiceWorkProtocolDetail')}
               <select
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, workProtocolDetail: event.target.value as WorkProtocolDetail }))
-                }
+                id="invoice-draft-work-protocol"
+                onChange={(event) => updateDraftField('workProtocolDetail', event.target.value as WorkProtocolDetail)}
                 value={form.workProtocolDetail}
               >
                 <option value="summary">{t('invoiceWorkProtocolSummary')}</option>
@@ -410,35 +486,73 @@ export function InvoicePanel({
                 <option value="detailed">{t('invoiceWorkProtocolDetailed')}</option>
               </select>
             </label>
-            <label className="form-field">
+            <label className={fieldClass(formErrors.from)} htmlFor="invoice-draft-from">
               {t('reportFrom')}
-              <input onChange={(event) => setForm((current) => ({ ...current, from: event.target.value }))} type="date" value={form.from} />
+              <input
+                aria-describedby={formErrors.from ? 'invoice-draft-from-error' : undefined}
+                aria-invalid={Boolean(formErrors.from)}
+                id="invoice-draft-from"
+                onChange={(event) => updateDraftField('from', event.target.value)}
+                type="date"
+                value={form.from}
+              />
+              <FieldError id="invoice-draft-from-error" message={formErrors.from} />
             </label>
-            <label className="form-field">
+            <label className={fieldClass(formErrors.to)} htmlFor="invoice-draft-to">
               {t('reportTo')}
-              <input onChange={(event) => setForm((current) => ({ ...current, to: event.target.value }))} type="date" value={form.to} />
+              <input
+                aria-describedby={formErrors.to ? 'invoice-draft-to-error' : undefined}
+                aria-invalid={Boolean(formErrors.to)}
+                id="invoice-draft-to"
+                onChange={(event) => updateDraftField('to', event.target.value)}
+                type="date"
+                value={form.to}
+              />
+              <FieldError id="invoice-draft-to-error" message={formErrors.to} />
             </label>
-            <label className="form-field">
+            <label className={fieldClass(formErrors.taxRatePercent)} htmlFor="invoice-draft-tax">
               {t('invoiceTaxRate')}
               <input
+                aria-describedby={formErrors.taxRatePercent ? 'invoice-draft-tax-error' : undefined}
+                aria-invalid={Boolean(formErrors.taxRatePercent)}
+                id="invoice-draft-tax"
                 inputMode="decimal"
-                onChange={(event) => setForm((current) => ({ ...current, taxRatePercent: event.target.value }))}
+                onChange={(event) => updateDraftField('taxRatePercent', event.target.value)}
                 placeholder="21"
                 value={form.taxRatePercent}
               />
+              <FieldError id="invoice-draft-tax-error" message={formErrors.taxRatePercent} />
             </label>
-            <label className="form-field">
-              {t('invoiceWithholding')}
+            <label className={fieldClass(formErrors.withholding)} htmlFor="invoice-draft-withholding-label">
+              {t('invoiceWithholdingLabel')}
               <input
+                id="invoice-draft-withholding-label"
+                onChange={(event) => updateDraftField('withholdingLabel', event.target.value)}
+                placeholder={t('invoiceWithholding')}
+                value={form.withholdingLabel}
+              />
+            </label>
+            <label className={fieldClass(formErrors.withholding)} htmlFor="invoice-draft-withholding">
+              {resolveWithholdingLabel(form.withholdingLabel, t)} — {t('invoiceWithholdingAmount')}
+              <input
+                aria-describedby={formErrors.withholding ? 'invoice-draft-withholding-error' : undefined}
+                aria-invalid={Boolean(formErrors.withholding)}
+                id="invoice-draft-withholding"
                 inputMode="decimal"
-                onChange={(event) => setForm((current) => ({ ...current, withholding: event.target.value }))}
+                onChange={(event) => updateDraftField('withholding', event.target.value)}
                 placeholder="0.00"
                 value={form.withholding}
               />
+              <FieldError id="invoice-draft-withholding-error" message={formErrors.withholding} />
             </label>
-            <label className="form-field invoice-notes-field">
+            <label className="form-field invoice-notes-field" htmlFor="invoice-draft-notes">
               {t('invoiceNotes')}
-              <textarea onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={2} value={form.notes} />
+              <textarea
+                id="invoice-draft-notes"
+                onChange={(event) => updateDraftField('notes', event.target.value)}
+                rows={2}
+                value={form.notes}
+              />
             </label>
             <div className="invoice-form-actions">
               <button disabled={createMutation.isPending} type="submit">
@@ -446,7 +560,6 @@ export function InvoicePanel({
               </button>
             </div>
           </form>
-          {formError ? <SurfaceError message={formError} /> : null}
         </aside>
 
         <div className="invoice-directory-panel">
@@ -501,16 +614,27 @@ export function InvoicePanel({
 
               <dl className="invoice-totals">
                 <div>
+                  <dt>{t('invoiceTotalHours')}</dt>
+                  <dd>
+                    {Math.round(
+                      (selectedInvoice.totalQuantityMinutes ??
+                        selectedInvoice.lines.reduce((sum, line) => sum + line.quantityMinutes, 0)) / 60,
+                    )}
+                  </dd>
+                </div>
+                <div>
                   <dt>{t('invoiceSubtotal')}</dt>
                   <dd>{formatMoneyMinor(selectedInvoice.subtotalMinor, selectedInvoice.currency, locale)}</dd>
                 </div>
-                <div>
-                  <dt>{t('invoiceTax')}</dt>
-                  <dd>{formatMoneyMinor(selectedInvoice.taxMinor, selectedInvoice.currency, locale)}</dd>
-                </div>
+                {selectedInvoice.taxMinor > 0 ? (
+                  <div>
+                    <dt>{t('invoiceTax')}</dt>
+                    <dd>{formatMoneyMinor(selectedInvoice.taxMinor, selectedInvoice.currency, locale)}</dd>
+                  </div>
+                ) : null}
                 {selectedInvoice.withholdingMinor > 0 ? (
                   <div>
-                    <dt>{t('invoiceWithholding')}</dt>
+                    <dt>{resolveWithholdingLabel(selectedInvoice.withholdingLabel, t)}</dt>
                     <dd>-{formatMoneyMinor(selectedInvoice.withholdingMinor, selectedInvoice.currency, locale)}</dd>
                   </div>
                 ) : null}
@@ -524,7 +648,7 @@ export function InvoicePanel({
                 <thead>
                   <tr>
                     <th>{t('description')}</th>
-                    <th>{t('invoiceMinutes')}</th>
+                    <th>{t('invoiceHours')}</th>
                     <th>{t('hourlyRate')}</th>
                     <th>{t('invoiceSubtotal')}</th>
                   </tr>
@@ -533,7 +657,7 @@ export function InvoicePanel({
                   {(selectedInvoice.lines ?? []).map((line) => (
                     <tr key={line.id}>
                       <td>{line.description}</td>
-                      <td>{line.quantityMinutes}</td>
+                      <td>{Math.round(line.quantityMinutes / 60)}</td>
                       <td>{formatMoneyMinor(line.unitRateMinor, selectedInvoice.currency, locale)}</td>
                       <td>{formatMoneyMinor(line.subtotalMinor, selectedInvoice.currency, locale)}</td>
                     </tr>
@@ -545,10 +669,17 @@ export function InvoicePanel({
 
               {selectedInvoice.status === 'draft' && isEditingDraft && editForm ? (
                 <form className="invoice-edit-form" noValidate onSubmit={submitDraftEdit}>
-                  <label className="form-field">
+                  {editErrors.form ? (
+                    <div className="form-alert" role="alert">
+                      <CircleAlert aria-hidden="true" />
+                      {editErrors.form}
+                    </div>
+                  ) : null}
+                  <label className="form-field" htmlFor="invoice-edit-series">
                     {t('invoiceSeries')}
                     <select
-                      onChange={(event) => setEditForm((current) => (current ? { ...current, seriesId: event.target.value } : current))}
+                      id="invoice-edit-series"
+                      onChange={(event) => updateEditField('seriesId', event.target.value)}
                       value={editForm.seriesId || defaultSeriesId}
                     >
                       {invoiceSeries.map((series) => (
@@ -558,14 +689,23 @@ export function InvoicePanel({
                       ))}
                     </select>
                   </label>
-                  <label className="form-field">
+                  <label className="form-field" htmlFor="invoice-edit-line-detail">
+                    {t('invoiceLineDetail')}
+                    <select
+                      id="invoice-edit-line-detail"
+                      onChange={(event) => updateEditField('invoiceLineDetail', event.target.value as InvoiceLineDetail)}
+                      value={editForm.invoiceLineDetail}
+                    >
+                      <option value="summary">{t('invoiceLineSummary')}</option>
+                      <option value="by_project">{t('invoiceLineByProject')}</option>
+                      <option value="granular">{t('invoiceLineGranular')}</option>
+                    </select>
+                  </label>
+                  <label className="form-field" htmlFor="invoice-edit-work-protocol">
                     {t('invoiceWorkProtocolDetail')}
                     <select
-                      onChange={(event) =>
-                        setEditForm((current) =>
-                          current ? { ...current, workProtocolDetail: event.target.value as WorkProtocolDetail } : current,
-                        )
-                      }
+                      id="invoice-edit-work-protocol"
+                      onChange={(event) => updateEditField('workProtocolDetail', event.target.value as WorkProtocolDetail)}
                       value={editForm.workProtocolDetail}
                     >
                       <option value="summary">{t('invoiceWorkProtocolSummary')}</option>
@@ -573,27 +713,45 @@ export function InvoicePanel({
                       <option value="detailed">{t('invoiceWorkProtocolDetailed')}</option>
                     </select>
                   </label>
-                  <label className="form-field">
+                  <label className={fieldClass(editErrors.taxRatePercent)} htmlFor="invoice-edit-tax">
                     {t('invoiceTaxRate')}
                     <input
+                      aria-describedby={editErrors.taxRatePercent ? 'invoice-edit-tax-error' : undefined}
+                      aria-invalid={Boolean(editErrors.taxRatePercent)}
+                      id="invoice-edit-tax"
                       inputMode="decimal"
-                      onChange={(event) => setEditForm((current) => (current ? { ...current, taxRatePercent: event.target.value } : current))}
+                      onChange={(event) => updateEditField('taxRatePercent', event.target.value)}
                       value={editForm.taxRatePercent}
                     />
+                    <FieldError id="invoice-edit-tax-error" message={editErrors.taxRatePercent} />
                   </label>
-                  <label className="form-field">
-                    {t('invoiceWithholding')}
+                  <label className={fieldClass(editErrors.withholding)} htmlFor="invoice-edit-withholding-label">
+                    {t('invoiceWithholdingLabel')}
                     <input
+                      id="invoice-edit-withholding-label"
+                      onChange={(event) => updateEditField('withholdingLabel', event.target.value)}
+                      placeholder={t('invoiceWithholding')}
+                      value={editForm.withholdingLabel}
+                    />
+                  </label>
+                  <label className={fieldClass(editErrors.withholding)} htmlFor="invoice-edit-withholding">
+                    {resolveWithholdingLabel(editForm.withholdingLabel, t)} — {t('invoiceWithholdingAmount')}
+                    <input
+                      aria-describedby={editErrors.withholding ? 'invoice-edit-withholding-error' : undefined}
+                      aria-invalid={Boolean(editErrors.withholding)}
+                      id="invoice-edit-withholding"
                       inputMode="decimal"
-                      onChange={(event) => setEditForm((current) => (current ? { ...current, withholding: event.target.value } : current))}
+                      onChange={(event) => updateEditField('withholding', event.target.value)}
                       placeholder="0.00"
                       value={editForm.withholding}
                     />
+                    <FieldError id="invoice-edit-withholding-error" message={editErrors.withholding} />
                   </label>
-                  <label className="form-field invoice-notes-field">
+                  <label className="form-field invoice-notes-field" htmlFor="invoice-edit-notes">
                     {t('invoiceNotes')}
                     <textarea
-                      onChange={(event) => setEditForm((current) => (current ? { ...current, notes: event.target.value } : current))}
+                      id="invoice-edit-notes"
+                      onChange={(event) => updateEditField('notes', event.target.value)}
                       rows={2}
                       value={editForm.notes}
                     />
@@ -607,7 +765,7 @@ export function InvoicePanel({
                       onClick={() => {
                         setIsEditingDraft(false);
                         setEditForm(null);
-                        setEditError('');
+                        setEditErrors({});
                       }}
                       type="button"
                     >
@@ -616,7 +774,6 @@ export function InvoicePanel({
                   </div>
                 </form>
               ) : null}
-              {editError ? <SurfaceError message={editError} /> : null}
 
               <div className="invoice-actions">
                 {selectedInvoice.status === 'draft' ? (
@@ -701,4 +858,141 @@ export function InvoicePanel({
       </div>
     </section>
   );
+}
+
+function validateDraftForm(form: DraftFormState, t: Translator): DraftFormErrors {
+  const errors: DraftFormErrors = {};
+
+  if (!form.clientId.trim()) {
+    errors.clientId = t('invoiceClientRequired');
+  }
+
+  if (!form.from.trim() || !form.to.trim()) {
+    if (!form.from.trim()) {
+      errors.from = t('invoiceDateRangeRequired');
+    }
+    if (!form.to.trim()) {
+      errors.to = t('invoiceDateRangeRequired');
+    }
+  } else {
+    const fromDate = new Date(`${form.from}T00:00:00`);
+    const toDate = new Date(`${form.to}T23:59:59`);
+    if (Number.isNaN(fromDate.getTime())) {
+      errors.from = t('invoiceDateInvalid');
+    }
+    if (Number.isNaN(toDate.getTime())) {
+      errors.to = t('invoiceDateInvalid');
+    }
+    if (!errors.from && !errors.to && fromDate > toDate) {
+      errors.to = t('invoiceDateRangeInvalid');
+    }
+  }
+
+  const taxRatePercent = Number.parseFloat(form.taxRatePercent.replace(',', '.'));
+  if (!Number.isFinite(taxRatePercent) || taxRatePercent < 0) {
+    errors.taxRatePercent = t('invoiceTaxRateInvalid');
+  }
+
+  const withholdingRaw = form.withholding.trim();
+  if (withholdingRaw !== '') {
+    const withholding = Number.parseFloat(withholdingRaw.replace(',', '.'));
+    if (!Number.isFinite(withholding) || withholding < 0) {
+      errors.withholding = t('invoiceWithholdingInvalid');
+    }
+  }
+
+  return errors;
+}
+
+function validateDraftEditForm(form: DraftEditFormState, t: Translator): DraftEditFormErrors {
+  const errors: DraftEditFormErrors = {};
+  const taxRatePercent = Number.parseFloat(form.taxRatePercent.replace(',', '.'));
+  if (!Number.isFinite(taxRatePercent) || taxRatePercent < 0) {
+    errors.taxRatePercent = t('invoiceTaxRateInvalid');
+  }
+
+  const withholdingRaw = form.withholding.trim();
+  if (withholdingRaw !== '') {
+    const withholding = Number.parseFloat(withholdingRaw.replace(',', '.'));
+    if (!Number.isFinite(withholding) || withholding < 0) {
+      errors.withholding = t('invoiceWithholdingInvalid');
+    }
+  }
+
+  return errors;
+}
+
+function mapInvoiceDraftApiError(error: unknown, t: Translator): DraftFormErrors {
+  if (!isApiError(error)) {
+    return { form: t('invoiceDraftFailed') };
+  }
+
+  const errors: DraftFormErrors = {};
+  for (const field of error.fields) {
+    switch (field.field) {
+      case 'clientId':
+        errors.clientId = t('invoiceClientRequired');
+        break;
+      case 'from':
+        if (field.message.includes('no billable uninvoiced')) {
+          errors.from = t('invoiceNoBillableTimeInRange');
+        } else if (field.message.includes('no billable time with positive duration')) {
+          errors.from = t('invoiceNoBillableDuration');
+        } else if (field.message.includes('required')) {
+          errors.from = t('invoiceDateRangeRequired');
+        } else {
+          errors.from = t('invoiceDateInvalid');
+        }
+        break;
+      case 'to':
+        if (field.message.includes('on or after')) {
+          errors.to = t('invoiceDateRangeInvalid');
+        } else {
+          errors.to = t('invoiceDateInvalid');
+        }
+        break;
+      case 'taxRateBasisPoints':
+        errors.taxRatePercent = t('invoiceTaxRateInvalid');
+        break;
+      case 'withholdingBasisPoints':
+      case 'withholdingMinor':
+        errors.withholding = t('invoiceWithholdingInvalid');
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (!hasErrors(errors)) {
+    errors.form = error.message || t('invoiceDraftFailed');
+  }
+
+  return errors;
+}
+
+function mapInvoiceDraftEditApiError(error: unknown, t: Translator): DraftEditFormErrors {
+  if (!isApiError(error)) {
+    return { form: t('invoiceDraftSaveFailed') };
+  }
+
+  const errors: DraftEditFormErrors = {};
+  for (const field of error.fields) {
+    switch (field.field) {
+      case 'taxRateBasisPoints':
+        errors.taxRatePercent = t('invoiceTaxRateInvalid');
+        break;
+      case 'withholdingBasisPoints':
+      case 'withholdingMinor':
+        errors.withholding = t('invoiceWithholdingInvalid');
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (!hasErrors(errors)) {
+    errors.form = error.message || t('invoiceDraftSaveFailed');
+  }
+
+  return errors;
 }

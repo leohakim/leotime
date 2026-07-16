@@ -363,7 +363,15 @@ export function DashboardShell({
           ) : null}
           {route === 'shared' ? <PlaceholderPage titleKey="shared" t={t} /> : null}
 
-          {route === 'invoices' ? <InvoicePanel clients={clientsQuery.data?.clients ?? []} locale={locale} t={t} userName={userName} /> : null}
+          {route === 'invoices' ? (
+            <InvoicePanel
+              clients={clientsQuery.data?.clients ?? []}
+              defaultWithholdingLabel={profileQuery.data?.settings.invoiceWithholdingLabel ?? ''}
+              locale={locale}
+              t={t}
+              userName={userName}
+            />
+          ) : null}
 
           {route === 'manual-time-entry' ? (
             <>

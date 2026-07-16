@@ -31,7 +31,9 @@ type Invoice struct {
 	SubtotalMinor        int64             `json:"subtotalMinor"`
 	TaxMinor             int64             `json:"taxMinor"`
 	WithholdingMinor     int64             `json:"withholdingMinor"`
+	WithholdingLabel     string            `json:"withholdingLabel"`
 	TotalMinor           int64             `json:"totalMinor"`
+	TotalQuantityMinutes int               `json:"totalQuantityMinutes"`
 	Notes                string            `json:"notes"`
 	SeriesID             string            `json:"seriesId"`
 	FiscalSequence       *int              `json:"fiscalSequence,omitempty"`
@@ -39,6 +41,7 @@ type Invoice struct {
 	PeriodTo             string            `json:"periodTo"`
 	DocumentSnapshotJSON string            `json:"documentSnapshotJson"`
 	WorkProtocolDetail   string            `json:"workProtocolDetail"`
+	InvoiceLineDetail    string            `json:"invoiceLineDetail"`
 	CancelledAt          string            `json:"cancelledAt"`
 	CancellationReason   string            `json:"cancellationReason"`
 	Lines                []InvoiceLine     `json:"lines"`
@@ -66,11 +69,13 @@ type InvoiceDraftFromTimeInput struct {
 	PeriodFrom         string `json:"periodFrom"`
 	PeriodTo           string `json:"periodTo"`
 	WorkProtocolDetail string `json:"workProtocolDetail"`
+	InvoiceLineDetail  string `json:"invoiceLineDetail"`
 	SellerName         string `json:"sellerName"`
 	SellerTaxID        string `json:"sellerTaxId"`
 	SellerAddress      string `json:"sellerAddress"`
 	TaxRateBasisPoints int    `json:"taxRateBasisPoints"`
 	WithholdingMinor   int64  `json:"withholdingMinor"`
+	WithholdingLabel   string `json:"withholdingLabel"`
 	Notes              string `json:"notes"`
 	DueAt              string `json:"dueAt"`
 }
@@ -78,9 +83,9 @@ type InvoiceDraftFromTimeInput struct {
 const invoiceSelectColumns = `
 	id, client_id, invoice_number, status, currency, COALESCE(issued_at, ''), COALESCE(due_at, ''),
 	seller_name, seller_tax_id, seller_address, client_name, client_tax_id, client_address,
-	subtotal_minor, tax_minor, withholding_minor, total_minor, notes,
+	subtotal_minor, tax_minor, withholding_minor, total_minor, notes, COALESCE(withholding_label, ''),
 	COALESCE(series_id, ''), fiscal_sequence, period_from, period_to, document_snapshot_json,
-	work_protocol_detail, COALESCE(cancelled_at, ''), cancellation_reason, created_at, updated_at
+	work_protocol_detail, invoice_line_detail, COALESCE(cancelled_at, ''), cancellation_reason, created_at, updated_at
 `
 
 type InvoiceUpdateInput struct {
@@ -93,12 +98,14 @@ type InvoiceUpdateInput struct {
 	ClientTaxID        *string `json:"clientTaxId"`
 	ClientAddress      *string `json:"clientAddress"`
 	WithholdingMinor   *int64  `json:"withholdingMinor"`
+	WithholdingLabel   *string `json:"withholdingLabel"`
 	Notes              *string `json:"notes"`
 	TaxRateBasisPoints *int    `json:"taxRateBasisPoints"`
 	SeriesID           *string `json:"seriesId"`
 	PeriodFrom         *string `json:"periodFrom"`
 	PeriodTo           *string `json:"periodTo"`
 	WorkProtocolDetail *string `json:"workProtocolDetail"`
+	InvoiceLineDetail  *string `json:"invoiceLineDetail"`
 }
 
 func (s *Store) ListInvoices(ctx context.Context, userID string) ([]Invoice, error) {
@@ -127,7 +134,8 @@ func (s *Store) ListInvoices(ctx context.Context, userID string) ([]Invoice, err
 	return invoices, nil
 }
 
-func (s *Store) InvoiceByID(ctx context.Context, userID string, invoiceID string) (*Invoice, error) {
+// LoadInvoiceRecord returns invoice metadata, raw invoice lines, and documents without display merge.
+func (s *Store) LoadInvoiceRecord(ctx context.Context, userID, invoiceID string) (*Invoice, error) {
 	invoice, err := queryInvoice(ctx, s.db, `
 		SELECT `+invoiceSelectColumns+`
 		FROM invoices
@@ -151,6 +159,23 @@ func (s *Store) InvoiceByID(ctx context.Context, userID string, invoiceID string
 	return invoice, nil
 }
 
+func (s *Store) InvoiceByID(ctx context.Context, userID string, invoiceID string) (*Invoice, error) {
+	invoice, err := s.LoadInvoiceRecord(ctx, userID, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := s.UserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := s.TimeEntriesForInvoice(ctx, userID, invoice)
+	if err != nil {
+		return nil, err
+	}
+	return PrepareInvoiceForDisplay(invoice, entries, user.Locale), nil
+}
+
 func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, input InvoiceDraftFromTimeInput) (*Invoice, error) {
 	clientID := strings.TrimSpace(input.ClientID)
 	if clientID == "" {
@@ -161,13 +186,24 @@ func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, i
 	if from == "" || to == "" {
 		return nil, validationError(ErrInvalidInvoiceInput, "from", "required", "from and to are required")
 	}
+	fromTime, err := parseInvoiceRangeBound(from)
+	if err != nil {
+		return nil, validationError(ErrInvalidInvoiceInput, "from", "invalid", "from date is invalid")
+	}
+	toTime, err := parseInvoiceRangeBound(to)
+	if err != nil {
+		return nil, validationError(ErrInvalidInvoiceInput, "to", "invalid", "to date is invalid")
+	}
+	if fromTime.After(toTime) {
+		return nil, validationError(ErrInvalidInvoiceInput, "to", "invalid", "to must be on or after from")
+	}
 
 	client, err := s.ClientByID(ctx, userID, clientID)
 	if err != nil {
 		return nil, err
 	}
 
-	user, err := s.userByID(ctx, userID)
+	user, err := s.UserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -210,24 +246,7 @@ func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, i
 	}
 	now := nowString()
 
-	lineDrafts := make([]InvoiceLine, 0, len(entries))
-	for _, entry := range entries {
-		minutes := entry.DurationSeconds / 60
-		if minutes <= 0 {
-			continue
-		}
-		rate := resolveEntryHourlyRateMinor(entry, client, projectRates)
-		subtotal := lineSubtotalMinor(minutes, rate)
-		description := invoiceLineDescription(entry)
-		lineDrafts = append(lineDrafts, InvoiceLine{
-			TimeEntryID:        entry.ID,
-			Description:        description,
-			QuantityMinutes:    minutes,
-			UnitRateMinor:      rate,
-			SubtotalMinor:      subtotal,
-			TaxRateBasisPoints: taxRate,
-		})
-	}
+	lineDrafts := buildInvoiceLineDrafts(entries, client, projectRates, taxRate)
 	if len(lineDrafts) == 0 {
 		return nil, validationError(ErrInvalidInvoiceInput, "from", "invalid", "no billable time with positive duration")
 	}
@@ -243,6 +262,7 @@ func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, i
 		periodTo = to
 	}
 	workProtocolDetail := normalizeWorkProtocolDetail(input.WorkProtocolDetail)
+	invoiceLineDetail := normalizeInvoiceLineDetail(input.InvoiceLineDetail)
 	seriesIDValue := strings.TrimSpace(input.SeriesID)
 	if seriesIDValue == "" {
 		if defaultSeries, err := s.DefaultInvoiceSeries(ctx, userID); err == nil {
@@ -250,6 +270,14 @@ func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, i
 		}
 	}
 	seriesID := nullIfEmpty(seriesIDValue)
+
+	withholdingLabel := strings.TrimSpace(input.WithholdingLabel)
+	if withholdingLabel == "" {
+		withholdingLabel, err = s.InvoiceWithholdingLabelSetting(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -261,15 +289,15 @@ func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, i
 		INSERT INTO invoices (
 			id, user_id, client_id, invoice_number, status, currency, issued_at, due_at,
 			seller_name, seller_tax_id, seller_address, client_name, client_tax_id, client_address,
-			subtotal_minor, tax_minor, withholding_minor, total_minor, notes,
-			series_id, period_from, period_to, work_protocol_detail, created_at, updated_at
-		) VALUES (?, ?, ?, ?, 'draft', ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			subtotal_minor, tax_minor, withholding_minor, total_minor, notes, withholding_label,
+			series_id, period_from, period_to, work_protocol_detail, invoice_line_detail, created_at, updated_at
+		) VALUES (?, ?, ?, ?, 'draft', ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, invoiceID, userID, clientID, invoiceNumber, strings.ToUpper(strings.TrimSpace(client.DefaultCurrency)),
 		nullIfEmpty(strings.TrimSpace(input.DueAt)),
 		sellerName, strings.TrimSpace(input.SellerTaxID), strings.TrimSpace(input.SellerAddress),
 		client.Name, client.TaxID, client.BillingAddress,
 		totals.SubtotalMinor, totals.TaxMinor, totals.WithholdingMinor, totals.TotalMinor,
-		strings.TrimSpace(input.Notes), seriesID, periodFrom, periodTo, workProtocolDetail, now, now)
+		strings.TrimSpace(input.Notes), withholdingLabel, seriesID, periodFrom, periodTo, workProtocolDetail, invoiceLineDetail, now, now)
 	if err != nil {
 		return nil, fmt.Errorf("insert invoice: %w", err)
 	}
@@ -298,7 +326,7 @@ func (s *Store) CreateInvoiceDraftFromTime(ctx context.Context, userID string, i
 }
 
 func (s *Store) UpdateInvoice(ctx context.Context, userID string, invoiceID string, input InvoiceUpdateInput) (*Invoice, error) {
-	invoice, err := s.InvoiceByID(ctx, userID, invoiceID)
+	invoice, err := s.LoadInvoiceRecord(ctx, userID, invoiceID)
 	if err != nil {
 		return nil, err
 	}
@@ -345,11 +373,17 @@ func (s *Store) UpdateInvoice(ctx context.Context, userID string, invoiceID stri
 	if input.WorkProtocolDetail != nil {
 		invoice.WorkProtocolDetail = normalizeWorkProtocolDetail(*input.WorkProtocolDetail)
 	}
+	if input.InvoiceLineDetail != nil {
+		invoice.InvoiceLineDetail = normalizeInvoiceLineDetail(*input.InvoiceLineDetail)
+	}
 	if input.WithholdingMinor != nil {
 		if *input.WithholdingMinor < 0 {
 			return nil, validationError(ErrInvalidInvoiceInput, "withholdingBasisPoints", "invalid", "withholding cannot be negative")
 		}
 		invoice.WithholdingMinor = *input.WithholdingMinor
+	}
+	if input.WithholdingLabel != nil {
+		invoice.WithholdingLabel = strings.TrimSpace(*input.WithholdingLabel)
 	}
 
 	if input.TaxRateBasisPoints != nil {
@@ -377,15 +411,15 @@ func (s *Store) UpdateInvoice(ctx context.Context, userID string, invoiceID stri
 		UPDATE invoices
 		SET issued_at = ?, due_at = ?, seller_name = ?, seller_tax_id = ?, seller_address = ?,
 			client_name = ?, client_tax_id = ?, client_address = ?,
-			subtotal_minor = ?, tax_minor = ?, withholding_minor = ?, total_minor = ?, notes = ?,
-			series_id = ?, period_from = ?, period_to = ?, work_protocol_detail = ?, updated_at = ?
+			subtotal_minor = ?, tax_minor = ?, withholding_minor = ?, total_minor = ?, notes = ?, withholding_label = ?,
+			series_id = ?, period_from = ?, period_to = ?, work_protocol_detail = ?, invoice_line_detail = ?, updated_at = ?
 		WHERE user_id = ? AND id = ?
 	`, nullIfEmpty(invoice.IssuedAt), nullIfEmpty(invoice.DueAt),
 		invoice.SellerName, invoice.SellerTaxID, invoice.SellerAddress,
 		invoice.ClientName, invoice.ClientTaxID, invoice.ClientAddress,
 		invoice.SubtotalMinor, invoice.TaxMinor, invoice.WithholdingMinor, invoice.TotalMinor,
-		invoice.Notes, nullIfEmpty(invoice.SeriesID), invoice.PeriodFrom, invoice.PeriodTo,
-		invoice.WorkProtocolDetail, now, userID, invoiceID)
+		invoice.Notes, invoice.WithholdingLabel, nullIfEmpty(invoice.SeriesID), invoice.PeriodFrom, invoice.PeriodTo,
+		invoice.WorkProtocolDetail, invoice.InvoiceLineDetail, now, userID, invoiceID)
 	if err != nil {
 		return nil, fmt.Errorf("update invoice: %w", err)
 	}
@@ -468,7 +502,7 @@ func (s *Store) DeleteInvoice(ctx context.Context, userID string, invoiceID stri
 	return nil
 }
 
-func (s *Store) RenderInvoiceHTML(invoice *Invoice) string {
+func (s *Store) RenderInvoiceHTML(invoice *Invoice, locale string) string {
 	var builder strings.Builder
 	builder.WriteString(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>`)
 	builder.WriteString(html.EscapeString(invoice.InvoiceNumber))
@@ -531,12 +565,12 @@ th{font-size:12px;text-transform:uppercase;color:#666}
 	}
 	builder.WriteString(`</div></div>`)
 
-	builder.WriteString(`<table><thead><tr><th>Description</th><th class="num">Qty (min)</th><th class="num">Rate</th><th class="num">Subtotal</th></tr></thead><tbody>`)
+	builder.WriteString(`<table><thead><tr><th>Description</th><th class="num">Qty (h)</th><th class="num">Rate</th><th class="num">Subtotal</th></tr></thead><tbody>`)
 	for _, line := range invoice.Lines {
 		builder.WriteString(`<tr><td>`)
 		builder.WriteString(html.EscapeString(line.Description))
 		builder.WriteString(`</td><td class="num">`)
-		builder.WriteString(fmt.Sprintf("%d", line.QuantityMinutes))
+		builder.WriteString(FormatInvoiceWholeHours(line.QuantityMinutes))
 		builder.WriteString(`</td><td class="num">`)
 		builder.WriteString(html.EscapeString(formatMoneyMinor(line.UnitRateMinor, invoice.Currency)))
 		builder.WriteString(`</td><td class="num">`)
@@ -545,13 +579,22 @@ th{font-size:12px;text-transform:uppercase;color:#666}
 	}
 	builder.WriteString(`</tbody></table>`)
 
-	builder.WriteString(`<div class="totals"><div><span>Subtotal</span><span>`)
+	builder.WriteString(`<div class="totals"><div><span>Total hours</span><span>`)
+	builder.WriteString(FormatInvoiceWholeHours(TotalInvoiceQuantityMinutes(invoice.Lines)))
+	builder.WriteString(`</span></div><div><span>Subtotal</span><span>`)
 	builder.WriteString(html.EscapeString(formatMoneyMinor(invoice.SubtotalMinor, invoice.Currency)))
-	builder.WriteString(`</span></div><div><span>Tax</span><span>`)
-	builder.WriteString(html.EscapeString(formatMoneyMinor(invoice.TaxMinor, invoice.Currency)))
 	builder.WriteString(`</span></div>`)
+	if invoice.TaxMinor > 0 {
+		builder.WriteString(`<div><span>`)
+		builder.WriteString(html.EscapeString(DefaultTaxLabel(locale)))
+		builder.WriteString(`</span><span>`)
+		builder.WriteString(html.EscapeString(formatMoneyMinor(invoice.TaxMinor, invoice.Currency)))
+		builder.WriteString(`</span></div>`)
+	}
 	if invoice.WithholdingMinor > 0 {
-		builder.WriteString(`<div><span>Withholding</span><span>-`)
+		builder.WriteString(`<div><span>`)
+		builder.WriteString(html.EscapeString(ResolveWithholdingLabel(invoice.WithholdingLabel, locale)))
+		builder.WriteString(`</span><span>-`)
 		builder.WriteString(html.EscapeString(formatMoneyMinor(invoice.WithholdingMinor, invoice.Currency)))
 		builder.WriteString(`</span></div>`)
 	}
@@ -601,21 +644,7 @@ func lineSubtotalMinor(quantityMinutes int, unitRateMinor int64) int64 {
 }
 
 func invoiceLineDescription(entry TimeEntry) string {
-	parts := make([]string, 0, 3)
-	if entry.ProjectName != "" {
-		parts = append(parts, entry.ProjectName)
-	}
-	if entry.TaskName != "" {
-		parts = append(parts, entry.TaskName)
-	}
-	description := strings.TrimSpace(entry.Description)
-	if description != "" {
-		parts = append(parts, description)
-	}
-	if len(parts) == 0 {
-		return "Billable time"
-	}
-	return strings.Join(parts, " — ")
+	return granularInvoiceLineDescription(entry)
 }
 
 func resolveEntryHourlyRateMinor(entry TimeEntry, client *Client, projectRates map[string]int64) int64 {
@@ -703,7 +732,7 @@ func normalizeWorkProtocolDetail(value string) string {
 	}
 }
 
-func (s *Store) userByID(ctx context.Context, userID string) (*User, error) {
+func (s *Store) UserByID(ctx context.Context, userID string) (*User, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT id, email, name, locale, layout_mode, created_at, updated_at
 		FROM users WHERE id = ?
@@ -770,8 +799,8 @@ func scanInvoice(scanner invoiceScanner) (Invoice, error) {
 		&invoice.IssuedAt, &invoice.DueAt, &invoice.SellerName, &invoice.SellerTaxID, &invoice.SellerAddress,
 		&invoice.ClientName, &invoice.ClientTaxID, &invoice.ClientAddress,
 		&invoice.SubtotalMinor, &invoice.TaxMinor, &invoice.WithholdingMinor, &invoice.TotalMinor,
-		&invoice.Notes, &invoice.SeriesID, &fiscalSequence, &invoice.PeriodFrom, &invoice.PeriodTo,
-		&invoice.DocumentSnapshotJSON, &invoice.WorkProtocolDetail, &invoice.CancelledAt, &invoice.CancellationReason,
+		&invoice.Notes, &invoice.WithholdingLabel, &invoice.SeriesID, &fiscalSequence, &invoice.PeriodFrom, &invoice.PeriodTo,
+		&invoice.DocumentSnapshotJSON, &invoice.WorkProtocolDetail, &invoice.InvoiceLineDetail, &invoice.CancelledAt, &invoice.CancellationReason,
 		&invoice.CreatedAt, &invoice.UpdatedAt,
 	); err != nil {
 		return Invoice{}, err
@@ -785,6 +814,9 @@ func scanInvoice(scanner invoiceScanner) (Invoice, error) {
 	}
 	if invoice.WorkProtocolDetail == "" {
 		invoice.WorkProtocolDetail = "standard"
+	}
+	if invoice.InvoiceLineDetail == "" {
+		invoice.InvoiceLineDetail = InvoiceLineDetailGranular
 	}
 	return invoice, nil
 }
@@ -809,6 +841,17 @@ func formatInvoiceDate(value string) string {
 		}
 	}
 	return parsed.UTC().Format("2006-01-02")
+}
+
+func parseInvoiceRangeBound(value string) (time.Time, error) {
+	parsed, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(value))
+	if err != nil {
+		parsed, err = time.Parse(time.RFC3339, strings.TrimSpace(value))
+		if err != nil {
+			return time.Time{}, err
+		}
+	}
+	return parsed.UTC(), nil
 }
 
 func nullIfEmpty(value string) any {

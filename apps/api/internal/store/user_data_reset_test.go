@@ -85,8 +85,9 @@ func TestClearUserDataRemovesBillingDocumentsMetadata(t *testing.T) {
 	if _, err := st.DB().ExecContext(ctx, `
 		INSERT INTO invoices (
 			id, user_id, invoice_number, status, currency, seller_name, client_name,
-			subtotal_minor, tax_minor, withholding_minor, total_minor, created_at, updated_at
-		) VALUES (?, ?, '2026-0001', 'draft', 'EUR', 'Seller', 'Client', 0, 0, 0, 0, ?, ?)
+			subtotal_minor, tax_minor, withholding_minor, total_minor, period_from, period_to,
+			work_protocol_detail, invoice_line_detail, created_at, updated_at
+		) VALUES (?, ?, '2026-0001', 'draft', 'EUR', 'Seller', 'Client', 0, 0, 0, 0, '', '', 'standard', 'granular', ?, ?)
 	`, invoiceID, user.ID, now, now); err != nil {
 		t.Fatalf("insert invoice: %v", err)
 	}

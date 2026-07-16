@@ -147,6 +147,29 @@ func createTestInvoiceDraft(t *testing.T, ctx context.Context, st *Store, userID
 	return invoice
 }
 
+func TestTimeEntriesForInvoiceUsesStoredLineLinks(t *testing.T) {
+	ctx := context.Background()
+	st, user := newTaskTestStore(t, ctx)
+	invoice := createTestInvoiceDraft(t, ctx, st, user.ID)
+
+	display := &Invoice{
+		ID:                invoice.ID,
+		InvoiceLineDetail: InvoiceLineDetailSummary,
+		Lines: []InvoiceLine{{
+			Description:     summaryInvoiceLineDescription("es"),
+			QuantityMinutes: 120,
+		}},
+	}
+
+	entries, err := st.TimeEntriesForInvoice(ctx, user.ID, display)
+	if err != nil {
+		t.Fatalf("load invoice entries: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one linked entry, got %d", len(entries))
+	}
+}
+
 func invoiceClient(t *testing.T, ctx context.Context, st *Store, userID string) *Client {
 	t.Helper()
 	client, err := st.CreateClient(ctx, userID, ClientInput{

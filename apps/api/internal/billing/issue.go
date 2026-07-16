@@ -36,7 +36,7 @@ func NewIssueService(store *store.Store, renderer Renderer, files *DocumentStore
 }
 
 func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRequest) (*store.Invoice, error) {
-	invoice, err := s.store.InvoiceByID(ctx, userID, request.InvoiceID)
+	invoice, err := s.store.LoadInvoiceRecord(ctx, userID, request.InvoiceID)
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +69,11 @@ func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRe
 		return nil, err
 	}
 
+	user, err := s.store.UserByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	issueAt := request.IssueAt
 	if issueAt.IsZero() {
 		issueAt = time.Now().UTC()
@@ -94,6 +99,7 @@ func (s *IssueService) Issue(ctx context.Context, userID string, request IssueRe
 	snapshot, err := BuildDocumentSnapshot(invoice, entries, SnapshotOptions{
 		IssueAt:    issueAt,
 		SeriesCode: series.Code,
+		Locale:     user.Locale,
 	})
 	if err != nil {
 		return nil, err

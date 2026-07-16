@@ -102,7 +102,7 @@ func (s *Server) exportInvoice(w http.ResponseWriter, r *http.Request, user *sto
 
 	switch format {
 	case "html":
-		payload := s.store.RenderInvoiceHTML(invoice)
+		payload := s.store.RenderInvoiceHTML(invoice, user.Locale)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Disposition", billing.ContentDispositionAttachment(billing.SafeDownloadFilename(invoice.InvoiceNumber, ".html")))
 		w.WriteHeader(http.StatusOK)

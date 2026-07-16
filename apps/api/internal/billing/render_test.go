@@ -25,6 +25,7 @@ func TestRenderPreviewHTML(t *testing.T) {
 		"Rate Hour",
 		"Qty",
 		"Amount",
+		"Total hours",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("expected preview html to contain %q", want)
@@ -56,18 +57,19 @@ func sampleSnapshot() DocumentSnapshot {
 	return DocumentSnapshot{
 		Version: SnapshotVersion,
 		Invoice: InvoiceSnapshot{
-			Number:        "2026-0009",
-			Currency:      "EUR",
-			IssuedAt:      "2026-07-08",
-			SellerName:    "Seller LLC",
-			SellerTaxID:   "TAX-1",
-			SellerAddress: "Madrid",
-			ClientName:    "Acme Corp",
-			ClientTaxID:   "B123",
-			ClientAddress: "Barcelona",
-			SubtotalMinor: 20000,
-			TaxMinor:      4200,
-			TotalMinor:    24200,
+			Number:               "2026-0009",
+			Currency:             "EUR",
+			IssuedAt:             "2026-07-08",
+			SellerName:           "Seller LLC",
+			SellerTaxID:          "TAX-1",
+			SellerAddress:        "Madrid",
+			ClientName:           "Acme Corp",
+			ClientTaxID:          "B123",
+			ClientAddress:        "Barcelona",
+			SubtotalMinor:        20000,
+			TaxMinor:             4200,
+			TotalMinor:           24200,
+			TotalQuantityMinutes: 120,
 			Lines: []InvoiceLineSnapshot{
 				{Description: "Portal Web — Design", QuantityMinutes: 120, UnitRateMinor: 10000, SubtotalMinor: 20000},
 			},
