@@ -54,6 +54,10 @@ See the [curated hardening backlog](35-curated-hardening-backlog.md) for the cur
 | Done | Password reset email | Outbox mail + login/reset UI. |
 | Done | S3 daily backups + restore | UI, CLI, scheduler; 01:00 default, 365d retention; backup/restore email toggles in profile |
 | Done | Backup/restore email notifications | Profile toggles + outbox; defaults: failure alerts on, success off |
+| Backlog | Client volume discounts | Per-client rule: when monthly billable hours exceed a threshold, apply a % discount to the hourly rate (e.g. >100h → 10% off). Must affect invoice line pricing for that period. |
+| Backlog | Fixed-hour monthly plans | Named retainer-style plans with fixed hours and fixed price (e.g. "Plan de mantenimiento preventivo, 15h, $750"), assignable to clients; track hours consumed vs included. |
+| Backlog | Payment method profiles | Multiple bank/transfer detail sets beyond the single `payment_instructions` text (e.g. IBAN for EU clients, ACH for USA). Selectable per client or invoice so PDFs show the right transfer data. |
+| Backlog | Historical document archive | Upload and keep pre-leotime (or external) invoice and Work Protocol PDFs as a searchable archive of record; each document must be linked to an existing client. Stored under the document root and included in S3 backups. See design notes below. |
 | Later | Tauri desktop app | Desktop packaging after web MVP works. |
 | Later | Idle detection | Helpful but not needed for first deployable MVP. |
 | Later | Activity tracking | Backlog from original scope, not MVP. |
@@ -61,6 +65,39 @@ See the [curated hardening backlog](35-curated-hardening-backlog.md) for the cur
 | Later | Multi-user/team mode | Single owner first. |
 | Later | Public API tokens | Useful after core API stabilizes. |
 | Later | Webhooks | Useful after external integrations exist. |
+
+### Historical document archive (design intent)
+
+Goal: make leotime the owner's durable work and accounting archive, not only the
+system that issues new documents. When adoption starts mid-series (e.g. next
+issued number is `A 0003 00000027`), the owner can still keep earlier invoices
+and Work Protocols on hand inside the app and inside encrypted S3 backups,
+alongside personal copies (e.g. iCloud).
+
+In scope:
+
+- Upload external PDFs already sent from email or a previous tool (invoices and
+  Work Protocols first; other document kinds only if needed later).
+- **Required client link:** every archived PDF must belong to a client already
+  loaded in leotime. Reject uploads without a valid `clientId`; filter and
+  browse by client. Create the client first if the historical counterparty is
+  new to the platform.
+- Free-form display number and optional series/label so foreign numbering is
+  allowed (`A 0003 00000001` … `00000026`, or a completely different scheme).
+- Light metadata only: type, display number, issue/service date, required
+  client, currency/amount when known, notes, original filename, SHA-256.
+- Browse/filter/download in the UI; files live under `LEOTIME_DOCUMENT_ROOT`
+  and ride the existing document-aware backup/restore path.
+- Clear separation from fiscal issuance: archived uploads must **not** consume
+  or rewrite the live fiscal series counter used by `issue`.
+
+Out of scope for the first slice:
+
+- Re-entering historical invoices as structured time-entry / line-item data.
+- OCR, email import, or automatic reconstruction of billable hours from PDFs.
+- Orphan / unassigned archive documents (no client).
+- Claiming legal or tax compliance; this is an operational archive of PDFs the
+  owner already issued elsewhere.
 
 ## Phase 0 — Production Hardening (Done)
 

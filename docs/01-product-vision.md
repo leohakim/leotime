@@ -50,6 +50,10 @@ The first product version is for one person:
 
 The operational backlog lives in [`docs/13-backlog.md`](13-backlog.md). The next implementation queue is the [curated hardening backlog](35-curated-hardening-backlog.md). High-level ideas still outside MVP:
 
+- Client volume discounts (threshold hours → % off hourly rate).
+- Fixed-hour monthly plans / retainers (named plan, included hours, fixed price).
+- Payment method profiles (IBAN, ACH, and other transfer details selectable per client/invoice).
+- Historical document archive (upload old invoice and Work Protocol PDFs linked to an existing client; foreign numbering; search/download; included in document-aware backups; does not consume the live fiscal series).
 - Tauri desktop app.
 - Idle detection and activity tracking.
 - Full multi-device local-first sync.
