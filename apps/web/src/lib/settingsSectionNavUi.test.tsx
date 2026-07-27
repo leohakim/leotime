@@ -10,6 +10,7 @@ const t = (key: string) =>
       profileEmailNotificationsSection: 'Notificaciones',
       profilePasswordSection: 'Seguridad',
       backupHeading: 'Copias',
+      vcsHeading: 'Integraciones VCS',
       settingsSectionNavLabel: 'Secciones',
     }) as Record<string, string>
   )[key] ?? key;
@@ -25,6 +26,7 @@ describe('settingsSectionNavUi', () => {
     expect(screen.getByRole('navigation', { name: 'Secciones' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cuenta' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copias' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Integraciones VCS' })).toBeInTheDocument();
   });
 
   it('scrolls to the requested section', () => {

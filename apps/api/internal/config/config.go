@@ -49,6 +49,7 @@ type Config struct {
 	BackupSchedulerInterval time.Duration
 	DocumentRoot            string
 	TrustForwardedHeaders   bool
+	VCSAllowedHosts         []string
 }
 
 var (
@@ -195,6 +196,7 @@ func FromLookup(lookup func(string) (string, bool)) (Config, error) {
 		BackupSchedulerInterval: backupSchedulerInterval,
 		DocumentRoot:            stringEnv(lookup, "LEOTIME_DOCUMENT_ROOT", "data/documents"),
 		TrustForwardedHeaders:   trustForwardedHeaders,
+		VCSAllowedHosts:         csvEnv(lookup, "LEOTIME_VCS_ALLOWED_HOSTS"),
 
 		bootstrapPasswordSet: bootstrapPasswordSet,
 		publicBaseURLSet:     publicBaseURLSet,
@@ -227,6 +229,27 @@ func stringEnv(lookup func(string) (string, bool), key string, fallback string) 
 		return fallback
 	}
 	return strings.TrimSpace(value)
+}
+
+func csvEnv(lookup func(string) (string, bool), key string) []string {
+	raw, ok := lookup(key)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	values := make([]string, 0)
+	for _, part := range strings.Split(raw, ",") {
+		value := strings.ToLower(strings.TrimSpace(part))
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		values = append(values, value)
+	}
+	return values
 }
 
 func durationEnv(lookup func(string) (string, bool), key string, fallback time.Duration) (time.Duration, error) {

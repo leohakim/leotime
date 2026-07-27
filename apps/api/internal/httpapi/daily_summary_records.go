@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -9,7 +10,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/leotime/leotime/apps/api/internal/enrich"
 	"github.com/leotime/leotime/apps/api/internal/store"
+	"github.com/leotime/leotime/apps/api/internal/vcs"
 )
+
+var newVCSProvider = func(baseURL string) vcs.Provider {
+	return vcs.NewGiteaProvider(baseURL, nil)
+}
 
 type dailySummaryRecordRequest struct {
 	DraftText  string                     `json:"draftText"`
@@ -38,6 +44,8 @@ type dailySummaryEnrichContextResponse struct {
 	AuthorEmail  string                    `json:"authorEmail"`
 	Projects     []enrich.ProjectWorkspace `json:"projects"`
 	EntryFacts   []enrich.TimeEntryFact    `json:"entryFacts"`
+	VCS          vcs.Context               `json:"vcs"`
+	VCSStatus    string                    `json:"vcsStatus"`
 	Record       *store.DailySummaryRecord `json:"record,omitempty"`
 }
 
@@ -352,7 +360,7 @@ func (s *Server) getDailySummaryEnrichContext(w http.ResponseWriter, r *http.Req
 	if aiSettings != nil && strings.TrimSpace(aiSettings.GitAuthorEmail) != "" {
 		authorEmail = aiSettings.GitAuthorEmail
 	}
-
+	vcsContext, vcsStatus := s.collectDailySummaryVCS(r.Context(), date, user.ID, options.ClientID, options.ProjectID, authorEmail)
 	writeJSON(w, http.StatusOK, dailySummaryEnrichContextResponse{
 		Date:         date,
 		TemplateText: summary.Text,
@@ -361,8 +369,53 @@ func (s *Server) getDailySummaryEnrichContext(w http.ResponseWriter, r *http.Req
 		AuthorEmail:  authorEmail,
 		Projects:     workspaces,
 		EntryFacts:   mapDailySummaryEntryFacts(summary.EntryFacts),
+		VCS:          vcsContext,
+		VCSStatus:    vcsStatus,
 		Record:       record,
 	})
+}
+
+func (s *Server) collectDailySummaryVCS(ctx context.Context, date, userID, clientID, projectID, fallbackIdentity string) (vcs.Context, string) {
+	links, err := s.store.ListVCSCollectionLinks(ctx, userID, clientID, projectID)
+	if err != nil {
+		return vcs.Context{}, "unavailable"
+	}
+	if len(links) == 0 {
+		return vcs.Context{}, "not_configured"
+	}
+
+	result := vcs.Context{}
+	status := "ready"
+	for _, link := range links {
+		if strings.TrimSpace(link.TokenEnc) == "" {
+			status = "partial"
+			continue
+		}
+		token, err := s.decryptSecret(link.TokenEnc)
+		if err != nil || strings.TrimSpace(token) == "" {
+			status = "partial"
+			continue
+		}
+		identity := strings.TrimSpace(link.Connection.OwnerIdentity)
+		if identity == "" {
+			identity = strings.TrimSpace(fallbackIdentity)
+		}
+		collected, err := newVCSProvider(link.Connection.BaseURL).CollectDayContext(ctx, vcs.CollectionRequest{
+			Date:          date,
+			OwnerIdentity: identity,
+			Token:         token,
+			Repositories:  []vcs.Repository{{Owner: link.Repository.Owner, Name: link.Repository.Name}},
+		})
+		if err != nil {
+			status = "partial"
+			continue
+		}
+		result.Commits = append(result.Commits, collected.Commits...)
+		result.PullRequests = append(result.PullRequests, collected.PullRequests...)
+		result.Reviews = append(result.Reviews, collected.Reviews...)
+		result.Issues = append(result.Issues, collected.Issues...)
+	}
+	return result, status
 }
 
 func mapDailySummaryEntryFacts(facts []store.DailySummaryEntryFact) []enrich.TimeEntryFact {

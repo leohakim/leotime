@@ -3957,6 +3957,14 @@ html[data-nav='sidebar-compact'] .shell-sidebar .sidebar-footer {
   text-transform: none;
 }
 
+.field-hint {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+
 .form-field input,
 .form-field select {
   background: var(--input);

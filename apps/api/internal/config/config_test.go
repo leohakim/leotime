@@ -51,6 +51,22 @@ func TestFromLookupOverridesValues(t *testing.T) {
 	}
 }
 
+func TestFromLookupParsesVCSAllowedHosts(t *testing.T) {
+	env := map[string]string{
+		"LEOTIME_VCS_ALLOWED_HOSTS": "gitea.osoigo.test, gitlab.example.test:8443",
+	}
+	cfg, err := FromLookup(func(key string) (string, bool) {
+		value, ok := env[key]
+		return value, ok
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := strings.Join(cfg.VCSAllowedHosts, ","), "gitea.osoigo.test,gitlab.example.test:8443"; got != want {
+		t.Fatalf("expected normalized VCS hosts %q, got %q", want, got)
+	}
+}
+
 func TestFromLookupRejectsInvalidBoolean(t *testing.T) {
 	_, err := FromLookup(func(key string) (string, bool) {
 		if key == "LEOTIME_COOKIE_SECURE" {

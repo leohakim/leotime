@@ -30,6 +30,9 @@ func BuildCursorPrompt(bundle ContextBundle) string {
 		}
 		facts = append(facts, cursorLabel(spanish, "commits", "Git commits")+":\n"+strings.Join(lines, "\n"))
 	}
+	if vcsFacts := strings.TrimSpace(bundle.VCS.PromptFacts()); vcsFacts != "" {
+		facts = append(facts, cursorLabel(spanish, "verified_vcs_activity", "Verified VCS activity")+":\n"+vcsFacts)
+	}
 	for _, activity := range bundle.CursorActivity {
 		if len(activity.UserQueries) == 0 && len(activity.FilesTouched) == 0 {
 			continue
@@ -114,6 +117,8 @@ func cursorLabel(spanish bool, _, english string) string {
 		return "Feedback de revisión"
 	case "Git commits":
 		return "Commits de git"
+	case "Verified VCS activity":
+		return "Actividad VCS verificada"
 	case "Cursor activity":
 		return "Actividad en Cursor"
 	case "Queries":

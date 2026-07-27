@@ -569,6 +569,116 @@ export async function updateAISettings(input: AISettingsInput): Promise<AISettin
   return apiJSON('/api/v1/settings/ai', 'PUT', input);
 }
 
+export type VCSConnection = {
+  id: string;
+  provider: 'gitea';
+  baseUrl: string;
+  ownerIdentity: string;
+  defaultClientId: string;
+  tokenConfigured: boolean;
+  enabled: boolean;
+};
+
+export type VCSRepository = {
+  id: string;
+  connectionId: string;
+  owner: string;
+  name: string;
+  clientId: string;
+  effectiveClientId: string;
+  projectId: string;
+  enabled: boolean;
+};
+
+export async function fetchVCSConnections(): Promise<{ connections: VCSConnection[] }> {
+  return apiGet('/api/v1/vcs/connections');
+}
+
+export async function createVCSConnection(input: {
+  provider: 'gitea';
+  baseUrl: string;
+  ownerIdentity: string;
+  defaultClientId?: string;
+  token?: string;
+}): Promise<VCSConnection> {
+  return apiJSON('/api/v1/vcs/connections', 'POST', input);
+}
+
+export async function updateVCSConnection(
+  id: string,
+  input: {
+    provider: 'gitea';
+    baseUrl: string;
+    ownerIdentity: string;
+    defaultClientId?: string;
+    token?: string;
+  },
+): Promise<VCSConnection> {
+  return apiJSON('/api/v1/vcs/connections/' + id, 'PUT', input);
+}
+
+export async function deleteVCSConnection(id: string): Promise<void> {
+  return apiDelete('/api/v1/vcs/connections/' + id);
+}
+
+export type VCSContextPreview = {
+  ok: boolean;
+  status: 'ready' | 'partial' | 'not_configured' | 'unavailable';
+  date: string;
+  repositoryCount: number;
+  counts: {
+    commits: number;
+    pullRequests: number;
+    reviews: number;
+    issues: number;
+  };
+};
+
+export async function testVCSConnection(id: string): Promise<{ ok: boolean; message: string }> {
+  return apiJSON('/api/v1/vcs/connections/' + id + '/test', 'POST', {});
+}
+
+export async function previewVCSConnectionContext(id: string, date?: string): Promise<VCSContextPreview> {
+  const query = date ? `?date=${encodeURIComponent(date)}` : '';
+  return apiJSON('/api/v1/vcs/connections/' + id + '/preview-context' + query, 'POST', {});
+}
+
+export async function fetchVCSRepositories(): Promise<{ repositories: VCSRepository[] }> {
+  return apiGet('/api/v1/vcs/repositories');
+}
+
+export async function createVCSRepository(input: {
+  connectionId: string;
+  owner: string;
+  name: string;
+  clientId?: string;
+  projectId?: string;
+}): Promise<VCSRepository> {
+  return apiJSON('/api/v1/vcs/repositories', 'POST', input);
+}
+
+export async function updateVCSRepository(
+  id: string,
+  input: {
+    connectionId: string;
+    owner: string;
+    name: string;
+    clientId?: string;
+    projectId?: string;
+  },
+): Promise<VCSRepository> {
+  return apiJSON('/api/v1/vcs/repositories/' + id, 'PUT', input);
+}
+
+export async function deleteVCSRepository(id: string): Promise<void> {
+  return apiDelete('/api/v1/vcs/repositories/' + id);
+}
+
+export async function previewVCSRepositoryContext(id: string, date?: string): Promise<VCSContextPreview> {
+  const query = date ? `?date=${encodeURIComponent(date)}` : '';
+  return apiJSON('/api/v1/vcs/repositories/' + id + '/preview-context' + query, 'POST', {});
+}
+
 export async function fetchDashboardStats(activityMonth?: string): Promise<DashboardStats> {
   const query = activityMonth ? `?activityMonth=${encodeURIComponent(activityMonth)}` : '';
   return apiGet(`/api/v1/dashboard/stats${query}`);
@@ -1032,6 +1142,13 @@ export type DailySummaryEnrichContext = {
   manualNote: string;
   locale: string;
   authorEmail: string;
+  vcs: {
+    commits: Array<{ repository: string; hash: string; subject: string; author: string; occurredAt: string }>;
+    pullRequests: Array<{ repository: string; number: number; title: string; state: string; author: string; labels: string[]; merged: boolean }>;
+    reviews: Array<{ repository: string; pullRequestNumber: number; reviewer: string; state: string }>;
+    issues: Array<{ repository: string; number: number; title: string; state: string }>;
+  };
+  vcsStatus: 'ready' | 'partial' | 'not_configured' | 'unavailable';
   entryFacts: Array<{
     clientName: string;
     projectName: string;
@@ -1073,6 +1190,7 @@ export async function enrichDailySummaryLocally(input: {
   authorEmail: string;
   entryFacts: DailySummaryEnrichContext['entryFacts'];
   projects: DailySummaryEnrichContext['projects'];
+  vcs: DailySummaryEnrichContext['vcs'];
 }): Promise<{
   text: string;
   source: string;

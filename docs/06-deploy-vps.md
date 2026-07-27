@@ -33,6 +33,7 @@ LEOTIME_SMTP_PORT=587
 LEOTIME_SMTP_USERNAME=...
 LEOTIME_SMTP_PASSWORD=...
 LEOTIME_SECRETS_KEY=...          # openssl rand -base64 32
+LEOTIME_VCS_ALLOWED_HOSTS=gitea.osoigo.example
 LEOTIME_BACKUP_SCHEDULER_ENABLED=true
 LEOTIME_TRUST_FORWARDED_HEADERS=true   # only when behind a trusted reverse proxy
 LEOTIME_METRICS_TOKEN=...              # required to scrape /metrics in production
@@ -46,6 +47,22 @@ development public base URL, and `LEOTIME_MAIL_MODE=log` unless
 Still-running timer emails use the in-process scheduler (enabled by default). Full mail and scheduler reference: `docs/29-email-notifications.md`.
 
 Daily S3 backups use the same scheduler process. Configure the bucket in **Settings → Backups** after deploy, or use the CLI. Full reference: `docs/31-s3-daily-backups.md`.
+
+## Gitea context for daily summaries
+
+To add verified repository activity to a client-scoped AI daily summary, configure
+`LEOTIME_VCS_ALLOWED_HOSTS` with the comma-separated, public Gitea host names
+that leotime may contact. Production accepts HTTPS connections only. In
+**Settings → VCS integrations**, save a Gitea connection with a read-only token,
+set its default client (or set the client per repository), then add
+`owner/repository` links.
+
+Tokens are encrypted with `LEOTIME_SECRETS_KEY`, never returned by the API, and
+should have the minimum read-only scope necessary to list commits, pull
+requests, reviews, and issues. The prompt receives only capped, normalized facts
+for the selected summary date and client—never diffs, source code, or raw
+provider responses. An unavailable provider leaves the regular summary usable
+and reports partial VCS context.
 
 Start:
 
@@ -117,4 +134,3 @@ docker compose up -d --build
 ```
 
 Migrations run automatically on startup.
-
