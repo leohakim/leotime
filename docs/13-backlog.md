@@ -24,6 +24,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | **7** | Curated hardening (billing, data, import, restore, production, UX) | **Done** |
 | **8** | Daily workflow (Slack standup summary from time entries) | **Done** |
 | **9** | AI-enriched daily summary (edit → approve workflow + local enricher) | **In progress** — [design spec](superpowers/specs/2026-07-12-ai-daily-summary-enrichment-design.md) |
+| **10** | VCS context providers for AI summaries (GitHub, Gitea, GitLab) | **Backlog** — server-side, read-only context for the daily-summary prompt; includes GitHub.com/Enterprise, self-hosted Gitea such as Osoigo, and GitLab.com/self-hosted GitLab. |
 
 See the [curated hardening backlog](35-curated-hardening-backlog.md) for the current H-* queue. The IDs in [Known gaps and audit](34-known-gaps-and-audit.md) are historical findings and fix records.
 
@@ -58,6 +59,7 @@ See the [curated hardening backlog](35-curated-hardening-backlog.md) for the cur
 | Backlog | Fixed-hour monthly plans | Named retainer-style plans with fixed hours and fixed price (e.g. "Plan de mantenimiento preventivo, 15h, $750"), assignable to clients; track hours consumed vs included. |
 | Backlog | Payment method profiles | Multiple bank/transfer detail sets beyond the single `payment_instructions` text (e.g. IBAN for EU clients, ACH for USA). Selectable per client or invoice so PDFs show the right transfer data. |
 | Backlog | Historical document archive | Upload and keep pre-leotime (or external) invoice and Work Protocol PDFs as a searchable archive of record; each document must be linked to an existing client. Stored under the document root and included in S3 backups. See design notes below. |
+| Backlog | VCS context providers for AI summaries | Connect GitHub, self-hosted Gitea (including Osoigo), and GitLab so a scoped daily summary can use its real development activity. See detailed intent below. |
 | Later | Tauri desktop app | Desktop packaging after web MVP works. |
 | Later | Idle detection | Helpful but not needed for first deployable MVP. |
 | Later | Activity tracking | Backlog from original scope, not MVP. |
@@ -98,6 +100,106 @@ Out of scope for the first slice:
 - Orphan / unassigned archive documents (no client).
 - Claiming legal or tax compliance; this is an operational archive of PDFs the
   owner already issued elsewhere.
+
+### VCS context providers for AI summaries (design intent)
+
+Goal: give the daily-summary enricher a trustworthy, provider-neutral view of
+the work that actually happened in every repository used by the owner. The AI
+receives this context together with leotime time entries, the optional local
+Cursor context, and the user's manual note, so it can write a grounded Slack
+standup rather than infer work from hours alone.
+
+Initial providers:
+
+- **GitHub:** GitHub.com and GitHub Enterprise Server.
+- **Gitea:** self-hosted instances, including the Osoigo installation. The
+  configured base URL is part of the connection, not a hard-coded domain.
+- **GitLab:** GitLab.com and self-hosted instances.
+
+In scope:
+
+- A single VCS connection model with provider kind, base URL, account identity,
+  encrypted read-only token, connection health, and an optional **default
+  client**. This lets a dedicated Gitea/GitLab service belong directly to one
+  client while still allowing a shared service to host repositories for several
+  clients.
+- An explicit repository link with a required effective client and an optional
+  leotime project. A repository either inherits the connection's default client
+  or names its own client; it must resolve to exactly one client before it can
+  contribute VCS context. Different repositories on the same Gitea instance
+  may therefore serve different clients without mixing their activity.
+- A normalized context bundle for a requested day and client/project scope:
+  commits (hash, subject, author, timestamp, branch when available, changed-file
+  names and aggregate stats), pull/merge requests (title, state, author,
+  reviewers, labels, linked commits, and merge result), code-review activity,
+  and issue/ticket references exposed by the provider.
+- A deterministic collector that begins with the requested client, then filters
+  by the configured owner identity, that client's linked service/repositories,
+  optional project, and selected date. It must deduplicate the same commit or
+  review seen through more than one API and reject a repository without an
+  unambiguous client relationship.
+- A compact, labelled VCS section inserted into the existing AI prompt. The
+  generated text must say only what the collected facts support and keep the
+  current editable draft → approval workflow.
+- UI to create, test, rotate, disable, and remove connections; link them to
+  projects; select whether commits, reviews, merge requests, and issue
+  references contribute to a summary; and preview the exact normalized facts
+  before enrichment.
+- Cache and rate-limit-aware fetching so repeated editor previews do not create
+  unnecessary provider traffic. A transient provider failure must leave the
+  template/local-enricher path usable and show an honest partial-context state.
+
+Security and privacy requirements:
+
+- Tokens are encrypted at rest, never returned by the API, masked in the UI,
+  and never logged. Connections request the smallest provider-specific,
+  read-only scope; no repository write, clone, webhook, or administrative
+  permission is needed.
+- The server makes outbound requests only to validated configured provider URLs.
+  Self-hosted URLs need strict scheme/host validation and an explicit allowlist
+  policy so a connection cannot become an SSRF path into unrelated internal
+  services.
+- The prompt gets capped, redacted facts—not raw diffs, full source files,
+  secrets, or unbounded review discussions. The preview makes the exact payload
+  inspectable before spending Cursor credits.
+
+Delivery order:
+
+1. Define the provider-neutral connection, client-default and repository-level
+   client links, optional project link, encrypted credentials, repository
+   identity, and normalized VCS context contract; deliver the GitHub adapter as
+   the reference implementation.
+2. Add the Gitea adapter and validate it against the Osoigo instance, including
+   a testable self-hosted base URL and read-only token setup.
+3. Add the GitLab adapter for GitLab.com and self-hosted GitLab through the same
+   contract.
+4. Add connection management, context preview, caching/rate-limit handling,
+   failure telemetry, synthetic provider fixtures, and end-to-end daily-summary
+   tests.
+
+Out of scope for the first delivery:
+
+- Writing commits, comments, approvals, issues, webhooks, or changing repository
+  settings from leotime.
+- Cloning repositories or sending raw source code/diffs to the AI provider.
+- Broad generic Git support without a provider API; a plain remote URL alone
+  cannot reliably provide pull/merge-request or review context.
+- New providers such as Bitbucket or Azure DevOps. They can be added later as
+  adapters once the three initial providers prove the contract.
+
+Acceptance criteria:
+
+1. A client-scoped summary includes only normalized VCS activity from that
+   client's linked GitHub, Gitea, or GitLab services and repositories for the
+   selected day.
+2. A project-scoped summary narrows that client's context to its linked
+   repositories. A summary covering multiple projects combines their activity
+   without mixing repositories, clients, or duplicate commits.
+3. Missing credentials, invalid hosts, rate limits, or provider outages produce
+   a clear partial-context result and never block drafting, editing, approval,
+   or the local Git/Cursor path.
+4. Tokens, raw diffs, and source contents do not appear in API responses, logs,
+   persisted summary text, or AI prompts by default.
 
 ## Phase 0 — Production Hardening (Done)
 
