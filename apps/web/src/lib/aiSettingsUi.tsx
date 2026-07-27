@@ -9,6 +9,7 @@ import {
   type AISettingsInput,
 } from './api';
 import type { MessageKey } from './i18n';
+import { SettingsCard, SettingsPanel } from './settingsChrome';
 import { useToast } from './toast';
 
 export type Translator = (key: MessageKey) => string;
@@ -88,87 +89,100 @@ export function AISettingsPanel({ t }: { t: Translator }) {
   }
 
   return (
-    <section className="panel-section" id="ai-summary-settings">
-      <div className="panel-section-heading">
-        <span className="section-kicker">
+    <SettingsPanel
+      id="ai-summary-settings"
+      kicker={
+        <>
           <Sparkles aria-hidden="true" />
           {t('aiSettingsKicker')}
-        </span>
-        <h2>{t('aiSettingsHeading')}</h2>
-        <p>{t('aiSettingsSubtitle')}</p>
-      </div>
+        </>
+      }
+      title={t('aiSettingsHeading')}
+      subtitle={t('aiSettingsSubtitle')}
+      meta={
+        settingsQuery.isLoading ? (
+          <span className="sync-pill">{t('loading')}</span>
+        ) : settingsQuery.isError ? (
+          <span className="sync-pill warning-pill">{t('aiSettingsLoadFailed')}</span>
+        ) : null
+      }
+    >
+      <form className="settings-form" noValidate onSubmit={submit}>
+        <SettingsCard>
+          {formError ? (
+            <div className="form-alert" role="alert">
+              <CircleAlert aria-hidden="true" />
+              {formError}
+            </div>
+          ) : null}
 
-      {settingsQuery.isLoading ? <p>{t('loading')}</p> : null}
-      {settingsQuery.isError ? <p role="alert">{t('aiSettingsLoadFailed')}</p> : null}
-
-      <form className="profile-form" noValidate onSubmit={submit}>
-        {formError ? (
-          <div className="form-alert" role="alert">
-            <CircleAlert aria-hidden="true" />
-            {formError}
+          <div className="settings-toggle-row">
+            <input
+              checked={form.enabled}
+              id="ai-settings-enabled"
+              onChange={(event) => setForm((current) => ({ ...current, enabled: event.target.checked }))}
+              type="checkbox"
+            />
+            <label htmlFor="ai-settings-enabled">{t('aiSettingsEnabled')}</label>
           </div>
-        ) : null}
 
-        <label className="checkbox-field">
-          <input
-            checked={form.enabled}
-            onChange={(event) => setForm((current) => ({ ...current, enabled: event.target.checked }))}
-            type="checkbox"
-          />
-          <span>{t('aiSettingsEnabled')}</span>
-        </label>
+          <div className="client-form-grid settings-field-grid">
+            <label className={fieldClass()} htmlFor="ai-git-author-email">
+              <span>{t('aiSettingsGitAuthorEmail')}</span>
+              <input
+                id="ai-git-author-email"
+                onChange={(event) => setForm((current) => ({ ...current, gitAuthorEmail: event.target.value }))}
+                placeholder={t('aiSettingsGitAuthorEmailPlaceholder')}
+                type="email"
+                value={form.gitAuthorEmail}
+              />
+            </label>
 
-        <label className={fieldClass()} htmlFor="ai-git-author-email">
-          <span>{t('aiSettingsGitAuthorEmail')}</span>
-          <input
-            id="ai-git-author-email"
-            onChange={(event) => setForm((current) => ({ ...current, gitAuthorEmail: event.target.value }))}
-            placeholder={t('aiSettingsGitAuthorEmailPlaceholder')}
-            type="email"
-            value={form.gitAuthorEmail}
-          />
-        </label>
+            <label className={fieldClass()} htmlFor="ai-cursor-api-key">
+              <span>{t('aiSettingsCursorApiKey')}</span>
+              <input
+                autoComplete="off"
+                id="ai-cursor-api-key"
+                onChange={(event) => setForm((current) => ({ ...current, cursorApiKey: event.target.value }))}
+                placeholder={
+                  cursorApiKeyConfigured
+                    ? t('aiSettingsCursorApiKeyConfiguredPlaceholder')
+                    : t('aiSettingsCursorApiKeyPlaceholder')
+                }
+                type="password"
+                value={form.cursorApiKey}
+              />
+              {cursorApiKeyConfigured ? (
+                <span className="field-hint">{t('aiSettingsCursorApiKeyConfiguredHint')}</span>
+              ) : null}
+            </label>
 
-        <label className={fieldClass()} htmlFor="ai-cursor-api-key">
-          <span>{t('aiSettingsCursorApiKey')}</span>
-          <input
-            autoComplete="off"
-            id="ai-cursor-api-key"
-            onChange={(event) => setForm((current) => ({ ...current, cursorApiKey: event.target.value }))}
-            placeholder={
-              cursorApiKeyConfigured ? t('aiSettingsCursorApiKeyConfiguredPlaceholder') : t('aiSettingsCursorApiKeyPlaceholder')
-            }
-            type="password"
-            value={form.cursorApiKey}
-          />
-          {cursorApiKeyConfigured ? <small>{t('aiSettingsCursorApiKeyConfiguredHint')}</small> : null}
-        </label>
-
-        <label className={fieldClass()} htmlFor="ai-cursor-cost-per-million">
-          <span>{t('aiSettingsCursorCostPerMillion')}</span>
-          <input
-            id="ai-cursor-cost-per-million"
-            min="0"
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                cursorCostPerMillionUsd: Number(event.target.value),
-              }))
-            }
-            step="0.01"
-            type="number"
-            value={form.cursorCostPerMillionUsd}
-          />
-          <small>{t('aiSettingsCursorCostPerMillionHint')}</small>
-        </label>
-
-        <div className="profile-form-actions">
+            <label className={fieldClass()} htmlFor="ai-cursor-cost-per-million">
+              <span>{t('aiSettingsCursorCostPerMillion')}</span>
+              <input
+                id="ai-cursor-cost-per-million"
+                min="0"
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    cursorCostPerMillionUsd: Number(event.target.value),
+                  }))
+                }
+                step="0.01"
+                type="number"
+                value={form.cursorCostPerMillionUsd}
+              />
+              <span className="field-hint">{t('aiSettingsCursorCostPerMillionHint')}</span>
+            </label>
+          </div>
+        </SettingsCard>
+        <div className="settings-card-actions">
           <button disabled={saveMutation.isPending} type="submit">
             <Save aria-hidden="true" />
             {t('save')}
           </button>
         </div>
       </form>
-    </section>
+    </SettingsPanel>
   );
 }

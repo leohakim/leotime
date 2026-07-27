@@ -14,6 +14,7 @@ import {
   type BackupSettingsInput,
 } from './api';
 import type { MessageKey } from './i18n';
+import { SettingsCard, SettingsPanel } from './settingsChrome';
 import { useToast } from './toast';
 
 export type Translator = (key: MessageKey) => string;
@@ -248,146 +249,140 @@ export function BackupSettingsPanel({ t }: { t: Translator }) {
   const objects = objectsQuery.data?.objects ?? [];
 
   return (
-    <section className="panel-section" id="backups">
-      <div className="panel-header">
-        <div>
-          <span>{t('backupSection')}</span>
-          <h2>{t('backupHeading')}</h2>
-          <p>{t('backupSubtitle')}</p>
-        </div>
-      </div>
-
+    <SettingsPanel id="backups" title={t('backupHeading')} subtitle={t('backupSubtitle')} kicker={t('backupSection')}>
       {settingsQuery.isError ? (
-        <div className="form-alert" role="alert">
+        <div className="form-alert profile-settings-alert" role="alert">
           <CircleAlert aria-hidden="true" />
           {t('backupLoadFailed')}
         </div>
       ) : null}
 
-      <form className="client-editor profile-settings-form" noValidate onSubmit={submitSettings}>
-        {errors.form ? (
-          <div className="form-alert" role="alert">
-            <CircleAlert aria-hidden="true" />
-            {errors.form}
+      <form className="settings-form" noValidate onSubmit={submitSettings}>
+        <SettingsCard>
+          {errors.form ? (
+            <div className="form-alert" role="alert">
+              <CircleAlert aria-hidden="true" />
+              {errors.form}
+            </div>
+          ) : null}
+
+          <div className="settings-toggle-row backup-enabled-row">
+            <input
+              checked={form.enabled}
+              id="backup-enabled"
+              onChange={(event) => updateField('enabled', event.target.checked)}
+              type="checkbox"
+            />
+            <label htmlFor="backup-enabled">{t('backupEnabled')}</label>
           </div>
-        ) : null}
 
-        <div className="settings-toggle-row backup-enabled-row">
-          <input
-            checked={form.enabled}
-            id="backup-enabled"
-            onChange={(event) => updateField('enabled', event.target.checked)}
-            type="checkbox"
-          />
-          <label htmlFor="backup-enabled">{t('backupEnabled')}</label>
-        </div>
+          <div className="client-form-grid settings-field-grid backup-settings-grid">
+            <label className={fieldClass(errors.endpoint)} htmlFor="backup-endpoint">
+              <span>{t('backupEndpoint')}</span>
+              <input
+                id="backup-endpoint"
+                onChange={(event) => updateField('endpoint', event.target.value)}
+                placeholder="https://s3.eu-central-1.amazonaws.com"
+                value={form.endpoint}
+              />
+            </label>
 
-        <div className="client-form-grid backup-settings-grid">
-          <label className={fieldClass(errors.endpoint)} htmlFor="backup-endpoint">
-            <span>{t('backupEndpoint')}</span>
-            <input
-              id="backup-endpoint"
-              onChange={(event) => updateField('endpoint', event.target.value)}
-              placeholder="https://s3.eu-central-1.amazonaws.com"
-              value={form.endpoint}
-            />
-          </label>
+            <label className={fieldClass(errors.region)} htmlFor="backup-region">
+              <span>{t('backupRegion')}</span>
+              <input id="backup-region" onChange={(event) => updateField('region', event.target.value)} value={form.region} />
+            </label>
 
-          <label className={fieldClass(errors.region)} htmlFor="backup-region">
-            <span>{t('backupRegion')}</span>
-            <input id="backup-region" onChange={(event) => updateField('region', event.target.value)} value={form.region} />
-          </label>
+            <label className={fieldClass(errors.bucket)} htmlFor="backup-bucket">
+              <span>{t('backupBucket')}</span>
+              <input id="backup-bucket" onChange={(event) => updateField('bucket', event.target.value)} value={form.bucket} />
+              {errors.bucket ? <span className="field-message">{errors.bucket}</span> : null}
+            </label>
 
-          <label className={fieldClass(errors.bucket)} htmlFor="backup-bucket">
-            <span>{t('backupBucket')}</span>
-            <input id="backup-bucket" onChange={(event) => updateField('bucket', event.target.value)} value={form.bucket} />
-            {errors.bucket ? <span className="field-message">{errors.bucket}</span> : null}
-          </label>
+            <label className={fieldClass(errors.prefix)} htmlFor="backup-prefix">
+              <span>{t('backupPrefix')}</span>
+              <input id="backup-prefix" onChange={(event) => updateField('prefix', event.target.value)} value={form.prefix} />
+            </label>
 
-          <label className={fieldClass(errors.prefix)} htmlFor="backup-prefix">
-            <span>{t('backupPrefix')}</span>
-            <input id="backup-prefix" onChange={(event) => updateField('prefix', event.target.value)} value={form.prefix} />
-          </label>
+            <label className={fieldClass(errors.accessKeyId)} htmlFor="backup-access-key">
+              <span>{t('backupAccessKeyId')}</span>
+              <input
+                id="backup-access-key"
+                onChange={(event) => updateField('accessKeyId', event.target.value)}
+                value={form.accessKeyId}
+              />
+              {errors.accessKeyId ? <span className="field-message">{errors.accessKeyId}</span> : null}
+            </label>
 
-          <label className={fieldClass(errors.accessKeyId)} htmlFor="backup-access-key">
-            <span>{t('backupAccessKeyId')}</span>
-            <input id="backup-access-key" onChange={(event) => updateField('accessKeyId', event.target.value)} value={form.accessKeyId} />
-            {errors.accessKeyId ? <span className="field-message">{errors.accessKeyId}</span> : null}
-          </label>
-
-          <label className={fieldClass(errors.secretAccessKey)} htmlFor="backup-secret-key">
-            <span>{t('backupSecretAccessKey')}</span>
-            <input
-              autoComplete="off"
-              id="backup-secret-key"
-              onChange={(event) => updateField('secretAccessKey', event.target.value)}
-              placeholder={settings?.secretAccessKeyConfigured ? t('backupSecretConfiguredPlaceholder') : ''}
-              type="password"
-              value={form.secretAccessKey}
-            />
-            {errors.secretAccessKey ? <span className="field-message">{errors.secretAccessKey}</span> : null}
-          </label>
-        </div>
-
-        <div className="settings-toggle-row">
-          <input
-            checked={form.usePathStyle}
-            id="backup-path-style"
-            onChange={(event) => updateField('usePathStyle', event.target.checked)}
-            type="checkbox"
-          />
-          <label htmlFor="backup-path-style">{t('backupUsePathStyle')}</label>
-        </div>
-
-        <div className="backup-compact-fields">
-          <label className={fieldClass(errors.scheduleHour)} htmlFor="backup-schedule-hour">
-            <span>{t('backupScheduleHour')}</span>
-            <input
-              className="settings-compact-input"
-              id="backup-schedule-hour"
-              max={23}
-              min={0}
-              onChange={(event) => updateField('scheduleHour', Number(event.target.value))}
-              type="number"
-              value={form.scheduleHour}
-            />
-            {errors.scheduleHour ? <span className="field-message">{errors.scheduleHour}</span> : null}
-          </label>
-
-          <label className={fieldClass(errors.retentionDays)} htmlFor="backup-retention-days">
-            <span>{t('backupRetentionDays')}</span>
-            <input
-              className="settings-compact-input backup-retention-input"
-              id="backup-retention-days"
-              max={3650}
-              min={1}
-              onChange={(event) => updateField('retentionDays', Number(event.target.value))}
-              type="number"
-              value={form.retentionDays}
-            />
-            {errors.retentionDays ? <span className="field-message">{errors.retentionDays}</span> : null}
-          </label>
-        </div>
-
-        {settings ? (
-          <div className="backup-status-grid">
-            <p>
-              <strong>{t('backupLastRun')}:</strong> {formatTimestamp(settings.lastRunAt)} ({settings.lastStatus})
-            </p>
-            {settings.lastError ? <p>{settings.lastError}</p> : null}
-            {settings.lastObjectKey ? <p>{settings.lastObjectKey}</p> : null}
-            <p>
-              <strong>{t('backupLastRestore')}:</strong> {formatTimestamp(settings.lastRestoreAt)} ({settings.lastRestoreStatus})
-            </p>
+            <label className={fieldClass(errors.secretAccessKey)} htmlFor="backup-secret-key">
+              <span>{t('backupSecretAccessKey')}</span>
+              <input
+                autoComplete="off"
+                id="backup-secret-key"
+                onChange={(event) => updateField('secretAccessKey', event.target.value)}
+                placeholder={settings?.secretAccessKeyConfigured ? t('backupSecretConfiguredPlaceholder') : ''}
+                type="password"
+                value={form.secretAccessKey}
+              />
+              {errors.secretAccessKey ? <span className="field-message">{errors.secretAccessKey}</span> : null}
+            </label>
           </div>
-        ) : null}
 
-        <div className="client-form-actions">
-          <button disabled={saveMutation.isPending || settingsQuery.isLoading} type="submit">
-            <Save aria-hidden="true" />
-            {saveMutation.isPending ? t('loading') : t('backupSave')}
-          </button>
+          <div className="settings-toggle-row">
+            <input
+              checked={form.usePathStyle}
+              id="backup-path-style"
+              onChange={(event) => updateField('usePathStyle', event.target.checked)}
+              type="checkbox"
+            />
+            <label htmlFor="backup-path-style">{t('backupUsePathStyle')}</label>
+          </div>
+
+          <div className="backup-compact-fields">
+            <label className={fieldClass(errors.scheduleHour)} htmlFor="backup-schedule-hour">
+              <span>{t('backupScheduleHour')}</span>
+              <input
+                className="settings-compact-input"
+                id="backup-schedule-hour"
+                max={23}
+                min={0}
+                onChange={(event) => updateField('scheduleHour', Number(event.target.value))}
+                type="number"
+                value={form.scheduleHour}
+              />
+              {errors.scheduleHour ? <span className="field-message">{errors.scheduleHour}</span> : null}
+            </label>
+
+            <label className={fieldClass(errors.retentionDays)} htmlFor="backup-retention-days">
+              <span>{t('backupRetentionDays')}</span>
+              <input
+                className="settings-compact-input backup-retention-input"
+                id="backup-retention-days"
+                max={3650}
+                min={1}
+                onChange={(event) => updateField('retentionDays', Number(event.target.value))}
+                type="number"
+                value={form.retentionDays}
+              />
+              {errors.retentionDays ? <span className="field-message">{errors.retentionDays}</span> : null}
+            </label>
+          </div>
+
+          {settings ? (
+            <div className="backup-status-grid">
+              <p>
+                <strong>{t('backupLastRun')}:</strong> {formatTimestamp(settings.lastRunAt)} ({settings.lastStatus})
+              </p>
+              {settings.lastError ? <p>{settings.lastError}</p> : null}
+              {settings.lastObjectKey ? <p>{settings.lastObjectKey}</p> : null}
+              <p>
+                <strong>{t('backupLastRestore')}:</strong> {formatTimestamp(settings.lastRestoreAt)} ({settings.lastRestoreStatus})
+              </p>
+            </div>
+          ) : null}
+        </SettingsCard>
+        <div className="settings-card-actions">
           <button
+            className="secondary-button"
             disabled={testMutation.isPending}
             onClick={runConnectionTest}
             type="button"
@@ -399,55 +394,54 @@ export function BackupSettingsPanel({ t }: { t: Translator }) {
             <DatabaseBackup aria-hidden="true" />
             {runMutation.isPending ? t('loading') : t('backupRunNow')}
           </button>
+          <button disabled={saveMutation.isPending || settingsQuery.isLoading} type="submit">
+            <Save aria-hidden="true" />
+            {saveMutation.isPending ? t('loading') : t('backupSave')}
+          </button>
         </div>
       </form>
 
-      <form className="client-editor profile-password-form" noValidate onSubmit={submitRestore}>
-        <div className="editor-header">
-          <div>
-            <span>{t('backupRestoreSection')}</span>
-            <h3>{t('backupRestoreHeading')}</h3>
+      <form className="settings-form" noValidate onSubmit={submitRestore}>
+        <SettingsCard title={t('backupRestoreHeading')}>
+          <p className="field-hint">{t('backupRestoreSection')}</p>
+          {objectsQuery.isLoading ? <p>{t('loading')}</p> : null}
+          {objects.length === 0 && !objectsQuery.isLoading ? <p>{t('backupNoObjects')}</p> : null}
+
+          {objects.length > 0 ? (
+            <div className="backup-object-list">
+              {objects.map((object: BackupObject) => (
+                <label className="backup-object-row" key={object.key}>
+                  <input
+                    checked={selectedObjectKey === object.key}
+                    name="backup-object"
+                    onChange={() => setSelectedObjectKey(object.key)}
+                    type="radio"
+                  />
+                  <span>
+                    {object.key} · {formatBytes(object.sizeBytes)} · {formatTimestamp(object.lastModified)}
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="settings-toggle-row backup-restore-confirm">
+            <input
+              checked={restoreConfirm}
+              id="backup-restore-confirm"
+              onChange={(event) => setRestoreConfirm(event.target.checked)}
+              type="checkbox"
+            />
+            <label htmlFor="backup-restore-confirm">{t('backupRestoreConfirmLabel')}</label>
           </div>
-        </div>
-
-        {objectsQuery.isLoading ? <p>{t('loading')}</p> : null}
-        {objects.length === 0 && !objectsQuery.isLoading ? <p>{t('backupNoObjects')}</p> : null}
-
-        {objects.length > 0 ? (
-          <div className="backup-object-list">
-            {objects.map((object: BackupObject) => (
-              <label className="backup-object-row" key={object.key}>
-                <input
-                  checked={selectedObjectKey === object.key}
-                  name="backup-object"
-                  onChange={() => setSelectedObjectKey(object.key)}
-                  type="radio"
-                />
-                <span>
-                  {object.key} · {formatBytes(object.sizeBytes)} · {formatTimestamp(object.lastModified)}
-                </span>
-              </label>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="settings-toggle-row backup-restore-confirm">
-          <input
-            checked={restoreConfirm}
-            id="backup-restore-confirm"
-            onChange={(event) => setRestoreConfirm(event.target.checked)}
-            type="checkbox"
-          />
-          <label htmlFor="backup-restore-confirm">{t('backupRestoreConfirmLabel')}</label>
-        </div>
-
-        <div className="client-form-actions">
+        </SettingsCard>
+        <div className="settings-card-actions">
           <button disabled={restoreMutation.isPending || !selectedObjectKey} type="submit">
             <RefreshCcw aria-hidden="true" />
             {restoreMutation.isPending ? t('loading') : t('backupRestoreAction')}
           </button>
         </div>
       </form>
-    </section>
+    </SettingsPanel>
   );
 }

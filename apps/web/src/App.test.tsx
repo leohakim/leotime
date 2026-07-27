@@ -272,8 +272,9 @@ describe('App', () => {
     await goTo('profile');
 
     expect(await screen.findByRole('navigation', { name: /secciones de ajustes/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cuenta' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Copias de seguridad S3' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Cuenta' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Copias de seguridad S3' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /cuenta/i })).toBeInTheDocument();
   });
 
   test('renders the import export panel', async () => {
@@ -295,8 +296,9 @@ describe('App', () => {
 
   test('shows calendar day entries for the selected day', async () => {
     const now = new Date();
-    const startedAt = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
-    const endedAt = now.toISOString();
+    const localNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+    const startedAt = new Date(localNoon.getTime() - 60 * 60 * 1000).toISOString();
+    const endedAt = localNoon.toISOString();
     timeEntriesMock = [
       buildTimeEntryMock(
         'ten_calendar_1',
@@ -506,10 +508,8 @@ describe('App', () => {
     const timeInput = screen.getAllByLabelText('Inicio').find((element) => element.getAttribute('type') === 'time');
     expect(timeInput).toBeDefined();
     const originalStartedAt = timersMock[0]?.startedAt;
-    const earlierStart = new Date(originalStartedAt ?? Date.now());
-    earlierStart.setMinutes(earlierStart.getMinutes() - 30);
-    const earlierTime = `${String(earlierStart.getHours()).padStart(2, '0')}:${String(earlierStart.getMinutes()).padStart(2, '0')}`;
-    fireEvent.change(timeInput as HTMLInputElement, { target: { value: earlierTime } });
+    // Keep the same local calendar day so the change cannot become a rejected future timestamp near midnight.
+    fireEvent.change(timeInput as HTMLInputElement, { target: { value: '00:00' } });
 
     await waitFor(
       () => expect(timersMock[0]?.startedAt).not.toBe(originalStartedAt),

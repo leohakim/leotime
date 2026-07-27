@@ -21,6 +21,7 @@ import {
 } from './api';
 import { confirmDestructiveAction } from './destructiveUi';
 import type { MessageKey } from './i18n';
+import { SettingsCard, SettingsPanel } from './settingsChrome';
 import { useToast } from './toast';
 
 type Translator = (key: MessageKey) => string;
@@ -295,27 +296,26 @@ export function VCSSettingsPanel({ t }: { t: Translator }) {
   };
 
   return (
-    <section className="panel-section" id="vcs-settings">
-      <div className="panel-section-heading">
-        <span className="section-kicker">
+    <SettingsPanel
+      id="vcs-settings"
+      kicker={
+        <>
           <GitBranch aria-hidden="true" />
           {t('vcsKicker')}
-        </span>
-        <h2>{t('vcsHeading')}</h2>
-        <p>{t('vcsSubtitle')}</p>
-      </div>
-
+        </>
+      }
+      title={t('vcsHeading')}
+      subtitle={t('vcsSubtitle')}
+    >
       {connectionsQuery.isError || repositoriesQuery.isError ? (
-        <div className="form-alert" role="alert">
+        <div className="form-alert profile-settings-alert" role="alert">
           <CircleAlert aria-hidden="true" />
           {t('vcsLoadFailed')}
         </div>
       ) : null}
 
-      <div className="clients-heading">
-        <div className="section-title-group">
-          <h3>{t('vcsConnections')}</h3>
-        </div>
+      <div className="settings-section-toolbar">
+        <h3>{t('vcsConnections')}</h3>
         <button className="secondary-button" type="button" onClick={resetConnectionForm}>
           <Plus aria-hidden="true" />
           {t('vcsNewConnection')}
@@ -323,50 +323,52 @@ export function VCSSettingsPanel({ t }: { t: Translator }) {
       </div>
 
       <form
-        className="profile-form"
+        className="settings-form"
         onSubmit={(event: FormEvent) => {
           event.preventDefault();
           connectionMutation.mutate();
         }}
       >
-        <div className="client-form-grid">
-          <label className="form-field">
-            <span>{t('vcsBaseUrl')}</span>
-            <input
-              required
-              type="url"
-              value={connectionForm.baseUrl}
-              onChange={(event) => setConnectionForm({ ...connectionForm, baseUrl: event.target.value })}
-              placeholder="https://gitea.example.com"
+        <SettingsCard>
+          <div className="client-form-grid settings-field-grid">
+            <label className="form-field">
+              <span>{t('vcsBaseUrl')}</span>
+              <input
+                required
+                type="url"
+                value={connectionForm.baseUrl}
+                onChange={(event) => setConnectionForm({ ...connectionForm, baseUrl: event.target.value })}
+                placeholder="https://gitea.example.com"
+              />
+            </label>
+            <label className="form-field">
+              <span>{t('vcsOwnerIdentity')}</span>
+              <input
+                value={connectionForm.ownerIdentity}
+                onChange={(event) => setConnectionForm({ ...connectionForm, ownerIdentity: event.target.value })}
+              />
+            </label>
+            <label className="form-field">
+              <span>{t('vcsToken')}</span>
+              <input
+                required={!editingConnectionId}
+                type="password"
+                autoComplete="off"
+                value={connectionForm.token}
+                onChange={(event) => setConnectionForm({ ...connectionForm, token: event.target.value })}
+                placeholder={editingConnectionId && tokenConfigured ? t('vcsConfiguredToken') : undefined}
+              />
+              {editingConnectionId ? <span className="field-hint">{t('vcsTokenKeepHint')}</span> : null}
+            </label>
+            <ClientSelect
+              label={t('vcsDefaultClient')}
+              clients={clients}
+              value={connectionForm.defaultClientId}
+              onChange={(defaultClientId) => setConnectionForm({ ...connectionForm, defaultClientId })}
             />
-          </label>
-          <label className="form-field">
-            <span>{t('vcsOwnerIdentity')}</span>
-            <input
-              value={connectionForm.ownerIdentity}
-              onChange={(event) => setConnectionForm({ ...connectionForm, ownerIdentity: event.target.value })}
-            />
-          </label>
-          <label className="form-field">
-            <span>{t('vcsToken')}</span>
-            <input
-              required={!editingConnectionId}
-              type="password"
-              autoComplete="off"
-              value={connectionForm.token}
-              onChange={(event) => setConnectionForm({ ...connectionForm, token: event.target.value })}
-              placeholder={editingConnectionId && tokenConfigured ? t('vcsConfiguredToken') : undefined}
-            />
-            {editingConnectionId ? <span className="field-hint">{t('vcsTokenKeepHint')}</span> : null}
-          </label>
-          <ClientSelect
-            label={t('vcsDefaultClient')}
-            clients={clients}
-            value={connectionForm.defaultClientId}
-            onChange={(defaultClientId) => setConnectionForm({ ...connectionForm, defaultClientId })}
-          />
-        </div>
-        <div className="profile-form-actions">
+          </div>
+        </SettingsCard>
+        <div className="settings-card-actions">
           {editingConnectionId ? (
             <button className="secondary-button" type="button" onClick={resetConnectionForm}>
               <X aria-hidden="true" />
@@ -379,7 +381,7 @@ export function VCSSettingsPanel({ t }: { t: Translator }) {
         </div>
       </form>
 
-      <div className="client-list" aria-busy={connectionsQuery.isLoading}>
+      <div className="client-list settings-entity-list" aria-busy={connectionsQuery.isLoading}>
         {connectionsQuery.isLoading ? <p>{t('loading')}</p> : null}
         {!connectionsQuery.isLoading && connections.length === 0 ? (
           <div className="empty-state">
@@ -453,10 +455,8 @@ export function VCSSettingsPanel({ t }: { t: Translator }) {
         ))}
       </div>
 
-      <div className="clients-heading">
-        <div className="section-title-group">
-          <h3>{t('vcsRepositories')}</h3>
-        </div>
+      <div className="settings-section-toolbar">
+        <h3>{t('vcsRepositories')}</h3>
         <button className="secondary-button" type="button" onClick={resetRepositoryForm}>
           <Plus aria-hidden="true" />
           {t('vcsNewRepository')}
@@ -464,73 +464,75 @@ export function VCSSettingsPanel({ t }: { t: Translator }) {
       </div>
 
       <form
-        className="profile-form"
+        className="settings-form"
         onSubmit={(event: FormEvent) => {
           event.preventDefault();
           repositoryMutation.mutate();
         }}
       >
-        <div className="client-form-grid">
-          <label className="form-field">
-            <span>{t('vcsConnection')}</span>
-            <select
-              required
-              value={repositoryForm.connectionId}
-              onChange={(event) => updateRepositoryForm({ connectionId: event.target.value })}
-            >
-              <option value="" />
-              {connections.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.baseUrl}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="form-field">
-            <span>{t('vcsRepoOwner')}</span>
-            <input
-              required
-              value={repositoryForm.owner}
-              onChange={(event) => updateRepositoryForm({ owner: event.target.value })}
-              placeholder="ENACT"
+        <SettingsCard>
+          <div className="client-form-grid settings-field-grid">
+            <label className="form-field">
+              <span>{t('vcsConnection')}</span>
+              <select
+                required
+                value={repositoryForm.connectionId}
+                onChange={(event) => updateRepositoryForm({ connectionId: event.target.value })}
+              >
+                <option value="" />
+                {connections.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.baseUrl}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="form-field">
+              <span>{t('vcsRepoOwner')}</span>
+              <input
+                required
+                value={repositoryForm.owner}
+                onChange={(event) => updateRepositoryForm({ owner: event.target.value })}
+                placeholder="ENACT"
+              />
+            </label>
+            <label className="form-field">
+              <span>{t('vcsRepoName')}</span>
+              <input
+                required
+                value={repositoryForm.name}
+                onChange={(event) => updateRepositoryForm({ name: event.target.value })}
+                placeholder="backend"
+              />
+              <span className="field-hint">{t('vcsRepoPathHint')}</span>
+            </label>
+            <ClientSelect
+              label={t('vcsDefaultClient')}
+              clients={clients}
+              value={repositoryForm.clientId}
+              onChange={(clientId) => updateRepositoryForm({ clientId })}
             />
-          </label>
-          <label className="form-field">
-            <span>{t('vcsRepoName')}</span>
-            <input
-              required
-              value={repositoryForm.name}
-              onChange={(event) => updateRepositoryForm({ name: event.target.value })}
-              placeholder="backend"
-            />
-            <span className="field-hint">{t('vcsRepoPathHint')}</span>
-          </label>
-          <ClientSelect
-            label={t('vcsDefaultClient')}
-            clients={clients}
-            value={repositoryForm.clientId}
-            onChange={(clientId) => updateRepositoryForm({ clientId })}
-          />
-          <label className="form-field">
-            <span>{t('vcsProject')}</span>
-            <select
-              value={repositoryForm.projectId}
-              disabled={!effectiveClientId || projectsForClient.length === 0}
-              onChange={(event) => updateRepositoryForm({ projectId: event.target.value })}
-            >
-              <option value="" />
-              {projectsForClient.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-            {effectiveClientId && projectsForClient.length === 0 ? (
-              <span className="field-hint">{t('vcsNoProjectsForClient')}</span>
-            ) : null}
-          </label>
-        </div>
-        <div className="profile-form-actions">
+            <label className="form-field">
+              <span>{t('vcsProject')}</span>
+              <select
+                value={repositoryForm.projectId}
+                disabled={!effectiveClientId || projectsForClient.length === 0}
+                onChange={(event) => updateRepositoryForm({ projectId: event.target.value })}
+              >
+                <option value="" />
+                {projectsForClient.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+              {effectiveClientId && projectsForClient.length === 0 ? (
+                <span className="field-hint">{t('vcsNoProjectsForClient')}</span>
+              ) : null}
+            </label>
+          </div>
+        </SettingsCard>
+        <div className="settings-card-actions">
           {editingRepositoryId ? (
             <button className="secondary-button" type="button" onClick={resetRepositoryForm}>
               <X aria-hidden="true" />
@@ -543,7 +545,7 @@ export function VCSSettingsPanel({ t }: { t: Translator }) {
         </div>
       </form>
 
-      <div className="client-list" aria-busy={repositoriesQuery.isLoading}>
+      <div className="client-list settings-entity-list" aria-busy={repositoriesQuery.isLoading}>
         {repositoriesQuery.isLoading ? <p>{t('loading')}</p> : null}
         {!repositoriesQuery.isLoading && repositories.length === 0 ? (
           <div className="empty-state">
@@ -610,8 +612,9 @@ export function VCSSettingsPanel({ t }: { t: Translator }) {
           {probeResult}
         </div>
       ) : null}
-    </section>
+    </SettingsPanel>
   );
+
 }
 
 function ClientSelect({

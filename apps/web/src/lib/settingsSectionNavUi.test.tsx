@@ -9,6 +9,7 @@ const t = (key: string) =>
       settings: 'Ajustes',
       profileEmailNotificationsSection: 'Notificaciones',
       profilePasswordSection: 'Seguridad',
+      aiSettingsHeading: 'IA',
       backupHeading: 'Copias',
       vcsHeading: 'Integraciones VCS',
       settingsSectionNavLabel: 'Secciones',
@@ -20,16 +21,31 @@ describe('settingsSectionNavUi', () => {
     cleanup();
     vi.restoreAllMocks();
   });
-  it('renders section jump controls', () => {
-    render(<SettingsSectionNav t={t} />);
+
+  it('renders section controls with the active section marked', () => {
+    render(<SettingsSectionNav activeSection="settings" onSelect={() => undefined} t={t} />);
 
     expect(screen.getByRole('navigation', { name: 'Secciones' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Cuenta' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Copias' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Integraciones VCS' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Cuenta' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'IA' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Copias' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Integraciones VCS' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Ajustes' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('scrolls to the requested section', () => {
+  it('notifies when a section is selected without changing the hash route', () => {
+    const onSelect = vi.fn();
+    window.location.hash = '#profile';
+
+    render(<SettingsSectionNav activeSection="profile-section-account" onSelect={onSelect} t={t} />);
+    const nav = screen.getByRole('navigation', { name: 'Secciones' });
+    fireEvent.click(within(nav).getByRole('tab', { name: 'Seguridad' }));
+
+    expect(window.location.hash).toBe('#profile');
+    expect(onSelect).toHaveBeenCalledWith('profile-section-password');
+  });
+
+  it('keeps scroll helper for legacy deep links', () => {
     const scrollIntoView = vi.fn();
     const target = document.createElement('div');
     target.scrollIntoView = scrollIntoView;
@@ -37,20 +53,5 @@ describe('settingsSectionNavUi', () => {
 
     scrollToSettingsSection('backups');
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
-  });
-
-  it('jumps from nav buttons without changing the hash route', () => {
-    const scrollIntoView = vi.fn();
-    const target = document.createElement('div');
-    target.scrollIntoView = scrollIntoView;
-    vi.spyOn(document, 'getElementById').mockReturnValue(target);
-    window.location.hash = '#profile';
-
-    render(<SettingsSectionNav t={t} />);
-    const nav = screen.getByRole('navigation', { name: 'Secciones' });
-    fireEvent.click(within(nav).getByRole('button', { name: 'Seguridad' }));
-
-    expect(window.location.hash).toBe('#profile');
-    expect(scrollIntoView).toHaveBeenCalled();
   });
 });
