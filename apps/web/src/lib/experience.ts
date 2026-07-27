@@ -60,11 +60,11 @@ const PRESET_INFERENCE_ORDER: NamedExperiencePreset[] = [
   'solidtime-exact',
 ];
 
-const THEME_META_COLORS: Record<ThemeMode, string> = {
+export const THEME_META_COLORS: Record<ThemeMode, string> = {
   solid: '#0c0d10',
-  light: '#eef0f4',
-  dark: '#050608',
-  minimal: '#101114',
+  light: '#eef2f7',
+  dark: '#07080a',
+  minimal: '#f7f4ef',
 };
 
 function isNavigationMode(value: string | null): value is NavigationMode {

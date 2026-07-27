@@ -1,8 +1,9 @@
 # Theme system redesign
 
-**Status:** draft — awaiting user review of this file  
+**Status:** approved  
 **Date:** 2026-07-28  
-**Branch:** work on the current feature branch (do not land on `main` without an explicit merge)
+**Branch:** work on the current feature branch (do not land on `main` without an explicit merge)  
+**Plan:** `docs/superpowers/plans/2026-07-28-theme-system-redesign.md`
 
 ## Goal
 
@@ -81,7 +82,7 @@ Semantic aliases already in use stay mapped: `--surface-canvas`, `--content-prim
 ### In scope
 
 1. Full token blocks for all four themes in `apps/web/src/styles.css` (keep one file unless the theme block alone exceeds ~400 lines — then split to `themes.css` imported from the main stylesheet).
-2. Font loading: self-host OFL files under `apps/web/public/fonts` and `@font-face` in CSS (Docker-friendly, no CDN dependency at runtime).
+2. Font loading: bundle OFL fonts via `@fontsource*` packages imported in the web app (Vite embeds them; no CDN at runtime). Self-host under `apps/web/public/fonts` only if fontsource is insufficient.
 3. Sweep hardcoded dark colors in `styles.css` → tokens.
 4. Shrink/remove redundant light-theme override lists.
 5. Update `THEME_META_COLORS` in `experience.ts`.
