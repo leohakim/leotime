@@ -24,7 +24,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | **7** | Curated hardening (billing, data, import, restore, production, UX) | **Done** |
 | **8** | Daily workflow (Slack standup summary from time entries) | **Done** |
 | **9** | AI-enriched daily summary (edit → approve workflow + local enricher) | **In progress** — [design spec](superpowers/specs/2026-07-12-ai-daily-summary-enrichment-design.md) |
-| **10** | VCS context providers for AI summaries (GitHub, Gitea, GitLab) | **Backlog** — server-side, read-only context for the daily-summary prompt; includes GitHub.com/Enterprise, self-hosted Gitea such as Osoigo, and GitLab.com/self-hosted GitLab. |
+| **10** | VCS context providers for AI summaries (GitHub, Gitea, GitLab) | **Backlog** — [Gitea/Osoigo-first design](superpowers/specs/2026-07-27-vcs-context-gitea-design.md) for server-side, read-only context in the daily-summary prompt; GitHub.com/Enterprise and GitLab follow through the same contract. |
 
 See the [curated hardening backlog](35-curated-hardening-backlog.md) for the current H-* queue. The IDs in [Known gaps and audit](34-known-gaps-and-audit.md) are historical findings and fix records.
 
@@ -167,10 +167,10 @@ Delivery order:
 
 1. Define the provider-neutral connection, client-default and repository-level
    client links, optional project link, encrypted credentials, repository
-   identity, and normalized VCS context contract; deliver the GitHub adapter as
-   the reference implementation.
-2. Add the Gitea adapter and validate it against the Osoigo instance, including
-   a testable self-hosted base URL and read-only token setup.
+   identity, and normalized VCS context contract; deliver the Gitea adapter as
+   the reference implementation and validate it against Osoigo.
+2. Add the GitHub adapter for GitHub.com and GitHub Enterprise Server through
+   the same contract.
 3. Add the GitLab adapter for GitLab.com and self-hosted GitLab through the same
    contract.
 4. Add connection management, context preview, caching/rate-limit handling,
