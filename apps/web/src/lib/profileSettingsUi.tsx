@@ -171,11 +171,14 @@ export function ProfileSettingsPanel({
       return;
     }
     serverHydratedRef.current = true;
-    setForm(buildFormFromProfile(profileQuery.data));
-    setLocale(profileQuery.data.locale);
-    setLayoutMode(profileQuery.data.layoutMode);
-    setThemeMode(profileQuery.data.settings.themeMode);
-  }, [profileQuery.data, setLayoutMode, setLocale, setThemeMode]);
+    // Keep live shell theme/layout as source of truth so opening Settings does not
+    // clobber unsaved topbar experience changes with the last persisted profile.
+    setForm({
+      ...buildFormFromProfile(profileQuery.data),
+      themeMode,
+      layoutMode,
+    });
+  }, [layoutMode, profileQuery.data, themeMode]);
 
   const updateMutation = useMutation({
     mutationFn: updateProfile,

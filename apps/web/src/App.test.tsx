@@ -170,6 +170,20 @@ describe('App', () => {
     }));
   });
 
+  test('keeps toolbar theme when opening settings before profile save', async () => {
+    renderApp();
+
+    await screen.findByRole('heading', { name: 'Time Tracker' });
+    fireEvent.click(screen.getByRole('button', { name: 'Claro' }));
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe('light'));
+
+    await goTo('settings');
+
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe('light'));
+    expect(window.localStorage.getItem('leotime.theme')).toBe('light');
+    expect(await screen.findByRole('tab', { name: 'Ajustes' })).toHaveAttribute('aria-selected', 'true');
+  });
+
   test('marks the experience custom after changing a preset dimension', async () => {
     renderApp();
 

@@ -72,10 +72,10 @@ Semantic aliases already in use stay mapped: `--surface-canvas`, `--content-prim
 #### `minimal`
 
 - Display font: Source Serif 4; UI font: Source Sans 3
-- Warm paper canvas (`#f7f4ef`), stone text (`#1c1917`)
-- Accent = ink (monochrome primary buttons)
-- Radius `0` (or near-zero)
-- Density: more padding, less chrome (hairline borders, flatter panels)
+- Cool gallery stone (`#f3f3f0`), white surfaces, ink `#111111`
+- High-contrast monochrome actions (black fill / white text); hairline borders
+- Radius `2px`; generous spacing; no warm-cream wash
+- Sidebar/nav text uses ink/muted tokens (never dark-theme gray leftovers)
 
 ## Implementation scope
 

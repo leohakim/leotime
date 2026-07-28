@@ -64,7 +64,7 @@ export const THEME_META_COLORS: Record<ThemeMode, string> = {
   solid: '#0c0d10',
   light: '#eef2f7',
   dark: '#07080a',
-  minimal: '#f7f4ef',
+  minimal: '#f3f3f0',
 };
 
 function isNavigationMode(value: string | null): value is NavigationMode {

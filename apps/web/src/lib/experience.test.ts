@@ -80,7 +80,7 @@ describe('experience state', () => {
       solid: '#0c0d10',
       light: '#eef2f7',
       dark: '#07080a',
-      minimal: '#f7f4ef',
+      minimal: '#f3f3f0',
     };
 
     expect(THEME_META_COLORS).toEqual(expected);
