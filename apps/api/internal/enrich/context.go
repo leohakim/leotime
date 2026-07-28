@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/leotime/leotime/apps/api/internal/vcs"
 )
 
 type ProjectWorkspace struct {
@@ -40,6 +42,7 @@ type TimeEntryFact struct {
 }
 
 type ContextBundle struct {
+	VCS            vcs.Context      `json:"vcs"`
 	Date           string           `json:"date"`
 	TemplateText   string           `json:"templateText"`
 	ManualNote     string           `json:"manualNote"`

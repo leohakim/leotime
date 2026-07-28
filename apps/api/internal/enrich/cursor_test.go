@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/leotime/leotime/apps/api/internal/vcs"
 )
 
 func TestBuildCursorPromptIncludesFacts(t *testing.T) {
@@ -31,6 +33,21 @@ func TestBuildCursorPromptIncludesFacts(t *testing.T) {
 	})
 	if !containsAll(prompt, "Documento a enriquecer", "abc1234", "Quedó pendiente el deploy.", "Hasta mañana team!", "primera persona", "Detalle de entradas de tiempo") {
 		t.Fatalf("unexpected prompt: %s", prompt)
+	}
+}
+
+func TestBuildCursorPromptIncludesVerifiedVCSFacts(t *testing.T) {
+	prompt := BuildCursorPrompt(ContextBundle{
+		Date:   "2026-07-27",
+		Locale: "es",
+		VCS: vcs.Context{Commits: []vcs.Commit{{
+			Repository: "osoigo/backend",
+			Hash:       "abcdef1",
+			Subject:    "fix auth redirect",
+		}}},
+	})
+	if !containsAll(prompt, "Actividad VCS verificada", "fix auth redirect", "abcdef1") {
+		t.Fatalf("expected VCS facts in prompt: %s", prompt)
 	}
 }
 

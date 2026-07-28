@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/leotime/leotime/apps/api/internal/vcs"
 )
 
 type EnrichRequest struct {
@@ -18,6 +20,7 @@ type EnrichRequest struct {
 	AuthorEmail  string             `json:"authorEmail"`
 	Projects     []ProjectWorkspace `json:"projects"`
 	EntryFacts   []TimeEntryFact    `json:"entryFacts,omitempty"`
+	VCS          vcs.Context        `json:"vcs"`
 	CursorAPIKey string             `json:"cursorApiKey,omitempty"`
 	AIEnabled    bool               `json:"aiEnabled"`
 }
@@ -88,6 +91,7 @@ func handleEnrich(w http.ResponseWriter, r *http.Request) {
 		Feedback:       request.Feedback,
 		CurrentDraft:   request.CurrentDraft,
 		EntryFacts:     request.EntryFacts,
+		VCS:            request.VCS,
 		Commits:        commits,
 		CursorActivity: cursorActivity,
 		Locale:         request.Locale,

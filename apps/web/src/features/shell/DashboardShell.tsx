@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   fetchClients,
   fetchProfile,
@@ -27,7 +27,12 @@ import {
 import { ProfileSettingsPanel } from '../../lib/profileSettingsUi';
 import { BackupSettingsPanel } from '../../lib/backupSettingsUi';
 import { AISettingsPanel } from '../../lib/aiSettingsUi';
-import { SettingsSectionNav } from '../../lib/settingsSectionNavUi';
+import { VCSSettingsPanel } from '../../lib/vcsSettingsUi';
+import {
+  SettingsSectionNav,
+  defaultSettingsSection,
+  type SettingsSectionId,
+} from '../../lib/settingsSectionNavUi';
 import { QueryErrorBanner } from '../../lib/crudFormUi';
 import {
   patchTimeEntriesCache,
@@ -136,6 +141,9 @@ export function DashboardShell({
   const toast = useToast();
   const { refreshPendingCount } = useOfflineStatus();
   const [route, navigate] = useAppRoute();
+  const [settingsSection, setSettingsSection] = useState<SettingsSectionId>(() =>
+    defaultSettingsSection(route === 'settings' ? 'settings' : 'profile'),
+  );
   const [timeView, setTimeView] = usePersistentState<TimeView>('leotime.timeView', 'timesheet');
   const [weekAnchorIso, setWeekAnchorIso] = usePersistentState('leotime.timesheetWeek', new Date().toISOString().slice(0, 10));
   const [monthAnchorIso, setMonthAnchorIso] = usePersistentState(
@@ -163,6 +171,12 @@ export function DashboardShell({
       setTimeView('timesheet');
     }
   }, [route, setTimeView]);
+
+  useEffect(() => {
+    if (route === 'settings' || route === 'profile') {
+      setSettingsSection(defaultSettingsSection(route));
+    }
+  }, [route]);
 
   const needsTimesheetEntries = routeUsesTimesheetEntries(route);
   const activeTimeView: TimeView = route === 'calendar' ? 'calendar' : 'timesheet';
@@ -438,23 +452,31 @@ export function DashboardShell({
 
           {route === 'settings' || route === 'profile' ? (
             <div className="settings-workbench">
-              <SettingsSectionNav t={t} />
-              <ProfileSettingsPanel
-                focusSection={route === 'settings' ? 'settings' : undefined}
-                layoutMode={layoutMode}
-                navigationMode={navigationMode}
-                onApplyExperiencePreset={onApplyExperiencePreset}
-                preset={preset}
-                setLayoutMode={setLayoutMode}
-                setLocale={setLocale}
-                setNavigationMode={setNavigationMode}
-                setThemeMode={setThemeMode}
-                t={t}
-                themeMode={themeMode}
-                user={user}
-              />
-              <BackupSettingsPanel t={t} />
-              <AISettingsPanel t={t} />
+              <SettingsSectionNav activeSection={settingsSection} onSelect={setSettingsSection} t={t} />
+              <div className="settings-workbench-main">
+                {settingsSection === 'profile-section-account' ||
+                settingsSection === 'settings' ||
+                settingsSection === 'profile-section-notifications' ||
+                settingsSection === 'profile-section-password' ? (
+                  <ProfileSettingsPanel
+                    activeSection={settingsSection}
+                    layoutMode={layoutMode}
+                    navigationMode={navigationMode}
+                    onApplyExperiencePreset={onApplyExperiencePreset}
+                    preset={preset}
+                    setLayoutMode={setLayoutMode}
+                    setLocale={setLocale}
+                    setNavigationMode={setNavigationMode}
+                    setThemeMode={setThemeMode}
+                    t={t}
+                    themeMode={themeMode}
+                    user={user}
+                  />
+                ) : null}
+                {settingsSection === 'ai-summary-settings' ? <AISettingsPanel t={t} /> : null}
+                {settingsSection === 'vcs-settings' ? <VCSSettingsPanel t={t} /> : null}
+                {settingsSection === 'backups' ? <BackupSettingsPanel t={t} /> : null}
+              </div>
             </div>
           ) : null}
         </div>

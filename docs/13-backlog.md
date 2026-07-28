@@ -24,7 +24,7 @@ This backlog is intentionally simple. It tracks product work before a dedicated 
 | **7** | Curated hardening (billing, data, import, restore, production, UX) | **Done** |
 | **8** | Daily workflow (Slack standup summary from time entries) | **Done** |
 | **9** | AI-enriched daily summary (edit → approve workflow + local enricher) | **In progress** — [design spec](superpowers/specs/2026-07-12-ai-daily-summary-enrichment-design.md) |
-| **10** | VCS context providers for AI summaries (GitHub, Gitea, GitLab) | **Backlog** — [Gitea/Osoigo-first design](superpowers/specs/2026-07-27-vcs-context-gitea-design.md) for server-side, read-only context in the daily-summary prompt; GitHub.com/Enterprise and GitLab follow through the same contract. |
+| **10** | VCS context providers for AI summaries (GitHub, Gitea, GitLab) | **Doing** — [Gitea/Osoigo-first design](superpowers/specs/2026-07-27-vcs-context-gitea-design.md) is the active provider-neutral foundation; GitHub.com/Enterprise and GitLab follow through the same contract. |
 
 See the [curated hardening backlog](35-curated-hardening-backlog.md) for the current H-* queue. The IDs in [Known gaps and audit](34-known-gaps-and-audit.md) are historical findings and fix records.
 

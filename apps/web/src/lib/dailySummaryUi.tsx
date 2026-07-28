@@ -439,6 +439,7 @@ export function DailySummaryPanel({
         authorEmail: context.authorEmail,
         entryFacts: context.entryFacts ?? [],
         projects: context.projects,
+        vcs: context.vcs,
       });
       setWorkflowProgress({ kind: 'enrich', step: 'save' });
       return applyDailySummaryEnrichment(form.date, {

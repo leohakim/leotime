@@ -24,6 +24,8 @@ import {
 } from './experience';
 import { ExperienceSwitcher } from './experienceUi';
 import type { MessageKey } from './i18n';
+import { SettingsCard, SettingsPanel } from './settingsChrome';
+import type { SettingsSectionId } from './settingsSectionNavUi';
 import { useToast } from './toast';
 
 export type Translator = (key: MessageKey) => string;
@@ -114,7 +116,7 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 export function ProfileSettingsPanel({
-  focusSection,
+  activeSection,
   layoutMode,
   navigationMode,
   onApplyExperiencePreset,
@@ -127,7 +129,7 @@ export function ProfileSettingsPanel({
   themeMode,
   user,
 }: {
-  focusSection?: 'settings';
+  activeSection: SettingsSectionId;
   layoutMode: LayoutMode;
   navigationMode: NavigationMode;
   onApplyExperiencePreset: (preset: NamedExperiencePreset) => void;
@@ -165,21 +167,18 @@ export function ProfileSettingsPanel({
   }, [form.timezone]);
 
   useEffect(() => {
-    if (focusSection === 'settings') {
-      document.getElementById('settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [focusSection]);
-
-  useEffect(() => {
     if (!profileQuery.data || serverHydratedRef.current) {
       return;
     }
     serverHydratedRef.current = true;
-    setForm(buildFormFromProfile(profileQuery.data));
-    setLocale(profileQuery.data.locale);
-    setLayoutMode(profileQuery.data.layoutMode);
-    setThemeMode(profileQuery.data.settings.themeMode);
-  }, [profileQuery.data, setLayoutMode, setLocale, setThemeMode]);
+    // Keep live shell theme/layout as source of truth so opening Settings does not
+    // clobber unsaved topbar experience changes with the last persisted profile.
+    setForm({
+      ...buildFormFromProfile(profileQuery.data),
+      themeMode,
+      layoutMode,
+    });
+  }, [layoutMode, profileQuery.data, themeMode]);
 
   const updateMutation = useMutation({
     mutationFn: updateProfile,
@@ -332,26 +331,17 @@ export function ProfileSettingsPanel({
     });
   }
 
-  return (
-    <section className="clients-section profile-settings-section" id="profile" aria-labelledby="profile-title">
-      <div className="clients-heading">
-        <div className="section-title-group">
-          <span className="section-kicker">
-            <UserRound aria-hidden="true" />
-            {t('profileSettings')}
-          </span>
-          <h2 id="profile-title">{t('profilePanelTitle')}</h2>
-          <p>{t('profilePanelSubtitle')}</p>
-        </div>
-        {profileQuery.isLoading ? (
-          <span className="sync-pill">{t('loading')}</span>
-        ) : profileQuery.isError ? (
-          <span className="sync-pill warning-pill">{t('profileLoadDegraded')}</span>
-        ) : (
-          <span className="sync-pill">{t('synced')}</span>
-        )}
-      </div>
+  if (
+    activeSection !== 'profile-section-account' &&
+    activeSection !== 'settings' &&
+    activeSection !== 'profile-section-notifications' &&
+    activeSection !== 'profile-section-password'
+  ) {
+    return null;
+  }
 
+  return (
+    <>
       {profileQuery.isError ? (
         <div className="form-alert profile-settings-alert" role="alert">
           <CircleAlert aria-hidden="true" />
@@ -359,286 +349,303 @@ export function ProfileSettingsPanel({
         </div>
       ) : null}
 
-      <div className="profile-settings-grid">
-        <form className="client-editor profile-settings-form" noValidate onSubmit={submitProfile}>
-          <div className="editor-header" id="profile-section-account">
-            <div>
-              <span>{t('profileAccountSection')}</span>
-              <h3>{t('profileAccountHeading')}</h3>
+      {activeSection === 'profile-section-account' ? (
+        <SettingsPanel
+          id="profile-section-account"
+          kicker={
+            <>
+              <UserRound aria-hidden="true" />
+              {t('profileAccountSection')}
+            </>
+          }
+          title={t('profileAccountHeading')}
+          subtitle={t('profilePanelSubtitle')}
+          meta={
+            profileQuery.isLoading ? (
+              <span className="sync-pill">{t('loading')}</span>
+            ) : profileQuery.isError ? (
+              <span className="sync-pill warning-pill">{t('profileLoadDegraded')}</span>
+            ) : (
+              <span className="sync-pill">{t('synced')}</span>
+            )
+          }
+        >
+          <form className="settings-form" noValidate onSubmit={submitProfile}>
+            <SettingsCard>
+              {errors.form ? (
+                <div className="form-alert" role="alert">
+                  <CircleAlert aria-hidden="true" />
+                  {errors.form}
+                </div>
+              ) : null}
+              <div className="client-form-grid settings-field-grid">
+                <label className={fieldClass(errors.name)} htmlFor="profile-name">
+                  <span>
+                    {t('name')} <em>{t('required')}</em>
+                  </span>
+                  <input
+                    aria-describedby={errors.name ? 'profile-name-error' : undefined}
+                    id="profile-name"
+                    onChange={(event) => updateField('name', event.target.value)}
+                    value={form.name}
+                  />
+                  <FieldError id="profile-name-error" message={errors.name} />
+                </label>
+                <label className={fieldClass(errors.email)} htmlFor="profile-email">
+                  <span>
+                    {t('email')} <em>{t('required')}</em>
+                  </span>
+                  <input
+                    aria-describedby={errors.email ? 'profile-email-error' : undefined}
+                    id="profile-email"
+                    onChange={(event) => updateField('email', event.target.value)}
+                    type="email"
+                    value={form.email}
+                  />
+                  <FieldError id="profile-email-error" message={errors.email} />
+                </label>
+              </div>
+            </SettingsCard>
+            <div className="settings-card-actions">
+              <button disabled={updateMutation.isPending} type="submit">
+                <Save aria-hidden="true" />
+                {updateMutation.isPending ? t('loading') : t('saveProfile')}
+              </button>
             </div>
-          </div>
+          </form>
+        </SettingsPanel>
+      ) : null}
 
-          {errors.form ? (
-            <div className="form-alert" role="alert">
-              <CircleAlert aria-hidden="true" />
-              {errors.form}
+      {activeSection === 'settings' ? (
+        <SettingsPanel
+          id="settings"
+          kicker={
+            <>
+              <Settings aria-hidden="true" />
+              {t('settings')}
+            </>
+          }
+          title={t('profilePreferencesHeading')}
+          subtitle={t('profilePanelSubtitle')}
+        >
+          <form className="settings-form" noValidate onSubmit={submitProfile}>
+            <SettingsCard>
+              <div className="client-form-grid settings-field-grid">
+                <label className="form-field" htmlFor="profile-locale">
+                  <span>{t('language')}</span>
+                  <select id="profile-locale" onChange={(event) => updateField('locale', event.target.value as Locale)} value={form.locale}>
+                    <option value="es">{t('languageEs')}</option>
+                    <option value="en">{t('languageEn')}</option>
+                  </select>
+                </label>
+                <div className="form-field profile-experience-field">
+                  <ExperienceSwitcher
+                    layoutMode={layoutMode}
+                    navigationMode={navigationMode}
+                    onApplyPreset={applyExperiencePresetForForm}
+                    preset={preset}
+                    setLayoutMode={(value) => updateField('layoutMode', value)}
+                    setNavigationMode={setNavigationMode}
+                    setThemeMode={(value) => updateField('themeMode', value)}
+                    themeMode={themeMode}
+                    t={t}
+                    variant="settings"
+                  />
+                </div>
+                <label className={fieldClass(errors.defaultCurrency)} htmlFor="profile-currency">
+                  <span>{t('defaultCurrency')}</span>
+                  <select
+                    id="profile-currency"
+                    onChange={(event) => updateField('defaultCurrency', event.target.value)}
+                    value={form.defaultCurrency}
+                  >
+                    {CURRENCIES.map((currency) => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
+                  </select>
+                  <FieldError id="profile-currency-error" message={errors.defaultCurrency} />
+                </label>
+                <label className="form-field" htmlFor="profile-invoice-withholding-label">
+                  <span>{t('profileInvoiceWithholdingLabel')}</span>
+                  <input
+                    id="profile-invoice-withholding-label"
+                    onChange={(event) => updateField('invoiceWithholdingLabel', event.target.value)}
+                    placeholder={t('invoiceWithholding')}
+                    value={form.invoiceWithholdingLabel}
+                  />
+                  <span className="field-hint">{t('invoiceWithholdingLabelHint')}</span>
+                </label>
+                <label className="form-field" htmlFor="profile-timezone">
+                  <span>{t('timezone')}</span>
+                  <select id="profile-timezone" onChange={(event) => updateField('timezone', event.target.value)} value={form.timezone}>
+                    {timezoneOptions.map((timezone) => (
+                      <option key={timezone} value={timezone}>
+                        {timezone}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="settings-toggle-row profile-behavior-row">
+                <input
+                  checked={form.taskProjectRequired}
+                  id="profile-task-project-required"
+                  onChange={(event) => updateField('taskProjectRequired', event.target.checked)}
+                  type="checkbox"
+                />
+                <label htmlFor="profile-task-project-required">{t('profileTaskProjectRequired')}</label>
+              </div>
+            </SettingsCard>
+            <div className="settings-card-actions">
+              <button disabled={updateMutation.isPending} type="submit">
+                <Save aria-hidden="true" />
+                {updateMutation.isPending ? t('loading') : t('saveProfile')}
+              </button>
             </div>
-          ) : null}
+          </form>
+        </SettingsPanel>
+      ) : null}
 
-          <div className="client-form-grid profile-account-grid">
-            <label className={fieldClass(errors.name)} htmlFor="profile-name">
-              <span>
-                {t('name')} <em>{t('required')}</em>
-              </span>
-              <input
-                aria-describedby={errors.name ? 'profile-name-error' : undefined}
-                id="profile-name"
-                onChange={(event) => updateField('name', event.target.value)}
-                value={form.name}
-              />
-              <FieldError id="profile-name-error" message={errors.name} />
-            </label>
-
-            <label className={fieldClass(errors.email)} htmlFor="profile-email">
-              <span>
-                {t('email')} <em>{t('required')}</em>
-              </span>
-              <input
-                aria-describedby={errors.email ? 'profile-email-error' : undefined}
-                id="profile-email"
-                onChange={(event) => updateField('email', event.target.value)}
-                type="email"
-                value={form.email}
-              />
-              <FieldError id="profile-email-error" message={errors.email} />
-            </label>
-          </div>
-
-          <div className="profile-settings-divider" id="settings" />
-
-          <div className="editor-header">
-            <div>
-              <span className="section-kicker">
-                <Settings aria-hidden="true" />
-                {t('settings')}
-              </span>
-              <h3>{t('profilePreferencesHeading')}</h3>
+      {activeSection === 'profile-section-notifications' ? (
+        <SettingsPanel
+          id="profile-section-notifications"
+          title={t('profileEmailNotificationsHeading')}
+          subtitle={t('profileEmailNotificationsSection')}
+        >
+          <form className="settings-form" noValidate onSubmit={submitProfile}>
+            <SettingsCard>
+              <div className="profile-notifications-panel">
+                <p className="profile-notification-subheading">{t('profileTimerNotificationsHeading')}</p>
+                <div className="settings-toggle-row">
+                  <input
+                    checked={form.timerStillRunningEnabled}
+                    id="profile-timer-still-running-enabled"
+                    onChange={(event) => updateField('timerStillRunningEnabled', event.target.checked)}
+                    type="checkbox"
+                  />
+                  <label htmlFor="profile-timer-still-running-enabled">{t('profileTimerStillRunningEnabled')}</label>
+                </div>
+                <div className={`settings-inline-control ${errors.timerStillRunningHours ? 'has-error' : ''}`}>
+                  <label htmlFor="profile-timer-still-running-hours">{t('profileTimerStillRunningHours')}</label>
+                  <input
+                    className="settings-compact-input"
+                    disabled={!form.timerStillRunningEnabled}
+                    id="profile-timer-still-running-hours"
+                    min={1}
+                    max={24}
+                    onChange={(event) => updateField('timerStillRunningHours', Number(event.target.value))}
+                    step={1}
+                    type="number"
+                    value={form.timerStillRunningHours}
+                  />
+                  <FieldError id="profile-timer-still-running-hours-error" message={errors.timerStillRunningHours} />
+                </div>
+                <p className="profile-notification-subheading">{t('profileBackupNotificationsHeading')}</p>
+                <div className="settings-toggle-row">
+                  <input
+                    checked={form.backupEmailOnSuccess}
+                    id="profile-backup-email-success"
+                    onChange={(event) => updateField('backupEmailOnSuccess', event.target.checked)}
+                    type="checkbox"
+                  />
+                  <label htmlFor="profile-backup-email-success">{t('profileBackupEmailOnSuccess')}</label>
+                </div>
+                <div className="settings-toggle-row">
+                  <input
+                    checked={form.backupEmailOnFailure}
+                    id="profile-backup-email-failure"
+                    onChange={(event) => updateField('backupEmailOnFailure', event.target.checked)}
+                    type="checkbox"
+                  />
+                  <label htmlFor="profile-backup-email-failure">{t('profileBackupEmailOnFailure')}</label>
+                </div>
+                <div className="settings-toggle-row">
+                  <input
+                    checked={form.restoreEmailOnSuccess}
+                    id="profile-restore-email-success"
+                    onChange={(event) => updateField('restoreEmailOnSuccess', event.target.checked)}
+                    type="checkbox"
+                  />
+                  <label htmlFor="profile-restore-email-success">{t('profileRestoreEmailOnSuccess')}</label>
+                </div>
+                <div className="settings-toggle-row">
+                  <input
+                    checked={form.restoreEmailOnFailure}
+                    id="profile-restore-email-failure"
+                    onChange={(event) => updateField('restoreEmailOnFailure', event.target.checked)}
+                    type="checkbox"
+                  />
+                  <label htmlFor="profile-restore-email-failure">{t('profileRestoreEmailOnFailure')}</label>
+                </div>
+              </div>
+            </SettingsCard>
+            <div className="settings-card-actions">
+              <button disabled={updateMutation.isPending} type="submit">
+                <Save aria-hidden="true" />
+                {updateMutation.isPending ? t('loading') : t('saveProfile')}
+              </button>
             </div>
-          </div>
+          </form>
+        </SettingsPanel>
+      ) : null}
 
-          <div className="client-form-grid profile-preferences-grid">
-            <label className="form-field" htmlFor="profile-locale">
-              <span>{t('language')}</span>
-              <select id="profile-locale" onChange={(event) => updateField('locale', event.target.value as Locale)} value={form.locale}>
-                <option value="es">{t('languageEs')}</option>
-                <option value="en">{t('languageEn')}</option>
-              </select>
-            </label>
-
-            <div className="form-field profile-experience-field">
-              <ExperienceSwitcher
-                layoutMode={layoutMode}
-                navigationMode={navigationMode}
-                onApplyPreset={applyExperiencePresetForForm}
-                preset={preset}
-                setLayoutMode={(value) => updateField('layoutMode', value)}
-                setNavigationMode={setNavigationMode}
-                setThemeMode={(value) => updateField('themeMode', value)}
-                themeMode={themeMode}
-                t={t}
-                variant="settings"
-              />
+      {activeSection === 'profile-section-password' ? (
+        <SettingsPanel id="profile-section-password" title={t('profilePasswordHeading')} subtitle={t('profilePasswordSection')}>
+          <form className="settings-form" noValidate onSubmit={submitPassword}>
+            <SettingsCard>
+              {passwordErrors.form ? (
+                <div className="form-alert" role="alert">
+                  <CircleAlert aria-hidden="true" />
+                  {passwordErrors.form}
+                </div>
+              ) : null}
+              <div className="client-form-grid settings-field-grid">
+                <label className={fieldClass(passwordErrors.currentPassword)} htmlFor="profile-current-password">
+                  <span>{t('profileCurrentPassword')}</span>
+                  <input
+                    autoComplete="current-password"
+                    id="profile-current-password"
+                    onChange={(event) => updatePasswordField('currentPassword', event.target.value)}
+                    type="password"
+                    value={passwordForm.currentPassword}
+                  />
+                  <FieldError id="profile-current-password-error" message={passwordErrors.currentPassword} />
+                </label>
+                <label className={fieldClass(passwordErrors.newPassword)} htmlFor="profile-new-password">
+                  <span>{t('profileNewPassword')}</span>
+                  <input
+                    autoComplete="new-password"
+                    id="profile-new-password"
+                    onChange={(event) => updatePasswordField('newPassword', event.target.value)}
+                    type="password"
+                    value={passwordForm.newPassword}
+                  />
+                  <FieldError id="profile-new-password-error" message={passwordErrors.newPassword} />
+                </label>
+                <label className={fieldClass(passwordErrors.confirmPassword)} htmlFor="profile-confirm-password">
+                  <span>{t('profileConfirmPassword')}</span>
+                  <input
+                    autoComplete="new-password"
+                    id="profile-confirm-password"
+                    onChange={(event) => updatePasswordField('confirmPassword', event.target.value)}
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                  />
+                  <FieldError id="profile-confirm-password-error" message={passwordErrors.confirmPassword} />
+                </label>
+              </div>
+            </SettingsCard>
+            <div className="settings-card-actions">
+              <button disabled={passwordMutation.isPending} type="submit">
+                <Save aria-hidden="true" />
+                {passwordMutation.isPending ? t('loading') : t('changePassword')}
+              </button>
             </div>
-
-            <label className={fieldClass(errors.defaultCurrency)} htmlFor="profile-currency">
-              <span>{t('defaultCurrency')}</span>
-              <select
-                id="profile-currency"
-                onChange={(event) => updateField('defaultCurrency', event.target.value)}
-                value={form.defaultCurrency}
-              >
-                {CURRENCIES.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </select>
-              <FieldError id="profile-currency-error" message={errors.defaultCurrency} />
-            </label>
-
-            <label className="form-field" htmlFor="profile-invoice-withholding-label">
-              <span>{t('profileInvoiceWithholdingLabel')}</span>
-              <input
-                id="profile-invoice-withholding-label"
-                onChange={(event) => updateField('invoiceWithholdingLabel', event.target.value)}
-                placeholder={t('invoiceWithholding')}
-                value={form.invoiceWithholdingLabel}
-              />
-              <span className="field-hint">{t('invoiceWithholdingLabelHint')}</span>
-            </label>
-
-            <label className="form-field" htmlFor="profile-timezone">
-              <span>{t('timezone')}</span>
-              <select id="profile-timezone" onChange={(event) => updateField('timezone', event.target.value)} value={form.timezone}>
-                {timezoneOptions.map((timezone) => (
-                  <option key={timezone} value={timezone}>
-                    {timezone}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="settings-toggle-row profile-behavior-row">
-            <input
-              checked={form.taskProjectRequired}
-              id="profile-task-project-required"
-              onChange={(event) => updateField('taskProjectRequired', event.target.checked)}
-              type="checkbox"
-            />
-            <label htmlFor="profile-task-project-required">{t('profileTaskProjectRequired')}</label>
-          </div>
-
-          <div className="profile-settings-divider" />
-
-          <div className="editor-header profile-notifications-header" id="profile-section-notifications">
-            <div>
-              <span>{t('profileEmailNotificationsSection')}</span>
-              <h3>{t('profileEmailNotificationsHeading')}</h3>
-            </div>
-          </div>
-
-          <div className="profile-notifications-panel">
-            <p className="profile-notification-subheading">{t('profileTimerNotificationsHeading')}</p>
-
-            <div className="settings-toggle-row">
-              <input
-                checked={form.timerStillRunningEnabled}
-                id="profile-timer-still-running-enabled"
-                onChange={(event) => updateField('timerStillRunningEnabled', event.target.checked)}
-                type="checkbox"
-              />
-              <label htmlFor="profile-timer-still-running-enabled">{t('profileTimerStillRunningEnabled')}</label>
-            </div>
-
-            <div className={`settings-inline-control ${errors.timerStillRunningHours ? 'has-error' : ''}`}>
-              <label htmlFor="profile-timer-still-running-hours">{t('profileTimerStillRunningHours')}</label>
-              <input
-                className="settings-compact-input"
-                disabled={!form.timerStillRunningEnabled}
-                id="profile-timer-still-running-hours"
-                min={1}
-                max={24}
-                onChange={(event) => updateField('timerStillRunningHours', Number(event.target.value))}
-                step={1}
-                type="number"
-                value={form.timerStillRunningHours}
-              />
-              <FieldError id="profile-timer-still-running-hours-error" message={errors.timerStillRunningHours} />
-            </div>
-
-            <p className="profile-notification-subheading">{t('profileBackupNotificationsHeading')}</p>
-
-            <div className="settings-toggle-row">
-              <input
-                checked={form.backupEmailOnSuccess}
-                id="profile-backup-email-success"
-                onChange={(event) => updateField('backupEmailOnSuccess', event.target.checked)}
-                type="checkbox"
-              />
-              <label htmlFor="profile-backup-email-success">{t('profileBackupEmailOnSuccess')}</label>
-            </div>
-
-            <div className="settings-toggle-row">
-              <input
-                checked={form.backupEmailOnFailure}
-                id="profile-backup-email-failure"
-                onChange={(event) => updateField('backupEmailOnFailure', event.target.checked)}
-                type="checkbox"
-              />
-              <label htmlFor="profile-backup-email-failure">{t('profileBackupEmailOnFailure')}</label>
-            </div>
-
-            <div className="settings-toggle-row">
-              <input
-                checked={form.restoreEmailOnSuccess}
-                id="profile-restore-email-success"
-                onChange={(event) => updateField('restoreEmailOnSuccess', event.target.checked)}
-                type="checkbox"
-              />
-              <label htmlFor="profile-restore-email-success">{t('profileRestoreEmailOnSuccess')}</label>
-            </div>
-
-            <div className="settings-toggle-row">
-              <input
-                checked={form.restoreEmailOnFailure}
-                id="profile-restore-email-failure"
-                onChange={(event) => updateField('restoreEmailOnFailure', event.target.checked)}
-                type="checkbox"
-              />
-              <label htmlFor="profile-restore-email-failure">{t('profileRestoreEmailOnFailure')}</label>
-            </div>
-          </div>
-
-          <div className="client-form-actions">
-            <button disabled={updateMutation.isPending} type="submit">
-              <Save aria-hidden="true" />
-              {updateMutation.isPending ? t('loading') : t('saveProfile')}
-            </button>
-          </div>
-        </form>
-
-        <form className="client-editor profile-password-form" id="profile-section-password" noValidate onSubmit={submitPassword}>
-          <div className="editor-header">
-            <div>
-              <span>{t('profilePasswordSection')}</span>
-              <h3>{t('profilePasswordHeading')}</h3>
-            </div>
-          </div>
-
-          {passwordErrors.form ? (
-            <div className="form-alert" role="alert">
-              <CircleAlert aria-hidden="true" />
-              {passwordErrors.form}
-            </div>
-          ) : null}
-
-          <div className="client-form-grid profile-password-grid">
-            <label className={fieldClass(passwordErrors.currentPassword)} htmlFor="profile-current-password">
-              <span>{t('profileCurrentPassword')}</span>
-              <input
-                autoComplete="current-password"
-                id="profile-current-password"
-                onChange={(event) => updatePasswordField('currentPassword', event.target.value)}
-                type="password"
-                value={passwordForm.currentPassword}
-              />
-              <FieldError id="profile-current-password-error" message={passwordErrors.currentPassword} />
-            </label>
-
-            <label className={fieldClass(passwordErrors.newPassword)} htmlFor="profile-new-password">
-              <span>{t('profileNewPassword')}</span>
-              <input
-                autoComplete="new-password"
-                id="profile-new-password"
-                onChange={(event) => updatePasswordField('newPassword', event.target.value)}
-                type="password"
-                value={passwordForm.newPassword}
-              />
-              <FieldError id="profile-new-password-error" message={passwordErrors.newPassword} />
-            </label>
-
-            <label className={fieldClass(passwordErrors.confirmPassword)} htmlFor="profile-confirm-password">
-              <span>{t('profileConfirmPassword')}</span>
-              <input
-                autoComplete="new-password"
-                id="profile-confirm-password"
-                onChange={(event) => updatePasswordField('confirmPassword', event.target.value)}
-                type="password"
-                value={passwordForm.confirmPassword}
-              />
-              <FieldError id="profile-confirm-password-error" message={passwordErrors.confirmPassword} />
-            </label>
-          </div>
-
-          <div className="client-form-actions">
-            <button disabled={passwordMutation.isPending} type="submit">
-              <Save aria-hidden="true" />
-              {passwordMutation.isPending ? t('loading') : t('changePassword')}
-            </button>
-          </div>
-        </form>
-      </div>
-    </section>
+          </form>
+        </SettingsPanel>
+      ) : null}
+    </>
   );
 }
