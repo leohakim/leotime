@@ -38,20 +38,14 @@ test.describe('authenticated shell', () => {
     await expect(page.locator('.surface-feedback-loading, .dashboard-top-grid').first()).toBeVisible();
   });
 
-  test('profile settings exposes section jump navigation', async ({ page }, testInfo) => {
+  test('profile settings exposes section workbench navigation', async ({ page }) => {
     await openAuthenticatedRoute(page, 'profile');
 
     const sectionNav = page.locator('.settings-section-nav');
-    await expect(sectionNav).toBeAttached();
-
-    if (testInfo.project.name === 'desktop-1440') {
-      await expect(sectionNav).toBeHidden();
-      return;
-    }
-
     await expect(sectionNav).toBeVisible();
-    await expect(sectionNav.getByRole('button', { name: 'Seguridad', exact: true })).toBeVisible();
-    await expect(sectionNav.getByRole('button', { name: 'Copias de seguridad S3', exact: true })).toBeVisible();
+    await expect(sectionNav.getByRole('tab', { name: 'Seguridad', exact: true })).toBeVisible();
+    await expect(sectionNav.getByRole('tab', { name: 'Copias de seguridad S3', exact: true })).toBeVisible();
+    await expect(sectionNav.getByRole('tab', { name: 'Cuenta', exact: true })).toHaveAttribute('aria-selected', 'true');
   });
 
   test('toolbar controls meet touch target size on narrow viewports', async ({ page }, testInfo) => {

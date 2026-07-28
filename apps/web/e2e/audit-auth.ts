@@ -39,9 +39,17 @@ const visualRegressionFontCss = `
   font-display: block;
   src: url('/visual-regression/fonts/inter-latin-700-normal.woff2') format('woff2');
 }
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url('/visual-regression/fonts/inter-latin-400-normal.woff2') format('woff2');
+}
 html, body, *, *::before, *::after {
-  font-family: Inter, sans-serif !important;
+  font-family: Inter, 'Inter Variable', sans-serif !important;
   font-synthesis: none !important;
+  font-variation-settings: normal !important;
 }
 `;
 
